@@ -1,0 +1,27 @@
+# Django 后端依赖
+Django==4.2.*  # 【关键修改】改为最新的4.2 LTS稳定版系列
+djangorestframework==3.16.1
+django-cors-headers==4.2.0
+djangorestframework-simplejwt==5.5.1  # 确认兼容Django 4.2
+psycopg-binary==3.2.10; sys_platform == 'win32'  # PostgreSQL 数据库 (Windows)
+PyYAML==6.0.1
+python-dotenv==1.0.0
+
+# Swagger 文档
+drf-yasg==1.21.7
+
+# 前端 PySide6 依赖
+PySide6==6.10.1
+requests==2.32.5
+
+# 工具类
+python-dateutil==2.9.0
+openpyxl==3.1.4  # Excel 文件处理
+pypdf==6.4.0  # 【建议修改】使用 PyPDF2 的继任者，或保留 PyPDF2>=3.0.0
+
+# 开发依赖
+ipython==8.26.0
+pytest==8.3.2
+pytest-django==4.8.0  # 确认兼容 Django 4.2
+flake8==7.1.0
+black==24.8.0  # 格式化工具，锁定版本很重要
