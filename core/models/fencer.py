@@ -97,3 +97,61 @@ class Fencer:
     def update_rating(self, points: int) -> None:
         """更新运动员积分（正数为加分，负数为减分）。"""
         self.rating += points
+
+    # 在 Fencer 类定义内部添加
+    def to_core(self) -> 'core.models.Fencer':
+        """将 Django 模型实例转换为核心业务对象。"""
+        from core.models import Fencer as CoreFencer
+        from datetime import date
+
+        return CoreFencer(
+            id=self.id,
+            first_name=self.first_name,
+            last_name=self.last_name,
+            country=self.country,
+            region=self.region,
+            club=self.club,
+            date_of_birth=self.date_of_birth,
+            gender=self.gender if self.gender != 'N' else None,
+            weapon=self.weapon if self.weapon else None,
+            rating=self.rating,
+            seed=self.seed,
+            status=self.status,
+            # 注意：无法在此直接传递 _django_instance，会造成循环导入
+        )
+
+    @classmethod
+    def from_core(cls, core_fencer: 'core.models.Fencer', save=False):
+        """从核心业务对象创建或更新 Django 模型实例。"""
+        # 如果核心对象有ID，尝试查找现有记录
+        if core_fencer.id is not None:
+            instance = cls.objects.filter(id=core_fencer.id).first()
+        else:
+            instance = None
+
+        # 如果找不到，创建新实例
+        if instance is None:
+            instance = cls()
+            if core_fencer.id is not None:
+                instance.id = core_fencer.id  # 注意：直接设置ID需谨慎
+
+        # 更新字段
+        instance.first_name = core_fencer.first_name
+        instance.last_name = core_fencer.last_name
+        instance.country = core_fencer.country
+        instance.region = core_fencer.region
+        instance.club = core_fencer.club
+        instance.date_of_birth = core_fencer.date_of_birth
+        instance.gender = core_fencer.gender if core_fencer.gender else 'N'
+        instance.weapon = core_fencer.weapon if core_fencer.weapon else ''
+        instance.rating = core_fencer.rating
+        instance.seed = core_fencer.seed
+        instance.status = core_fencer.status
+
+        # 保存（如果要求）
+        if save:
+            instance.save()
+            # 保存后，将生成的ID同步回核心对象
+            core_fencer.id = instance.id
+
+        return instance
