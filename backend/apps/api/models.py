@@ -285,12 +285,12 @@ class CompetitionRules(models.Model):
         # 将字符串转换为 core 层的 Enum
         weapon_enum = CoreWeaponType(self.weapon_type)
 
+        # 创建core对象 - 注意：不传递 id 参数
         return CoreRules(
-            id=self.id,
             name=self.name,
             weapon_type=weapon_enum,
             is_default=self.is_default,
-            config=self.config  # JSONField 直接返回字典，与core层兼容
+            config=self.config  # JSONField 直接返回字典
         )
 
     @classmethod
@@ -503,25 +503,57 @@ class CompetitionItem(models.Model):
 
     # ========== 与core模型的转换方法 ==========
     def to_core(self) -> 'core.models.competition.CompetitionItem':
-        """转换为核心业务对象"""
+        """转换为核心业务对象时，正确传递状态枚举"""
         from core.models.competition import CompetitionItem as CoreItem
         from core.models.enums import WeaponType, GenderCategory, AgeGroup
+        from core.models.competition import CompetitionStatus as CoreStatus
 
-        # 转换Enum字段
+        # 转换所有Enum字段
         weapon_enum = WeaponType(self.weapon_type)
         gender_enum = GenderCategory(self.gender_category)
         age_enum = AgeGroup(self.age_group)
+        status_enum = CoreStatus(self.status)  # 字符串 → 核心层枚举
 
         return CoreItem(
-            id=self.id,
             name=self.name,
             weapon_type=weapon_enum,
             gender_category=gender_enum,
             age_group=age_enum,
-            rules=self.rules.to_core(),  # 调用关联规则的转换方法
+            rules=self.rules.to_core(),
+            status=status_enum,  # 传递枚举，而非字符串
             participant_ids=self.get_participant_ids(),
-            # team_ids=[]  # 未来扩展
         )
+
+    def change_status(self, new_status_value: str) -> tuple[bool, str]:
+        """
+        Django层的方法：变更状态。
+        委托给core对象执行业务逻辑，然后同步回数据库。
+        """
+        # 1. 转换为core对象
+        core_item = self.to_core()
+
+        # 2. 获取目标状态枚举
+        from core.models.competition import CompetitionStatus as CoreStatus
+        try:
+            new_status_enum = CoreStatus(new_status_value)
+        except ValueError:
+            return False, f"无效的状态值: {new_status_value}"
+
+        # 3. 调用核心层业务逻辑
+        success = core_item.change_status(new_status_enum)
+        if not success:
+            return False, "状态变更被业务规则拒绝"
+
+        # 4. 同步回Django模型
+        self.status = core_item.status.value  # 枚举 → 字符串
+        self.save(update_fields=['status'])
+        return True, "状态变更成功"
+
+    # 修改 can_add_participant 方法，也委托给core层
+    def can_add_participant(self, fencer: Fencer) -> tuple[bool, str]:
+        """Django层：检查是否可以添加选手"""
+        core_item = self.to_core()
+        return core_item.can_add_participant(fencer.id)
 
     @classmethod
     def from_core(cls, core_item, save=False):

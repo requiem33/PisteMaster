@@ -10,6 +10,14 @@ class TournamentStatus(Enum):
     COMPLETED = 'completed'         # 已结束
     CANCELLED = 'cancelled'         # 已取消
 
+class CompetitionStatus(Enum):
+    DRAFT = 'draft'      # 草稿
+    OPEN = 'open'        # 报名中
+    CLOSED = 'closed'    # 报名截止
+    ONGOING = 'ongoing'  # 进行中
+    COMPLETED = 'completed' # 已结束
+    CANCELLED = 'cancelled' # 已取消
+
 class EventType(Enum):
     """比赛类型"""
     INDIVIDUAL = 'individual'      # 个人赛
