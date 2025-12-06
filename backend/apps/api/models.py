@@ -318,3 +318,249 @@ class CompetitionRules(models.Model):
                 instance.save()
 
         return instance
+
+
+# backend/apps/api/models.py - 在 CompetitionRules 模型下方添加
+class CompetitionItem(models.Model):
+    """
+    比赛单项模型。
+    对应 core.models.competition.CompetitionItem。
+    例如：'男子花剑个人（成年组）'
+    """
+    # ========== 基础信息 ==========
+    name = models.CharField(
+        max_length=200,
+        verbose_name='单项名称',
+        help_text='例如：男子花剑个人（成年组）'
+    )
+
+    # 武器类型选择（复用 CompetitionRules 中的枚举，确保一致）
+    weapon_type = models.CharField(
+        max_length=10,
+        choices=CompetitionRules.WeaponType.choices,
+        verbose_name='武器类型'
+    )
+
+    # 性别分组
+    class GenderCategory(models.TextChoices):
+        MEN = 'men', '男子'
+        WOMEN = 'women', '女子'
+        MIXED = 'mixed', '混合'
+        OPEN = 'open', '公开组'
+
+    gender_category = models.CharField(
+        max_length=10,
+        choices=GenderCategory.choices,
+        verbose_name='性别分组'
+    )
+
+    # 年龄组别
+    class AgeGroup(models.TextChoices):
+        U14 = 'u14', 'U14'
+        U16 = 'u16', 'U16'
+        CADET = 'cadet', '青年组 (U18)'
+        JUNIOR = 'junior', '少年组 (U20)'
+        SENIOR = 'senior', '成年组'
+        VETERAN = 'veteran', '老将组'
+
+    age_group = models.CharField(
+        max_length=10,
+        choices=AgeGroup.choices,
+        verbose_name='年龄组别'
+    )
+
+    # ========== 核心关联 ==========
+    # 【关键关联1】每个单项必须使用一套规则
+    rules = models.ForeignKey(
+        CompetitionRules,
+        on_delete=models.PROTECT,  # 防止误删关联的规则
+        related_name='competition_items',
+        verbose_name='比赛规则'
+    )
+
+    # 【关键关联2】一个单项属于一个赛事单元 (TournamentEvent)
+    # 注意：我们先定义这个字段，TournamentEvent模型稍后创建
+    # event = models.ForeignKey(
+    #     'TournamentEvent',  # 使用字符串引用，避免循环导入
+    #     on_delete=models.CASCADE,
+    #     related_name='items',
+    #     verbose_name='所属赛事单元'
+    # )
+    # 先注释掉，创建TournamentEvent模型后再取消注释
+
+    # 【关键关联3】参赛选手（个人赛）
+    participants = models.ManyToManyField(
+        Fencer,
+        related_name='individual_competitions',
+        blank=True,
+        verbose_name='参赛选手',
+        help_text='个人赛的参赛选手'
+    )
+
+    # 【预留关联4】参赛队伍（团体赛）- 未来扩展
+    # teams = models.ManyToManyField(
+    #     'Team',  # 未来的Team模型
+    #     related_name='team_competitions',
+    #     blank=True,
+    #     verbose_name='参赛队伍'
+    # )
+
+    # ========== 状态与元数据 ==========
+    status = models.CharField(
+        max_length=20,
+        choices=[
+            ('draft', '草稿'),
+            ('open', '报名中'),
+            ('closed', '报名截止'),
+            ('ongoing', '进行中'),
+            ('completed', '已结束')
+        ],
+        default='draft',
+        verbose_name='单项状态'
+    )
+
+    max_participants = models.PositiveIntegerField(
+        blank=True,
+        null=True,
+        verbose_name='最大报名人数',
+        help_text='留空表示不限制'
+    )
+
+    current_participants = models.PositiveIntegerField(
+        default=0,
+        editable=False,  # 该字段由程序自动维护，不在后台直接修改
+        verbose_name='当前报名人数'
+    )
+
+    created_at = models.DateTimeField(auto_now_add=True, verbose_name='创建时间')
+    updated_at = models.DateTimeField(auto_now=True, verbose_name='更新时间')
+
+    class Meta:
+        verbose_name = '比赛单项'
+        verbose_name_plural = '比赛单项'
+        # 同一赛事单元下，单项名称应唯一
+        # unique_together = ['event', 'name']  # 待event字段启用后取消注释
+        ordering = ['weapon_type', 'gender_category', 'age_group']
+        indexes = [
+            models.Index(fields=['weapon_type', 'gender_category', 'status']),
+            # models.Index(fields=['event', 'status']),  # 待event字段启用后取消注释
+        ]
+
+    def __str__(self):
+        return f'{self.name} ({self.get_status_display()})'
+
+    # ========== 业务逻辑方法 ==========
+    @property
+    def is_individual(self) -> bool:
+        """判断是否为个人赛（目前版本均为个人赛）"""
+        return True  # 当前版本只支持个人赛
+
+    @property
+    def is_full(self) -> bool:
+        """检查报名是否已满"""
+        if self.max_participants is None:
+            return False
+        return self.current_participants >= self.max_participants
+
+    def can_add_participant(self, fencer: Fencer) -> tuple[bool, str]:
+        """
+        检查是否可以添加选手，返回(是否允许, 原因)。
+        集中业务规则验证逻辑。
+        """
+        if self.status != 'open':
+            return False, '当前不在报名期'
+        if self.is_full:
+            return False, '报名人数已满'
+        if self.participants.filter(id=fencer.id).exists():
+            return False, '选手已报名'
+        # 未来可添加更多规则：如年龄、性别、武器类型匹配等
+        return True, ''
+
+    def add_participant(self, fencer: Fencer) -> bool:
+        """添加选手到本单项（包含业务规则验证）"""
+        can_add, reason = self.can_add_participant(fencer)
+        if not can_add:
+            # 在实际应用中，可以记录日志或抛出特定异常
+            return False
+
+        self.participants.add(fencer)
+        self.current_participants = self.participants.count()
+        self.save(update_fields=['current_participants'])
+        return True
+
+    def remove_participant(self, fencer: Fencer) -> bool:
+        """从本单项移除选手"""
+        if self.participants.filter(id=fencer.id).exists():
+            self.participants.remove(fencer)
+            self.current_participants = self.participants.count()
+            self.save(update_fields=['current_participants'])
+            return True
+        return False
+
+    def get_participant_ids(self) -> list[int]:
+        """获取所有参赛选手ID列表（对应core层接口）"""
+        return list(self.participants.values_list('id', flat=True))
+
+    # ========== 与core模型的转换方法 ==========
+    def to_core(self) -> 'core.models.competition.CompetitionItem':
+        """转换为核心业务对象"""
+        from core.models.competition import CompetitionItem as CoreItem
+        from core.models.enums import WeaponType, GenderCategory, AgeGroup
+
+        # 转换Enum字段
+        weapon_enum = WeaponType(self.weapon_type)
+        gender_enum = GenderCategory(self.gender_category)
+        age_enum = AgeGroup(self.age_group)
+
+        return CoreItem(
+            id=self.id,
+            name=self.name,
+            weapon_type=weapon_enum,
+            gender_category=gender_enum,
+            age_group=age_enum,
+            rules=self.rules.to_core(),  # 调用关联规则的转换方法
+            participant_ids=self.get_participant_ids(),
+            # team_ids=[]  # 未来扩展
+        )
+
+    @classmethod
+    def from_core(cls, core_item, save=False):
+        """从核心业务对象创建或更新 Django 模型"""
+        # 注意：此方法需要 core_item.rules 已有对应的Django实例
+        # 查找或创建实例
+        instance, created = cls.objects.get_or_create(
+            id=core_item.id,
+            defaults={
+                'name': core_item.name,
+                'weapon_type': core_item.weapon_type.value,
+                'gender_category': core_item.gender_category.value,
+                'age_group': core_item.age_group.value,
+                'rules_id': core_item.rules.id if core_item.rules.id else None,
+                # 'event_id': ...  # 需要core_item提供event_id
+            }
+        )
+
+        if not created and save:
+            instance.name = core_item.name
+            # ... 更新其他字段
+            instance.save()
+
+        # 同步参赛选手（比较ID列表差异，增量更新）
+        if save:
+            current_ids = set(instance.get_participant_ids())
+            new_ids = set(core_item.participant_ids)
+
+            # 添加新的
+            to_add = new_ids - current_ids
+            if to_add:
+                instance.participants.add(*to_add)
+
+            # 移除旧的
+            to_remove = current_ids - new_ids
+            if to_remove:
+                instance.participants.remove(*to_add)
+
+            instance.current_participants = instance.participants.count()
+            instance.save(update_fields=['current_participants'])
+
+        return instance
