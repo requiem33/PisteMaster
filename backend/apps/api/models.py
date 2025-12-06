@@ -101,7 +101,6 @@ class Fencer(models.Model):
             age -= 1
         return age
 
-
     # 在 Fencer 类定义内部添加
     def to_core(self) -> 'core.models.Fencer':
         """将 Django 模型实例转换为核心业务对象。"""
@@ -157,5 +156,165 @@ class Fencer(models.Model):
             instance.save()
             # 保存后，将生成的ID同步回核心对象
             core_fencer.id = instance.id
+
+        return instance
+
+
+class CompetitionRules(models.Model):
+    """
+    比赛规则配置模型。
+    对应 core.models.competition.CompetitionRules 核心类。
+    """
+    # ========== 基础信息 ==========
+    name = models.CharField(
+        max_length=100,
+        verbose_name='规则名称',
+        help_text='例如：国际剑联标准规则、青少年特殊规则'
+    )
+
+    # 武器类型选择（映射 core.enums.WeaponType）
+    class WeaponType(models.TextChoices):
+        FOIL = 'foil', '花剑'
+        EPEE = 'epee', '重剑'
+        SABRE = 'sabre', '佩剑'
+
+    weapon_type = models.CharField(
+        max_length=10,
+        choices=WeaponType.choices,
+        verbose_name='适用武器'
+    )
+
+    is_default = models.BooleanField(
+        default=False,
+        verbose_name='是否为默认规则',
+        help_text='设为默认后，创建新比赛项目时会优先推荐此规则'
+    )
+
+    # ========== 规则配置存储方案 ==========
+    # 【方案一：推荐】使用 JSONField (Django 4.2+ 内置，强大灵活)
+    config = models.JSONField(
+        default=dict,  # 默认值为空字典
+        verbose_name='规则配置(JSON)',
+        help_text='存储规则的各项可配置参数'
+    )
+
+    # 【方案二：备用】使用 TextField 存储 JSON 字符串（兼容性更好）
+    # config_json = models.TextField(
+    #     default='{}',  # 默认空JSON对象
+    #     verbose_name='规则配置(JSON字符串)',
+    #     help_text='请勿直接修改，应通过程序读写'
+    # )
+    #
+    # @property
+    # def config(self):
+    #     """将 JSON 字符串转为 Python 字典"""
+    #     import json
+    #     try:
+    #         return json.loads(self.config_json)
+    #     except json.JSONDecodeError:
+    #         return {}
+    #
+    # @config.setter
+    # def config(self, value):
+    #     """将 Python 字典转为 JSON 字符串存储"""
+    #     import json
+    #     self.config_json = json.dumps(value, ensure_ascii=False)
+
+    # ========== 系统字段 ==========
+    created_at = models.DateTimeField(auto_now_add=True, verbose_name='创建时间')
+    updated_at = models.DateTimeField(auto_now=True, verbose_name='更新时间')
+    created_by = models.ForeignKey(
+        'auth.User',  # 关联 Django 内置用户模型
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        verbose_name='创建者'
+    )
+
+    class Meta:
+        verbose_name = '比赛规则'
+        verbose_name_plural = '比赛规则'
+        # 同一武器类型下规则名称应唯一
+        unique_together = ['weapon_type', 'name']
+        ordering = ['weapon_type', '-is_default', 'name']
+        indexes = [
+            models.Index(fields=['weapon_type', 'is_default']),
+        ]
+
+    def __str__(self):
+        default_flag = '（默认）' if self.is_default else ''
+        return f'{self.get_weapon_type_display()}{self.name}{default_flag}'
+
+    # ========== 业务逻辑方法 ==========
+    def get_pool_settings(self):
+        """便捷方法：获取小组赛设置"""
+        return {
+            'pool_size': self.config.get('pool_size', 7),
+            'promotion_count': self.config.get('promotion_count', 4)
+        }
+
+    def update_config(self, key, value):
+        """安全更新配置项"""
+        current_config = self.config.copy()
+        current_config[key] = value
+        self.config = current_config
+        # 注意：需要调用 save() 才会存入数据库
+
+    def validate_rule(self) -> bool:
+        """验证规则配置是否有效（示例）"""
+        required_keys = ['pool_size', 'required_hits']
+        return all(key in self.config for key in required_keys)
+
+    @classmethod
+    def get_default_for_weapon(cls, weapon_type: str):
+        """类方法：获取某武器的默认规则（对应core层方法）"""
+        try:
+            return cls.objects.filter(
+                weapon_type=weapon_type,
+                is_default=True
+            ).first()
+        except cls.DoesNotExist:
+            return None
+
+    # ========== 与core模型的转换方法 ==========
+    def to_core(self) -> 'core.models.competition.CompetitionRules':
+        """转换为核心业务对象"""
+        from core.models.competition import CompetitionRules as CoreRules
+        from core.models.enums import WeaponType as CoreWeaponType
+
+        # 将字符串转换为 core 层的 Enum
+        weapon_enum = CoreWeaponType(self.weapon_type)
+
+        return CoreRules(
+            id=self.id,
+            name=self.name,
+            weapon_type=weapon_enum,
+            is_default=self.is_default,
+            config=self.config  # JSONField 直接返回字典，与core层兼容
+        )
+
+    @classmethod
+    def from_core(cls, core_rules, save=False):
+        """从核心业务对象创建或更新 Django 模型"""
+        # 查找或创建实例
+        instance, created = cls.objects.get_or_create(
+            id=core_rules.id,
+            defaults={
+                'name': core_rules.name,
+                'weapon_type': core_rules.weapon_type.value,
+                'is_default': core_rules.is_default,
+                'config': core_rules.config
+            }
+        )
+
+        # 如果不是新建，则更新字段
+        if not created:
+            instance.name = core_rules.name
+            instance.weapon_type = core_rules.weapon_type.value
+            instance.is_default = core_rules.is_default
+            instance.config = core_rules.config
+
+            if save:
+                instance.save()
 
         return instance

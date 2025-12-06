@@ -1,7 +1,7 @@
 from django.contrib import admin
 
 # 正确地从 models.py 中导入之前定义的 Fencer Django模型
-from .models import Fencer
+from .models import Fencer, CompetitionRules
 
 # 方式一：使用装饰器进行注册（推荐，更简洁）
 @admin.register(Fencer)
@@ -12,3 +12,9 @@ class FencerAdmin(admin.ModelAdmin):
     list_filter = ('country', 'weapon', 'status')
     # 设置顶部搜索框可搜索的字段
     search_fields = ('last_name', 'first_name', 'club')
+
+@admin.register(CompetitionRules)
+class CompetitionRulesAdmin(admin.ModelAdmin):
+    list_display = ('name', 'weapon_type', 'is_default', 'created_at')
+    list_filter = ('weapon_type', 'is_default')
+    search_fields = ('name',)
