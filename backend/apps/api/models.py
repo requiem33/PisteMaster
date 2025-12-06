@@ -379,14 +379,14 @@ class CompetitionItem(models.Model):
     )
 
     # 【关键关联2】一个单项属于一个赛事单元 (TournamentEvent)
-    # 注意：我们先定义这个字段，TournamentEvent模型稍后创建
-    # event = models.ForeignKey(
-    #     'TournamentEvent',  # 使用字符串引用，避免循环导入
-    #     on_delete=models.CASCADE,
-    #     related_name='items',
-    #     verbose_name='所属赛事单元'
-    # )
-    # 先注释掉，创建TournamentEvent模型后再取消注释
+    event = models.ForeignKey(
+        'TournamentEvent',  # 【关键修改】使用字符串引用，而不是直接类名
+        on_delete=models.CASCADE,
+        related_name='items',
+        verbose_name='所属赛事单元',
+        null=True,  # 暂时允许为空
+        blank=True
+    )
 
     # 【关键关联3】参赛选手（个人赛）
     participants = models.ManyToManyField(
@@ -594,5 +594,367 @@ class CompetitionItem(models.Model):
 
             instance.current_participants = instance.participants.count()
             instance.save(update_fields=['current_participants'])
+
+        return instance
+
+
+# backend/apps/api/models.py - 在 CompetitionItem 模型下方添加
+class TournamentEvent(models.Model):
+    """
+    赛事单元模型。
+    对应 core.models.competition.TournamentEvent。
+    例如：'个人赛'、'团体赛'。
+    """
+    # ========== 基础信息 ==========
+    name = models.CharField(
+        max_length=100,
+        verbose_name='单元名称',
+        help_text='例如：个人赛、团体赛、U14组比赛'
+    )
+
+    # 事件类型
+    class EventType(models.TextChoices):
+        INDIVIDUAL = 'individual', '个人赛'
+        TEAM = 'team', '团体赛'
+
+    event_type = models.CharField(
+        max_length=20,
+        choices=EventType.choices,
+        verbose_name='赛事类型'
+    )
+
+    description = models.TextField(
+        blank=True,
+        verbose_name='单元描述',
+        help_text='可选的详细说明'
+    )
+
+    # ========== 核心关联 ==========
+    # 【关键关联1】一个赛事单元属于一个主赛事
+    tournament = models.ForeignKey(
+        'Tournament',  # 使用字符串引用，Tournament模型稍后创建
+        on_delete=models.CASCADE,
+        related_name='events',
+        verbose_name='所属主赛事'
+    )
+
+    # 【关键关联2】一个赛事单元包含多个比赛单项
+    # 通过 CompetitionItem 模型中的反向关联实现
+    # items = 反向关联，由 CompetitionItem.event 定义
+
+    # ========== 顺序与调度 ==========
+    order = models.PositiveIntegerField(
+        default=0,
+        verbose_name='显示顺序',
+        help_text='数字越小排序越靠前'
+    )
+
+    start_date = models.DateField(
+        blank=True,
+        null=True,
+        verbose_name='单元开始日期',
+        help_text='留空则使用主赛事的开始日期'
+    )
+
+    end_date = models.DateField(
+        blank=True,
+        null=True,
+        verbose_name='单元结束日期',
+        help_text='留空则使用主赛事的结束日期'
+    )
+
+    # ========== 状态与元数据 ==========
+    status = models.CharField(
+        max_length=20,
+        choices=[
+            ('draft', '草稿'),
+            ('published', '已发布'),
+            ('ongoing', '进行中'),
+            ('completed', '已结束'),
+            ('cancelled', '已取消')
+        ],
+        default='draft',
+        verbose_name='单元状态'
+    )
+
+    created_at = models.DateTimeField(auto_now_add=True, verbose_name='创建时间')
+    updated_at = models.DateTimeField(auto_now=True, verbose_name='更新时间')
+
+    class Meta:
+        verbose_name = '赛事单元'
+        verbose_name_plural = '赛事单元'
+        # 同一赛事下，单元名称应唯一（考虑到可能有多个'个人赛'但类型不同）
+        unique_together = ['tournament', 'name', 'event_type']
+        ordering = ['tournament', 'order', 'start_date']
+        indexes = [
+            models.Index(fields=['tournament', 'status']),
+            models.Index(fields=['start_date', 'end_date']),
+        ]
+
+    def __str__(self):
+        return f'{self.tournament.name} - {self.name}' if hasattr(self, 'tournament') else self.name
+
+    # ========== 便捷属性与方法 ==========
+    @property
+    def actual_start_date(self):
+        """获取实际开始日期（优先使用单元日期，否则用赛事日期）"""
+        return self.start_date or (self.tournament.start_date if self.tournament else None)
+
+    @property
+    def actual_end_date(self):
+        """获取实际结束日期"""
+        return self.end_date or (self.tournament.end_date if self.tournament else None)
+
+    @property
+    def duration_days(self):
+        """计算单元持续天数"""
+        start = self.actual_start_date
+        end = self.actual_end_date
+        if start and end:
+            return (end - start).days + 1
+        return 0
+
+    def get_items_by_status(self, status: str = None):
+        """获取本单元下的比赛单项（可筛选状态）"""
+        # 使用反向关联查询
+        items = self.items.all()  # 依赖于 CompetitionItem.event 的反向关联名称
+        if status:
+            items = items.filter(status=status)
+        return items
+
+    def get_participant_count(self) -> int:
+        """获取本单元所有单项的总参赛选手数（去重）"""
+        from django.db.models import Count
+        # 通过 CompetitionItem 的 participants 多对多关系统计
+        return self.items.aggregate(
+            total_participants=Count('participants', distinct=True)
+        )['total_participants'] or 0
+
+    # ========== 与core模型的转换方法 ==========
+    def to_core(self) -> 'core.models.competition.TournamentEvent':
+        """转换为核心业务对象"""
+        from core.models.competition import TournamentEvent as CoreEvent
+        from core.models.enums import EventType as CoreEventType
+
+        # 转换Enum字段
+        event_type_enum = CoreEventType(self.event_type)
+
+        # 获取关联的单项核心对象列表
+        core_items = [item.to_core() for item in self.items.all()]
+
+        return CoreEvent(
+            name=self.name,
+            type=event_type_enum,
+            items=core_items
+        )
+
+    @classmethod
+    def from_core(cls, core_event, tournament_id=None, save=False):
+        """
+        从核心业务对象创建或更新 Django 模型。
+        注意：需要 tournament_id 来关联主赛事。
+        """
+        # 查找或创建实例（需要唯一性约束字段）
+        # 注意：core_event 没有id，我们使用业务字段匹配
+        defaults = {
+            'event_type': core_event.type.value,
+            'description': '',
+            'tournament_id': tournament_id,  # 必须提供
+        }
+
+        instance, created = cls.objects.get_or_create(
+            tournament_id=tournament_id,
+            name=core_event.name,
+            event_type=core_event.type.value,
+            defaults=defaults
+        )
+
+        if not created:
+            # 更新基本信息
+            instance.description = defaults['description']
+            # 其他字段...
+
+        # 处理关联的单项
+        if save:
+            instance.save()
+            # 清空现有关联，重新建立（根据需求调整此策略）
+            instance.items.clear()
+            for core_item in core_event.items:
+                # 为每个core_item找到或创建对应的Django模型
+                # 注意：这里需要 CompetitionItem.from_core 能处理无event_id的情况
+                item_instance = CompetitionItem.from_core(core_item, save=False)
+                item_instance.event = instance
+                item_instance.save()
+
+        return instance
+
+
+# backend/apps/api/models.py - 在文件末尾添加
+class Tournament(models.Model):
+    """
+    主赛事模型。
+    对应 core.models.tournament.Tournament。
+    是整个赛事结构的根容器。
+    """
+    # ========== 基础信息 ==========
+    name = models.CharField(
+        max_length=200,
+        verbose_name='赛事名称',
+        help_text='例如：2025年全国击剑锦标赛'
+    )
+
+    # 使用与core层一致的枚举
+    class TournamentStatus(models.TextChoices):
+        DRAFT = 'draft', '草稿'
+        PUBLISHED = 'published', '已发布'
+        REGISTRATION_CLOSED = 'registration_closed', '报名截止'
+        ONGOING = 'ongoing', '进行中'
+        COMPLETED = 'completed', '已结束'
+        CANCELLED = 'cancelled', '已取消'
+
+    status = models.CharField(
+        max_length=30,
+        choices=TournamentStatus.choices,
+        default=TournamentStatus.DRAFT,
+        verbose_name='赛事状态'
+    )
+
+    start_date = models.DateField(verbose_name='开始日期')
+    end_date = models.DateField(
+        blank=True,
+        null=True,
+        verbose_name='结束日期',
+        help_text='留空则表示单日赛事'
+    )
+
+    location = models.CharField(
+        max_length=200,
+        blank=True,
+        verbose_name='举办地点'
+    )
+
+    description = models.TextField(blank=True, verbose_name='赛事描述')
+
+    # ========== 配置规则 ==========
+    default_weapon_type = models.CharField(
+        max_length=10,
+        choices=CompetitionRules.WeaponType.choices,  # 复用规则中的枚举
+        blank=True,
+        verbose_name='默认武器类型',
+        help_text='为赛事中的所有单项设置默认武器类型（可覆盖）'
+    )
+
+    # ========== 系统字段 ==========
+    created_at = models.DateTimeField(auto_now_add=True, verbose_name='创建时间')
+    updated_at = models.DateTimeField(auto_now=True, verbose_name='更新时间')
+    created_by = models.ForeignKey(
+        'auth.User',
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        verbose_name='创建者'
+    )
+
+    class Meta:
+        verbose_name = '主赛事'
+        verbose_name_plural = '主赛事'
+        ordering = ['-start_date', 'name']
+        indexes = [
+            models.Index(fields=['status', 'start_date']),
+            models.Index(fields=['location']),
+        ]
+
+    def __str__(self):
+        return f'{self.name} ({self.get_status_display()})'
+
+    # ========== 便捷属性和方法 ==========
+    @property
+    def duration_days(self) -> int:
+        """计算赛事持续天数"""
+        if not self.start_date:
+            return 0
+        end = self.end_date or self.start_date
+        return (end - self.start_date).days + 1
+
+    @property
+    def event_count(self) -> int:
+        """获取包含的赛事单元数量"""
+        return self.events.count()  # 使用 TournamentEvent.tournament 的反向关联
+
+    @property
+    def competition_item_count(self) -> int:
+        """获取所有比赛单项的总数"""
+        from django.db.models import Count
+        return self.events.aggregate(
+            total_items=Count('items', distinct=True)  # 通过 TournamentEvent.items 反向关联
+        )['total_items'] or 0
+
+    @property
+    def participant_count(self) -> int:
+        """获取所有参赛选手总数（去重）"""
+        # 通过 TournamentEvent → CompetitionItem → participants 多级关联查询
+        from django.db.models import Count
+        return self.events.aggregate(
+            total_participants=Count('items__participants', distinct=True)
+        )['total_participants'] or 0
+
+    def get_events_by_type(self, event_type: str):
+        """按类型筛选赛事单元"""
+        return self.events.filter(event_type=event_type)
+
+    def publish(self) -> bool:
+        """发布赛事（状态变更为已发布）"""
+        if self.status == self.TournamentStatus.DRAFT:
+            self.status = self.TournamentStatus.PUBLISHED
+            self.save(update_fields=['status'])
+            return True
+        return False
+
+    # ========== 与core模型的转换方法 ==========
+    def to_core(self) -> 'core.models.tournament.Tournament':
+        """转换为核心业务对象"""
+        from core.models.tournament import Tournament as CoreTournament
+        from core.models.enums import TournamentStatus as CoreStatus
+
+        # 转换状态枚举
+        status_enum = CoreStatus(self.status)
+
+        # 获取关联的单元核心对象列表
+        core_events = [event.to_core() for event in self.events.all()]
+
+        return CoreTournament(
+            name=self.name,
+            start_date=self.start_date,
+            end_date=self.end_date,
+            location=self.location,
+            status=status_enum,
+            events=core_events
+        )
+
+    @classmethod
+    def from_core(cls, core_tournament, save=False):
+        """从核心业务对象创建或更新 Django 模型"""
+        # 查找或创建实例
+        instance, created = cls.objects.get_or_create(
+            name=core_tournament.name,
+            start_date=core_tournament.start_date,
+            defaults={
+                'end_date': core_tournament.end_date,
+                'location': core_tournament.location,
+                'status': core_tournament.status.value,
+            }
+        )
+
+        if not created and save:
+            instance.end_date = core_tournament.end_date
+            instance.location = core_tournament.location
+            instance.status = core_tournament.status.value
+            instance.save()
+
+        # 处理关联的赛事单元
+        if save and core_tournament.events:
+            # 注意：这里需要 TournamentEvent.from_core 方法支持
+            for core_event in core_tournament.events:
+                TournamentEvent.from_core(core_event, tournament_id=instance.id, save=True)
 
         return instance
