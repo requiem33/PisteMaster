@@ -3,6 +3,7 @@ Django==4.2.*  # 【关键修改】改为最新的4.2 LTS稳定版系列
 djangorestframework==3.16.1
 django-cors-headers==4.2.0
 djangorestframework-simplejwt==5.5.1  # 确认兼容Django 4.2
+django_filter==22.1
 psycopg-binary==3.2.10; sys_platform == 'win32'  # PostgreSQL 数据库 (Windows)
 PyYAML==6.0.1
 python-dotenv==1.0.0
