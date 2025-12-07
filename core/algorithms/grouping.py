@@ -84,3 +84,93 @@ class GroupingAlgorithm:
             "participants_per_pool": [len(pool) for pool in pools],
             "seed_placement": seed_placement
         }
+
+    class GroupingAlgorithm:
+        """分组算法"""
+
+        @staticmethod
+        def group_fencers_by_seed(fencer_ids: List[int], group_size: int = 7) -> List[List[int]]:
+            """
+            按种子顺序将选手分组（蛇形分组法）
+
+            参数:
+                fencer_ids: 选手ID列表（按种子顺序排列）
+                group_size: 每组的目标大小
+
+            返回:
+                分组后的选手ID列表
+            """
+            if not fencer_ids:
+                return []
+
+            # 计算需要的组数
+            total_fencers = len(fencer_ids)
+            num_groups = (total_fencers + group_size - 1) // group_size  # 向上取整
+
+            # 初始化分组
+            groups = [[] for _ in range(num_groups)]
+
+            # 蛇形分组：1→n, n→1, 1→n, ...
+            for i, fencer_id in enumerate(fencer_ids):
+                group_index = i % num_groups
+                if (i // num_groups) % 2 == 1:  # 反向填充
+                    group_index = num_groups - 1 - group_index
+                groups[group_index].append(fencer_id)
+
+            return groups
+
+        @staticmethod
+        def group_fencers_randomly(fencer_ids: List[int], group_size: int = 7) -> List[List[int]]:
+            """
+            随机分组
+
+            参数:
+                fencer_ids: 选手ID列表
+                group_size: 每组的目标大小
+
+            返回:
+                随机分组后的选手ID列表
+            """
+            if not fencer_ids:
+                return []
+
+            # 复制并随机排序
+            shuffled = fencer_ids.copy()
+            random.shuffle(shuffled)
+
+            # 计算需要的组数
+            total_fencers = len(shuffled)
+            num_groups = (total_fencers + group_size - 1) // group_size
+
+            # 均匀分组
+            groups = []
+            for i in range(num_groups):
+                start = i * group_size
+                end = min((i + 1) * group_size, total_fencers)
+                groups.append(shuffled[start:end])
+
+            return groups
+
+        @staticmethod
+        def balance_groups_by_seed(groups: List[List[int]]) -> List[List[int]]:
+            """
+            根据种子排位平衡各组实力
+
+            参数:
+                groups: 初始分组
+
+            返回:
+                平衡后的分组
+            """
+            if not groups:
+                return []
+
+            # 计算每组的总种子分（假设种子数字越小实力越强）
+            def calculate_group_strength(group):
+                # 简单示例：使用种子值的和
+                return sum(range(1, len(group) + 1))  # 临时实现
+
+            # 这里可以添加平衡逻辑
+            # 例如：交换选手以使各组实力更均衡
+
+            return groups
