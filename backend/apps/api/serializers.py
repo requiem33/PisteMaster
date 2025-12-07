@@ -1,6 +1,9 @@
 # backend/apps/api/serializers.py
 from rest_framework import serializers
-from .models import Fencer
+from .models import Fencer, CompetitionItem, Match
+from rest_framework.decorators import action
+from rest_framework.response import Response
+from rest_framework import status
 
 
 class FencerSerializer(serializers.ModelSerializer):
@@ -109,3 +112,89 @@ class FencerSerializer(serializers.ModelSerializer):
         updated_instance = super().update(instance, validated_data)
         # 你可以在这里添加额外操作
         return updated_instance
+
+
+class CompetitionItemSerializer(serializers.ModelSerializer):
+    """比赛单项序列化器 - 基础版本"""
+
+    # 只读字段
+    rules_name = serializers.CharField(source='rules.name', read_only=True)
+    participant_count = serializers.IntegerField(source='current_participants', read_only=True)
+
+    class Meta:
+        model = CompetitionItem
+        fields = [
+            'id',
+            'name',
+            'weapon_type',
+            'gender_category',
+            'age_group',
+            'status',
+            'rules',
+            'rules_name',
+            'max_participants',
+            'participant_count',
+            'created_at',
+            'updated_at'
+        ]
+        read_only_fields = ('id', 'created_at', 'updated_at', 'participant_count')
+
+
+class MatchSerializer(serializers.ModelSerializer):
+    """比赛对阵序列化器 - 基础版本"""
+
+    # 嵌套字段
+    fencer_a_info = serializers.SerializerMethodField()
+    fencer_b_info = serializers.SerializerMethodField()
+    competition_item_name = serializers.CharField(
+        source='competition_item.name',
+        read_only=True
+    )
+
+    class Meta:
+        model = Match
+        fields = [
+            'id',
+            'competition_item',
+            'competition_item_name',
+            'match_type',
+            'status',
+            'fencer_a',
+            'fencer_b',
+            'fencer_a_info',
+            'fencer_b_info',
+            'score_a',
+            'score_b',
+            'pool_number',
+            'pool_round',
+            'bracket_position',
+            'round_number',
+            'is_bronze_match',
+            'scheduled_time',
+            'piste_number',
+            'started_at',
+            'ended_at',
+            'created_at',
+            'updated_at'
+        ]
+        read_only_fields = ('id', 'created_at', 'updated_at')
+
+    def get_fencer_a_info(self, obj):
+        """获取选手A的详细信息"""
+        if not obj.fencer_a:
+            return {"id": -1, "name": "轮空"}
+        return {
+            "id": obj.fencer_a.id,
+            "name": obj.fencer_a.full_name,
+            "country": obj.fencer_a.country
+        }
+
+    def get_fencer_b_info(self, obj):
+        """获取选手B的详细信息"""
+        if not obj.fencer_b:
+            return {"id": -1, "name": "轮空"}
+        return {
+            "id": obj.fencer_b.id,
+            "name": obj.fencer_b.full_name,
+            "country": obj.fencer_b.country
+        }

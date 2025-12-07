@@ -6,6 +6,8 @@ from . import views
 # 创建路由器并注册视图集
 router = DefaultRouter()
 router.register(r'fencers', views.FencerViewSet, basename='fencer')
+router.register(r'competition-items', views.CompetitionItemViewSet, basename='competition-item')
+router.register(r'matches', views.MatchViewSet, basename='match')
 
 urlpatterns = [
     # API 根路径，会列出所有已注册的API端点
