@@ -1,7 +1,7 @@
-# core/models/tests/test_fencer.py
+# core/models/unit/test_fencer.py
 import unittest
 from datetime import date
-from ..fencer import Fencer  # 导入核心类
+from core.models.fencer import Fencer  # 导入核心类
 
 
 class TestFencer(unittest.TestCase):
