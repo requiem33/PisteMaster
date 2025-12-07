@@ -2,6 +2,7 @@
 from dataclasses import dataclass, field
 from typing import Dict, Any, Optional, ClassVar, List
 from .enums import WeaponType, GenderCategory, AgeGroup, EventType, CompetitionStatus
+from .stage import CompetitionStage, StageStatus
 
 
 @dataclass
@@ -59,6 +60,7 @@ class CompetitionItem:
     team_ids: List[int] = field(default_factory=list)  # 团体赛：队伍ID
 
     status: CompetitionStatus = CompetitionStatus.DRAFT
+    stages: List[CompetitionStage] = field(default_factory=list)
 
     @property
     def is_individual(self) -> bool:
@@ -132,6 +134,18 @@ class CompetitionItem:
 
         # 其他业务规则（如人数限制等）
         return True, ''
+
+    def add_stage(self, stage: CompetitionStage):
+        """添加比赛阶段"""
+        stage.competition_item_id = self.id
+        self.stages.append(stage)
+
+    def get_current_stage(self) -> Optional[CompetitionStage]:
+        """获取当前进行中的阶段"""
+        for stage in self.stages:
+            if stage.status == StageStatus.ONGOING:
+                return stage
+        return None
 
 
 @dataclass
