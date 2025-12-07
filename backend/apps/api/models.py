@@ -958,3 +958,333 @@ class Tournament(models.Model):
                 TournamentEvent.from_core(core_event, tournament_id=instance.id, save=True)
 
         return instance
+
+
+# backend/apps/api/models.py - 在 Tournament 类定义后添加
+
+class Match(models.Model):
+    """
+    比赛对阵模型 - 最小可行版本
+    对应 core.models.match.BaseMatch 及其子类
+    """
+    # ========== 基础字段 ==========
+    # 对阵双方（允许为空，用于轮空情况）
+    fencer_a = models.ForeignKey(
+        Fencer,
+        on_delete=models.CASCADE,
+        related_name='matches_as_a',
+        verbose_name='选手A',
+        null=True,  # 允许为空（轮空）
+        blank=True
+    )
+
+    fencer_b = models.ForeignKey(
+        Fencer,
+        on_delete=models.CASCADE,
+        related_name='matches_as_b',
+        verbose_name='选手B',
+        null=True,  # 允许为空（轮空）
+        blank=True
+    )
+
+    # 所属比赛单项
+    competition_item = models.ForeignKey(
+        CompetitionItem,
+        on_delete=models.CASCADE,
+        related_name='matches',
+        verbose_name='所属比赛单项'
+    )
+
+    # ========== 比赛类型 ==========
+    class MatchType(models.TextChoices):
+        POOL = 'pool', '小组赛'
+        DIRECT_ELIMINATION = 'direct_elimination', '淘汰赛'
+        FINAL = 'final', '决赛'
+
+    match_type = models.CharField(
+        max_length=20,
+        choices=MatchType.choices,
+        default=MatchType.POOL,
+        verbose_name='比赛类型'
+    )
+
+    # ========== 小组赛特有字段 ==========
+    pool_number = models.PositiveIntegerField(
+        default=1,
+        verbose_name='小组编号'
+    )
+
+    pool_round = models.PositiveIntegerField(
+        default=1,
+        verbose_name='小组赛轮次'
+    )
+
+    # ========== 淘汰赛特有字段 ==========
+    bracket_position = models.CharField(
+        max_length=50,
+        blank=True,
+        verbose_name='淘汰赛位置'
+    )
+
+    round_number = models.PositiveIntegerField(
+        default=1,
+        verbose_name='淘汰赛轮次'
+    )
+
+    next_match = models.ForeignKey(
+        'self',  # 自引用
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='previous_matches',
+        verbose_name='下一场比赛'
+    )
+
+    is_bronze_match = models.BooleanField(
+        default=False,
+        verbose_name='是否为铜牌赛'
+    )
+
+    # ========== 比赛状态 ==========
+    class MatchStatus(models.TextChoices):
+        SCHEDULED = 'scheduled', '已安排'
+        ONGOING = 'ongoing', '进行中'
+        COMPLETED = 'completed', '已结束'
+        WALKOVER = 'walkover', '弃权'
+        CANCELLED = 'cancelled', '取消'
+
+    status = models.CharField(
+        max_length=20,
+        choices=MatchStatus.choices,
+        default=MatchStatus.SCHEDULED,
+        verbose_name='比赛状态'
+    )
+
+    # ========== 比分 ==========
+    score_a = models.PositiveIntegerField(
+        default=0,
+        verbose_name='选手A得分'
+    )
+
+    score_b = models.PositiveIntegerField(
+        default=0,
+        verbose_name='选手B得分'
+    )
+
+    # ========== 时间与场地 ==========
+    scheduled_time = models.DateTimeField(
+        blank=True,
+        null=True,
+        verbose_name='计划时间'
+    )
+
+    piste_number = models.PositiveIntegerField(
+        blank=True,
+        null=True,
+        verbose_name='剑道号'
+    )
+
+    # ========== 时间记录 ==========
+    started_at = models.DateTimeField(
+        blank=True,
+        null=True,
+        verbose_name='实际开始时间'
+    )
+
+    ended_at = models.DateTimeField(
+        blank=True,
+        null=True,
+        verbose_name='实际结束时间'
+    )
+
+    # ========== 系统字段 ==========
+    created_at = models.DateTimeField(auto_now_add=True, verbose_name='创建时间')
+    updated_at = models.DateTimeField(auto_now=True, verbose_name='更新时间')
+
+    class Meta:
+        verbose_name = '比赛对阵'
+        verbose_name_plural = '比赛对阵'
+        ordering = ['scheduled_time', 'piste_number']
+        indexes = [
+            models.Index(fields=['competition_item', 'match_type', 'status']),
+            models.Index(fields=['scheduled_time', 'piste_number']),
+        ]
+
+    def __str__(self):
+        # 处理轮空情况
+        fencer_a_name = "轮空" if not self.fencer_a else self.fencer_a.full_name
+        fencer_b_name = "轮空" if not self.fencer_b else self.fencer_b.full_name
+
+        if self.match_type == self.MatchType.POOL:
+            type_info = f"小组{self.pool_number}"
+        elif self.match_type == self.MatchType.DIRECT_ELIMINATION:
+            type_info = f"淘汰赛第{self.round_number}轮"
+        else:
+            type_info = self.get_match_type_display()
+
+        return f"{type_info}: {fencer_a_name} vs {fencer_b_name}"
+
+    # ========== 业务属性 ==========
+    @property
+    def fencer_a_id(self) -> int:
+        """获取选手A的ID（兼容core层接口）"""
+        if self.fencer_a:
+            return self.fencer_a.id
+        return -1  # 轮空返回 -1
+
+    @property
+    def fencer_b_id(self) -> int:
+        """获取选手B的ID（兼容core层接口）"""
+        if self.fencer_b:
+            return self.fencer_b.id
+        return -1  # 轮空返回 -1
+
+    @property
+    def winner(self):
+        """获取胜者（如果有）"""
+        if self.status != self.MatchStatus.COMPLETED:
+            return None
+
+        if self.score_a > self.score_b:
+            return self.fencer_a
+        elif self.score_b > self.score_a:
+            return self.fencer_b
+        return None
+
+    @property
+    def is_bye_match(self) -> bool:
+        """是否为轮空比赛"""
+        return not self.fencer_a or not self.fencer_b
+
+    # ========== 与core模型的转换方法 ==========
+    def to_core(self):
+        """转换为核心业务对象 - 简化版本"""
+        from core.models.match import (
+            PoolMatch, DirectEliminationMatch,
+            MatchStatus as CoreMatchStatus
+        )
+
+        # 确定核心对象类型
+        if self.match_type == self.MatchType.POOL:
+            CoreClass = PoolMatch
+        elif self.match_type == self.MatchType.DIRECT_ELIMINATION:
+            CoreClass = DirectEliminationMatch
+        else:
+            from core.models.match import BaseMatch
+            CoreClass = BaseMatch
+
+        # 转换状态枚举
+        status_map = {
+            'scheduled': CoreMatchStatus.SCHEDULED,
+            'ongoing': CoreMatchStatus.ONGOING,
+            'completed': CoreMatchStatus.COMPLETED,
+            'walkover': CoreMatchStatus.WALKOVER,
+            'cancelled': CoreMatchStatus.CANCELLED,
+        }
+
+        core_status = status_map.get(self.status, CoreMatchStatus.SCHEDULED)
+
+        # 创建核心对象
+        core_match = CoreClass(
+            fencer_a_id=self.fencer_a_id,
+            fencer_b_id=self.fencer_b_id,
+            stage_id=self.competition_item_id,
+            scheduled_time=self.scheduled_time,
+            piste_number=self.piste_number,
+            status=core_status,
+            score_a=self.score_a,
+            score_b=self.score_b,
+            id=self.id,
+            started_at=self.started_at,
+            ended_at=self.ended_at
+        )
+
+        # 设置特定类型的字段
+        if isinstance(core_match, PoolMatch):
+            core_match.pool_round = self.pool_round
+        elif isinstance(core_match, DirectEliminationMatch):
+            core_match.bracket_position = self.bracket_position
+            core_match.round_number = self.round_number
+            core_match.next_match_id = self.next_match.id if self.next_match else None
+            core_match.is_bronze_match = self.is_bronze_match
+
+        return core_match
+
+    @classmethod
+    def from_core(cls, core_match, competition_item=None, save=False):
+        """从核心业务对象创建或更新 Django 模型 - 简化版本"""
+        from core.models.match import PoolMatch, DirectEliminationMatch
+
+        # 确定比赛类型
+        if isinstance(core_match, PoolMatch):
+            match_type = cls.MatchType.POOL
+        elif isinstance(core_match, DirectEliminationMatch):
+            match_type = cls.MatchType.DIRECT_ELIMINATION
+        else:
+            match_type = cls.MatchType.POOL
+
+        # 查找或创建实例
+        defaults = {
+            'match_type': match_type,
+            'status': core_match.status.value,
+            'score_a': core_match.score_a,
+            'score_b': core_match.score_b,
+            'scheduled_time': core_match.scheduled_time,
+            'piste_number': core_match.piste_number,
+            'started_at': core_match.started_at,
+            'ended_at': core_match.ended_at,
+        }
+
+        # 特殊字段处理
+        if isinstance(core_match, PoolMatch):
+            defaults.update({
+                'pool_round': getattr(core_match, 'pool_round', 1),
+            })
+        elif isinstance(core_match, DirectEliminationMatch):
+            defaults.update({
+                'bracket_position': getattr(core_match, 'bracket_position', ''),
+                'round_number': getattr(core_match, 'round_number', 1),
+                'is_bronze_match': getattr(core_match, 'is_bronze_match', False),
+            })
+
+        # 查找现有记录或创建新记录
+        if core_match.id:
+            try:
+                instance = cls.objects.get(id=core_match.id)
+                created = False
+            except cls.DoesNotExist:
+                instance = cls(id=core_match.id)
+                created = True
+        else:
+            instance = cls()
+            created = True
+
+        # 更新字段
+        for key, value in defaults.items():
+            setattr(instance, key, value)
+
+        # 设置关联
+        if competition_item:
+            instance.competition_item = competition_item
+
+        # 设置选手
+        if core_match.fencer_a_id != -1:
+            try:
+                instance.fencer_a = Fencer.objects.get(id=core_match.fencer_a_id)
+            except Fencer.DoesNotExist:
+                instance.fencer_a = None
+        else:
+            instance.fencer_a = None
+
+        if core_match.fencer_b_id != -1:
+            try:
+                instance.fencer_b = Fencer.objects.get(id=core_match.fencer_b_id)
+            except Fencer.DoesNotExist:
+                instance.fencer_b = None
+        else:
+            instance.fencer_b = None
+
+        if save:
+            instance.save()
+
+        return instance
