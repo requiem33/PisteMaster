@@ -18,7 +18,6 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 TRUE_BASE_DIR = Path(__file__).resolve().parent.parent.parent
 sys.path.insert(0, str(TRUE_BASE_DIR))
 
-
 # Quick-start development settings - unsuitable for production
 # See https://docs.djangoproject.com/en/4.2/howto/deployment/checklist/
 
@@ -35,7 +34,6 @@ ALLOWED_HOSTS = [
     # 如果有其他域名也加上
 ]
 
-
 # Application definition
 
 INSTALLED_APPS = [
@@ -46,7 +44,7 @@ INSTALLED_APPS = [
     "django.contrib.messages",
     "django.contrib.staticfiles",
     "backend.apps.api.apps.ApiConfig",
-    #"backend.apps.web.apps.WebConfig",
+    # "backend.apps.web.apps.WebConfig",
     "rest_framework",
     "django_filters",
 ]
@@ -81,7 +79,6 @@ TEMPLATES = [
 
 WSGI_APPLICATION = "PisteMaster.wsgi.application"
 
-
 # Database
 # https://docs.djangoproject.com/en/4.2/ref/settings/#databases
 
@@ -91,7 +88,6 @@ DATABASES = {
         "NAME": BASE_DIR / "db.sqlite3",
     }
 }
-
 
 # Password validation
 # https://docs.djangoproject.com/en/4.2/ref/settings/#auth-password-validators
@@ -111,7 +107,6 @@ AUTH_PASSWORD_VALIDATORS = [
     },
 ]
 
-
 # Internationalization
 # https://docs.djangoproject.com/en/4.2/topics/i18n/
 
@@ -122,7 +117,6 @@ TIME_ZONE = "UTC"
 USE_I18N = True
 
 USE_TZ = True
-
 
 # Static files (CSS, JavaScript, Images)
 # https://docs.djangoproject.com/en/4.2/howto/static-files/

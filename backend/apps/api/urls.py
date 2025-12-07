@@ -2,7 +2,7 @@
 from django.urls import path, include
 from rest_framework.routers import DefaultRouter
 from . import views
-from .views.match_generation_views import (
+from .my_views.match_generation_views import (
     GenerateMatchesAPI,
     ClearMatchesAPI,
     RegenerateMatchesAPI

@@ -1,4 +1,4 @@
-# backend/apps/api/views/match_generation_views.py
+# backend/apps/api/api_views/match_generation_views.py
 """
 比赛生成API视图
 """
