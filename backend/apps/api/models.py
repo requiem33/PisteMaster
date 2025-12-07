@@ -1173,7 +1173,7 @@ class Match(models.Model):
             from core.models.match import BaseMatch
             CoreClass = BaseMatch
 
-        # 转换状态枚举
+        # 转换状态枚举 - 修复这里
         status_map = {
             'scheduled': CoreMatchStatus.SCHEDULED,
             'ongoing': CoreMatchStatus.ONGOING,
@@ -1182,7 +1182,9 @@ class Match(models.Model):
             'cancelled': CoreMatchStatus.CANCELLED,
         }
 
-        core_status = status_map.get(self.status, CoreMatchStatus.SCHEDULED)
+        # 获取状态值（字符串）
+        status_str = self.status
+        core_status = status_map.get(status_str, CoreMatchStatus.SCHEDULED)
 
         # 创建核心对象
         core_match = CoreClass(
