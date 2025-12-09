@@ -44,7 +44,6 @@ INSTALLED_APPS = [
     "django.contrib.messages",
     "django.contrib.staticfiles",
     "backend.apps.api.apps.ApiConfig",
-    # "backend.apps.web.apps.WebConfig",
     "rest_framework",
     "django_filters",
 ]
