@@ -6,10 +6,12 @@
 
 from .base import BaseModel
 from .tournament import Tournament
+from .fencer import Fencer
 
 __all__ = [
     "BaseModel",
     "Tournament",
+    "Fencer"
 ]
 
 __version__ = "0.1.0"
