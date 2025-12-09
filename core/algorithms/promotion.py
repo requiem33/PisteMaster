@@ -1,7 +1,7 @@
-# core/algorithms/promotion.py
 from typing import List, Dict, Any, Tuple
 from dataclasses import dataclass
-from ..models.match import PoolMatch, MatchStatus
+from ..models.match import PoolMatch
+from ..models.enums import MatchStatus
 
 
 @dataclass

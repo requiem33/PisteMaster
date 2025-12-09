@@ -1,9 +1,9 @@
-# core/models/tournament.py
 from dataclasses import dataclass, field
 from datetime import date, datetime
 from typing import List, Optional, Set
 from .enums import TournamentStatus, EventType
-from .competition import TournamentEvent, CompetitionRules, CompetitionItem
+from .tournamentevent import TournamentEvent
+from .competitionitem import CompetitionItem
 
 
 @dataclass

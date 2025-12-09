@@ -1,8 +1,8 @@
-# core/algorithms/matching.py
 from typing import List, Tuple, Dict, Any, Optional
 from datetime import datetime, timedelta
-from ..models.match import PoolMatch, DirectEliminationMatch, MatchStatus
-from ..models.stage import CompetitionStage, StageType
+from ..models.match import PoolMatch, DirectEliminationMatch
+from ..models.stage import CompetitionStage
+from ..models.enums import StageType, MatchStatus
 
 
 class MatchGenerationAlgorithm:

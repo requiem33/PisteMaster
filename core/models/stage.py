@@ -1,25 +1,9 @@
-# core/models/stage.py
 from dataclasses import dataclass, field
 from typing import List, Optional, Dict, Any
 from datetime import datetime
-from enum import Enum
 
+from core.models.enums import StageType, StageStatus
 from core.models.match import PoolMatch
-
-
-class StageType(Enum):
-    """比赛阶段类型"""
-    POOL = 'pool'  # 小组赛
-    DIRECT_ELIMINATION = 'direct_elimination'  # 淘汰赛
-    ROUND_ROBIN = 'round_robin'  # 循环赛（可选扩展）
-
-
-class StageStatus(Enum):
-    """阶段状态"""
-    SCHEDULED = 'scheduled'  # 已编排
-    ONGOING = 'ongoing'  # 进行中
-    COMPLETED = 'completed'  # 已结束
-    CANCELLED = 'cancelled'  # 已取消
 
 
 @dataclass

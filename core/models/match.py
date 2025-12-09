@@ -1,25 +1,8 @@
-# core/models/match.py
 from dataclasses import dataclass, field
 from typing import Optional
 from datetime import datetime
-from enum import Enum
 
-
-class MatchStatus(Enum):
-    """对阵状态"""
-    SCHEDULED = 'scheduled'  # 已安排
-    ONGOING = 'ongoing'  # 进行中
-    COMPLETED = 'completed'  # 已结束
-    WALKOVER = 'walkover'  # 弃权
-    CANCELLED = 'cancelled'  # 取消
-
-
-class MatchResult(Enum):
-    """比赛结果（从选手A视角）"""
-    WIN = 'win'
-    LOSS = 'loss'
-    DRAW = 'draw'  # 平局（某些规则允许）
-    DOUBLE_LOSS = 'double_loss'  # 双败
+from core.models.enums import MatchStatus, MatchResult
 
 
 @dataclass

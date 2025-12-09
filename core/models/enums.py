@@ -1,4 +1,3 @@
-# core/models/enums.py
 from enum import Enum
 
 class TournamentStatus(Enum):
@@ -10,13 +9,6 @@ class TournamentStatus(Enum):
     COMPLETED = 'completed'         # 已结束
     CANCELLED = 'cancelled'         # 已取消
 
-class CompetitionStatus(Enum):
-    DRAFT = 'draft'      # 草稿
-    OPEN = 'open'        # 报名中
-    CLOSED = 'closed'    # 报名截止
-    ONGOING = 'ongoing'  # 进行中
-    COMPLETED = 'completed' # 已结束
-    CANCELLED = 'cancelled' # 已取消
 
 class EventType(Enum):
     """比赛类型"""
@@ -44,3 +36,35 @@ class AgeGroup(Enum):
     JUNIOR = 'junior'  # 少年组 (U20)
     SENIOR = 'senior'  # 成年组
     VETERAN = 'veteran' # 老将组
+
+
+class StageType(Enum):
+    """比赛阶段类型"""
+    POOL = 'pool'  # 小组赛
+    DIRECT_ELIMINATION = 'direct_elimination'  # 淘汰赛
+    ROUND_ROBIN = 'round_robin'  # 循环赛（可选扩展）
+
+
+class StageStatus(Enum):
+    """阶段状态"""
+    SCHEDULED = 'scheduled'  # 已编排
+    ONGOING = 'ongoing'  # 进行中
+    COMPLETED = 'completed'  # 已结束
+    CANCELLED = 'cancelled'  # 已取消
+
+
+class MatchStatus(Enum):
+    """对阵状态"""
+    SCHEDULED = 'scheduled'  # 已安排
+    ONGOING = 'ongoing'  # 进行中
+    COMPLETED = 'completed'  # 已结束
+    WALKOVER = 'walkover'  # 弃权
+    CANCELLED = 'cancelled'  # 取消
+
+
+class MatchResult(Enum):
+    """比赛结果（从选手A视角）"""
+    WIN = 'win'
+    LOSS = 'loss'
+    DRAW = 'draw'  # 平局（某些规则允许）
+    DOUBLE_LOSS = 'double_loss'  # 双败
