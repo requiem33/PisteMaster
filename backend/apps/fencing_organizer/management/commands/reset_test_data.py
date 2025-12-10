@@ -2,7 +2,7 @@
 from django.core.management.base import BaseCommand
 from django.db import transaction
 from django.db.models import Q  # 导入 Q 对象用于复杂查询
-from backend.apps.api.models import Tournament, TournamentEvent, CompetitionItem, CompetitionRules, Fencer
+from backend.apps.fencing_organizer.models import Tournament, TournamentEvent, CompetitionItem, CompetitionRules, Fencer
 import logging
 
 logger = logging.getLogger(__name__)

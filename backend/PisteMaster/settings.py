@@ -43,7 +43,7 @@ INSTALLED_APPS = [
     "django.contrib.sessions",
     "django.contrib.messages",
     "django.contrib.staticfiles",
-    "backend.apps.api.apps.ApiConfig",
+    "backend.apps.fencing_organizer.apps.ApiConfig",
     "rest_framework",
     "django_filters",
 ]

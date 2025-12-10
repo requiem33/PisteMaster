@@ -1,1 +1,0 @@
-default_app_config = 'apps.api.modules.fencer.apps.FencerConfig'
