@@ -3,7 +3,7 @@ BaseModel 基类测试
 """
 
 import pytest
-from core.models.base import BaseModel
+from core.models.piste import BaseModel
 
 
 class ConcreteModel(BaseModel):
