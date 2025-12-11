@@ -40,8 +40,6 @@
 | **status_id**   | UUID         | FK → Tournament_Status(id) | 赛事状态      |
 | created_at      | TIMESTAMP    | DEFAULT NOW()              | 创建时间      |
 | updated_at      | TIMESTAMP    | DEFAULT NOW()              | 更新时间      |
-| is_deleted      | BOOLEAN      | DEFAULT FALSE              | 软删除标记     |
-| version         | INTEGER      | DEFAULT 1                  | 版本号（乐观锁）  |
 
 **索引:**
 
@@ -52,20 +50,18 @@
 
 ### 1.2. Event（比赛项目）
 
-| 属性                 | 类型           | 约束                    | 描述              |
-|:-------------------|:-------------|:----------------------|:----------------|
-| **id**             | UUID         | PK                    | 主键              |
-| **tournament_id**  | UUID         | FK → Tournament(id)   | 所属赛事            |
-| **rule_id**        | UUID         | FK → Rule(id)         | 赛制规则            |
-| **event_type_id**  | UUID         | FK → Event_Type(id)   | 项目类型            |
-| event_name         | VARCHAR(200) | NOT NULL              | 项目名称（如"男子个人佩剑"） |
-| start_time         | TIMESTAMP    |                       | 项目开始时间          |
-| **status_id**      | UUID         | FK → Event_Status(id) | 项目状态            |
-| is_team_event      | BOOLEAN      | NOT NULL              | 是否为团体赛          |
-| total_participants | INTEGER      |                       | 总参赛人数/队数        |
-| created_at         | TIMESTAMP    | DEFAULT NOW()         |                 |
-| updated_at         | TIMESTAMP    | DEFAULT NOW()         |                 |
-| is_deleted         | BOOLEAN      | DEFAULT FALSE         |                 |
+| 属性                | 类型           | 约束                    | 描述              |
+|:------------------|:-------------|:----------------------|:----------------|
+| **id**            | UUID         | PK                    | 主键              |
+| **tournament_id** | UUID         | FK → Tournament(id)   | 所属赛事            |
+| **rule_id**       | UUID         | FK → Rule(id)         | 赛制规则            |
+| **event_type_id** | UUID         | FK → Event_Type(id)   | 项目类型            |
+| event_name        | VARCHAR(200) | NOT NULL              | 项目名称（如"男子个人佩剑"） |
+| start_time        | TIMESTAMP    |                       | 项目开始时间          |
+| **status_id**     | UUID         | FK → Event_Status(id) | 项目状态            |
+| is_team_event     | BOOLEAN      | NOT NULL              | 是否为团体赛          |
+| created_at        | TIMESTAMP    | DEFAULT NOW()         |                 |
+| updated_at        | TIMESTAMP    | DEFAULT NOW()         |                 |
 
 **索引:**
 
@@ -189,7 +185,6 @@
 | **primary_weapon** | VARCHAR(10)  |               | 主剑种       |
 | created_at         | TIMESTAMP    | DEFAULT NOW() |           |
 | updated_at         | TIMESTAMP    | DEFAULT NOW() |           |
-| is_deleted         | BOOLEAN      | DEFAULT FALSE |           |
 
 **索引:**
 
@@ -199,20 +194,7 @@
 
 ---
 
-### 3.2. Fencer_Weapon_Specialty（选手剑种专长）
-
-| 属性                | 类型          | 约束              | 描述         |
-|:------------------|:------------|:----------------|:-----------|
-| **fencer_id**     | UUID        | FK → Fencer(id) | 复合主键       |
-| **weapon**        | VARCHAR(10) |                 | 复合主键，剑种    |
-| proficiency_level | INTEGER     | DEFAULT 1       | 熟练等级（1-10） |
-| is_active         | BOOLEAN     | DEFAULT TRUE    | 是否活跃       |
-
-**主键:** PRIMARY KEY (fencer_id, weapon)
-
----
-
-### 3.3. Team（队伍）
+### 3.2. Team（队伍）
 
 | 属性           | 类型           | 约束             | 描述    |
 |:-------------|:-------------|:---------------|:------|
@@ -227,7 +209,7 @@
 
 ---
 
-### 3.4. Team_Membership（队伍成员）
+### 3.3. Team_Membership（队伍成员）
 
 | 属性            | 类型      | 约束                 | 描述    |
 |:--------------|:--------|:-------------------|:------|
@@ -241,7 +223,7 @@
 
 ---
 
-### 3.5. Team_Role（队伍角色）
+### 3.4. Team_Role（队伍角色）
 
 | 属性           | 类型          | 描述     |
 |:-------------|:------------|:-------|
@@ -253,7 +235,7 @@
 
 ---
 
-### 3.6. Event_Seed（项目种子排名）
+### 3.5. Event_Seed（项目种子排名）
 
 | 属性               | 类型            | 约束                 | 描述   |
 |:-----------------|:--------------|:-------------------|:-----|
@@ -267,7 +249,7 @@
 
 ---
 
-### 3.7. Seed_Type（种子类型）
+### 3.6. Seed_Type（种子类型）
 
 | 属性           | 类型          | 描述     |
 |:-------------|:------------|:-------|
