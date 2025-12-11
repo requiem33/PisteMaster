@@ -9,6 +9,17 @@
 3. 增强数据规范化与查询性能
 4. 支持裁判、场地、时间管理等实际赛事需求
 
+TODO：
+
+1. 裁判分配要考虑角裁判、视频裁判、团体赛裁判。
+2. 创建一个 Base_Match 表（包含 id, event_id, time 等共有字段），让 Match 和 Team_Match 继承它（或共享主键）。裁判表只需关联
+   Base_Match(id)。
+3. 红黄牌与处罚记录
+4. 医疗暂停
+5. 团体赛替补逻辑
+6. 历史排名快照
+7. Rule 表粒度: Rule 表混合了小组赛规则（pool_size）和淘汰赛规则（match_score_elimination）。有些比赛混合赛制（第一轮小组赛 5 分，第二轮小组赛 10 分，然后淘汰赛）。建议将规则拆分为 Phase_Config 挂载在 Event_Phase 下，而不是整个 Event 共用一个 Rule。
+
 ---
 
 ## 📋 目录
@@ -178,7 +189,7 @@
 | last_name          | VARCHAR(100) | NOT NULL      | 姓         |
 | display_name       | VARCHAR(200) |               | 显示名称（姓+名） |
 | gender             | VARCHAR(10)  |               | 性别        |
-| country_code       | CHAR(3)      |               | ISO国家代码   |
+| country_code       | CHAR(3)      |               | IOC 代码    |
 | birth_date         | DATE         |               | 出生日期      |
 | fencing_id         | VARCHAR(50)  | UNIQUE        | 国际击剑ID    |
 | current_ranking    | INTEGER      |               | 当前世界排名    |
@@ -196,14 +207,14 @@
 
 ### 3.2. Team（队伍）
 
-| 属性           | 类型           | 约束             | 描述    |
-|:-------------|:-------------|:---------------|:------|
-| **id**       | UUID         | PK             | 主键    |
-| **event_id** | UUID         | FK → Event(id) | 所属项目  |
-| team_name    | VARCHAR(200) | NOT NULL       | 队伍名称  |
-| country_code | CHAR(3)      |                | 国家/地区 |
-| seed_rank    | INTEGER      |                | 种子排名  |
-| created_at   | TIMESTAMP    | DEFAULT NOW()  |       |
+| 属性           | 类型           | 约束             | 描述     |
+|:-------------|:-------------|:---------------|:-------|
+| **id**       | UUID         | PK             | 主键     |
+| **event_id** | UUID         | FK → Event(id) | 所属项目   |
+| team_name    | VARCHAR(200) | NOT NULL       | 队伍名称   |
+| country_code | CHAR(3)      |                | IOC 代码 |
+| seed_rank    | INTEGER      |                | 种子排名   |
+| created_at   | TIMESTAMP    | DEFAULT NOW()  |        |
 
 **索引:** `idx_team_event` (event_id)
 
@@ -287,18 +298,18 @@
 
 ### 4.2. Pool_Assignment（小组赛排名）
 
-| 属性                 | 类型      | 约束              | 描述        |
-|:-------------------|:--------|:----------------|:----------|
-| **pool_id**        | UUID    | FK → Pool(id)   |           |
-| **fencer_id**      | UUID    | FK → Fencer(id) |           |
-| final_pool_rank    | INTEGER | NOT NULL        | 最终排名      |
-| victories          | INTEGER | DEFAULT 0       | 胜场数(V)    |
-| indicator          | INTEGER | DEFAULT 0       | 得失分差(Ind) |
-| touches_scored     | INTEGER | DEFAULT 0       | 总得分(TS)   |
-| touches_received   | INTEGER | DEFAULT 0       | 总失分(TR)   |
-| matches_played     | INTEGER | DEFAULT 0       | 已赛场次      |
-| is_qualified       | BOOLEAN | DEFAULT FALSE   | 是否晋级      |
-| qualification_rank | INTEGER |                 | 晋级排名      |
+| 属性                 | 类型      | 约束                            | 描述        |
+|:-------------------|:--------|:------------------------------|:----------|
+| **pool_id**        | UUID    | FK → Pool(id)                 |           |
+| **fencer_id**      | UUID    | FK → Fencer(id)               |           |
+| final_pool_rank    | INTEGER | NOT NULL                      | 最终排名      |
+| victories          | INTEGER | DEFAULT 0                     | 胜场数(V)    |
+| indicator          | INTEGER | DEFAULT 0，通过TS-TR计算得出，不允许直接更新 | 得失分差(Ind) |
+| touches_scored     | INTEGER | DEFAULT 0                     | 总得分(TS)   |
+| touches_received   | INTEGER | DEFAULT 0                     | 总失分(TR)   |
+| matches_played     | INTEGER | DEFAULT 0                     | 已赛场次      |
+| is_qualified       | BOOLEAN | DEFAULT FALSE                 | 是否晋级      |
+| qualification_rank | INTEGER |                               | 晋级排名      |
 
 **主键:** PRIMARY KEY (pool_id, fencer_id)
 
@@ -521,18 +532,18 @@
 
 ### 7.1. Referee（裁判）
 
-| 属性             | 类型           | 约束            | 描述   |
-|:---------------|:-------------|:--------------|:-----|
-| **id**         | UUID         | PK            | 主键   |
-| first_name     | VARCHAR(100) | NOT NULL      | 名    |
-| last_name      | VARCHAR(100) | NOT NULL      | 姓    |
-| display_name   | VARCHAR(200) |               | 显示名称 |
-| country_code   | CHAR(3)      |               | 国家代码 |
-| license_number | VARCHAR(50)  | UNIQUE        | 裁判证号 |
-| license_level  | VARCHAR(20)  |               | 裁判等级 |
-| is_active      | BOOLEAN      | DEFAULT TRUE  | 是否活跃 |
-| created_at     | TIMESTAMP    | DEFAULT NOW() |      |
-| updated_at     | TIMESTAMP    | DEFAULT NOW() |      |
+| 属性             | 类型           | 约束            | 描述     |
+|:---------------|:-------------|:--------------|:-------|
+| **id**         | UUID         | PK            | 主键     |
+| first_name     | VARCHAR(100) | NOT NULL      | 名      |
+| last_name      | VARCHAR(100) | NOT NULL      | 姓      |
+| display_name   | VARCHAR(200) |               | 显示名称   |
+| country_code   | CHAR(3)      |               | IOC 代码 |
+| license_number | VARCHAR(50)  | UNIQUE        | 裁判证号   |
+| license_level  | VARCHAR(20)  |               | 裁判等级   |
+| is_active      | BOOLEAN      | DEFAULT TRUE  | 是否活跃   |
+| created_at     | TIMESTAMP    | DEFAULT NOW() |        |
+| updated_at     | TIMESTAMP    | DEFAULT NOW() |        |
 
 **索引:** `idx_referee_name` (last_name, first_name)
 
