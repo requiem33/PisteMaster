@@ -6,3 +6,6 @@ from backend.apps.fencing_organizer.modules.tournament.admin import TournamentAd
 from backend.apps.fencing_organizer.modules.rule.admin import RuleAdmin
 from backend.apps.fencing_organizer.modules.elimination_type.admin import EliminationTypeAdmin
 from backend.apps.fencing_organizer.modules.ranking_type.admin import RankingTypeAdmin
+from backend.apps.fencing_organizer.modules.event.admin import EventAdmin
+from backend.apps.fencing_organizer.modules.event_type.admin import EventTypeAdmin
+from backend.apps.fencing_organizer.modules.event_status.admin import EventStatusAdmin

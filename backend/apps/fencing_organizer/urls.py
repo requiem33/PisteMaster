@@ -6,4 +6,5 @@ urlpatterns = [
     path('tournament-statuses/', include('backend.apps.fencing_organizer.modules.tournament_status.urls')),
     path('tournaments/', include('backend.apps.fencing_organizer.modules.tournament.urls')),
     path('rules/', include('backend.apps.fencing_organizer.modules.rule.urls')),
+    path('events/', include('backend.apps.fencing_organizer.modules.event.urls')),
 ]
