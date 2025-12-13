@@ -29,7 +29,6 @@ from core.models.team_match_tree import TeamMatchTree
 from core.models.team_membership import TeamMembership
 from core.models.team_role import TeamRole
 from core.models.tournament import Tournament
-from core.models.tournament_status import TournamentStatus
 
 
 class FencerRepositoryInterface(ABC):
@@ -368,13 +367,3 @@ class TournamentRepositoryInterface(ABC):
         pass
 
 
-class TournamentStatusRepositoryInterface(ABC):
-    """TournamentStatus 仓库的抽象定义。"""
-
-    @abstractmethod
-    def get_tournament_status_by_id(self, tournament_status_id: UUID) -> TournamentStatus | None:
-        pass
-
-    @abstractmethod
-    def save_tournament_status(self, tournament_status: TournamentStatus) -> TournamentStatus:
-        pass
