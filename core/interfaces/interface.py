@@ -3,7 +3,7 @@ from uuid import UUID
 
 from core.models.fencer import Fencer
 from core.models.bout import Bout
-from core.models.elinimation_type import EliminationType
+from core.models.elimination_type import EliminationType
 from core.models.event import Event
 from core.models.event_phase import EventPhase
 from core.models.event_seed import EventSeed
