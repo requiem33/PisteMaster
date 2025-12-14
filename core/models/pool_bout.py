@@ -6,7 +6,7 @@ from uuid import UUID, uuid4
 
 @dataclass
 class PoolBout:
-    """4.3. Pool_Bout（小组赛单场）"""
+    """4.3. PoolBout（小组赛单场）"""
     pool_id: UUID = field(metadata={"foreign_key": "Pool", "description": "所属小组"})
     fencer_a_id: UUID = field(metadata={"foreign_key": "Fencer", "description": "运动员A"})
     fencer_b_id: UUID = field(metadata={"foreign_key": "Fencer", "description": "运动员B"})
@@ -21,3 +21,6 @@ class PoolBout:
     actual_end_time: Optional[datetime] = field(default=None, metadata={"description": "实际结束时间"})
     duration_seconds: Optional[int] = field(default=None, metadata={"description": "持续时间（秒）"})
     notes: Optional[str] = field(default=None, metadata={"description": "备注"})
+
+    # 约束: CHECK(fencer_a_id != fencer_b_id)
+    # 约束: UNIQUE(pool_id, LEAST(fencer_a_id, fencer_b_id), GREATEST(fencer_a_id, fencer_b_id))

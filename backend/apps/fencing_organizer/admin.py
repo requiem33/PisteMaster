@@ -9,3 +9,7 @@ from backend.apps.fencing_organizer.modules.ranking_type.admin import RankingTyp
 from backend.apps.fencing_organizer.modules.event.admin import EventAdmin
 from backend.apps.fencing_organizer.modules.event_type.admin import EventTypeAdmin
 from backend.apps.fencing_organizer.modules.event_status.admin import EventStatusAdmin
+from backend.apps.fencing_organizer.modules.match_status.admin import MatchStatusTypeAdmin
+from backend.apps.fencing_organizer.modules.piste.admin import PisteAdmin
+from .modules.pool.admin import PoolAdmin
+from .modules.pool_bout.admin import PoolBoutAdmin
