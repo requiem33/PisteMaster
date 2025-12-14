@@ -1,71 +1,79 @@
 from django.contrib import admin
+from django.utils.html import format_html
+from django.urls import reverse
 from .models import DjangoFencer
 
 
 @admin.register(DjangoFencer)
 class FencerAdmin(admin.ModelAdmin):
-    """Fencer模型的Django后台管理配置"""
+    """Fencer管理后台"""
 
-    # 列表页面显示的字段
-    list_display = (
-        'last_name',
-        'first_name',
-        'display_name',
-        'gender',
-        'country_code',
-        'fencing_id',
-        'current_ranking',
-        'primary_weapon',
-        'created_at',
-        'updated_at'
-    )
-
-    # 列表页面可点击进入详情的字段
-    list_display_links = ('last_name', 'first_name')
-
-    # 列表页面的搜索框，搜索的字段
-    search_fields = (
-        'first_name',
-        'last_name',
-        'display_name',
-        'fencing_id',
-        'country_code'
-    )
-
-    # 列表页面的过滤器，可过滤的字段
-    list_filter = (
-        'gender',
-        'country_code',
-        'primary_weapon',
-        'created_at',
-        'updated_at'
-    )
-
-    # 列表页面的排序方式
+    list_display = ('display_name', 'country_display', 'primary_weapon_display',
+                    'current_ranking', 'fencing_id', 'age_display', 'created_at')
+    list_filter = ('gender', 'country_code', 'primary_weapon')
+    search_fields = ('first_name', 'last_name', 'display_name', 'fencing_id', 'country_code')
     ordering = ('last_name', 'first_name')
-
-    # 列表页面每页显示的记录数
-    list_per_page = 25
-
-    # 详情页面的字段布局
+    readonly_fields = ('created_at', 'updated_at', 'age_display', 'is_international')
     fieldsets = (
         ('基本信息', {
-            'fields': ('first_name', 'last_name', 'display_name', 'gender', 'birth_date')
+            'fields': ('first_name', 'last_name', 'display_name')
+        }),
+        ('个人信息', {
+            'fields': ('gender', 'country_code', 'birth_date')
         }),
         ('击剑信息', {
             'fields': ('fencing_id', 'current_ranking', 'primary_weapon')
         }),
-        ('国家信息', {
-            'fields': ('country_code',)
+        ('计算字段', {
+            'fields': ('age_display', 'is_international')
         }),
         ('时间戳', {
-            'fields': ('created_at', 'updated_at'),
-            'classes': ('collapse',),  # 可折叠的字段集
+            'fields': ('created_at', 'updated_at')
         }),
     )
 
-    # 只读字段（在详情页面不可编辑）
-    readonly_fields = ('id', 'created_at', 'updated_at')
+    def country_display(self, obj):
+        """国家显示"""
+        if obj.country_code:
+            return format_html(
+                '<span class="fi fi-{}"></span> {}',
+                obj.country_code.lower(),
+                obj.country_code
+            )
+        return '-'
 
-    # 日期层次结构（在列表页面顶部显示日期筛选器）
-    date_hierarchy = 'created_at'
+    country_display.short_description = '国家'
+    country_display.admin_order_field = 'country_code'
+
+    def primary_weapon_display(self, obj):
+        """剑种显示"""
+        if obj.primary_weapon:
+            weapon_dict = {
+                'FOIL': '🎯 花剑',
+                'EPEE': '⚔️ 重剑',
+                'SABRE': '⚡ 佩剑'
+            }
+            return weapon_dict.get(obj.primary_weapon, obj.primary_weapon)
+        return '-'
+
+    primary_weapon_display.short_description = '主剑种'
+    primary_weapon_display.admin_order_field = 'primary_weapon'
+
+    def age_display(self, obj):
+        """年龄显示"""
+        if obj.age is not None:
+            return f"{obj.age}岁"
+        return '-'
+
+    age_display.short_description = '年龄'
+
+    def get_queryset(self, request):
+        """优化查询"""
+        queryset = super().get_queryset(request)
+        return queryset
+
+    class Media:
+        """添加CSS样式"""
+        css = {
+            'all': ['https://cdnjs.cloudflare.com/ajax/libs/flag-icon-css/6.6.6/css/flag-icons.min.css']
+        }
