@@ -18,7 +18,8 @@ TODO：
 4. 医疗暂停
 5. 团体赛替补逻辑
 6. 历史排名快照
-7. Rule 表粒度: Rule 表混合了小组赛规则（pool_size）和淘汰赛规则（match_score_elimination）。有些比赛混合赛制（第一轮小组赛 5 分，第二轮小组赛 10 分，然后淘汰赛）。建议将规则拆分为 Phase_Config 挂载在 Event_Phase 下，而不是整个 Event 共用一个 Rule。
+7. Rule 表粒度: Rule 表混合了小组赛规则（pool_size）和淘汰赛规则（match_score_elimination）。有些比赛混合赛制（第一轮小组赛 5
+   分，第二轮小组赛 10 分，然后淘汰赛）。建议将规则拆分为 Phase_Config 挂载在 Event_Phase 下，而不是整个 Event 共用一个 Rule。
 
 ---
 
@@ -246,17 +247,41 @@ TODO：
 
 ---
 
-### 3.5. Event_Seed（项目种子排名）
+### 3.5. Event_Participant（项目参与者）
 
-| 属性               | 类型            | 约束                 | 描述   |
-|:-----------------|:--------------|:-------------------|:-----|
-| **event_id**     | UUID          | FK → Event(id)     |      |
-| **fencer_id**    | UUID          | FK → Fencer(id)    |      |
-| **seed_type_id** | UUID          | FK → Seed_Type(id) | 种子类型 |
-| seed_rank        | INTEGER       | NOT NULL           | 种子排名 |
-| seed_value       | DECIMAL(10,2) |                    | 种子分值 |
+| 属性                | 类型            | 约束              | 描述     |
+|:------------------|:--------------|:----------------|:-------|
+| **id**            | UUID          | PK              | 主键     |
+| **event_id**      | UUID          | FK → Event(id)  | 所属项目   |
+| **fencer_id**     | UUID          | FK → Fencer(id) | 运动员    |
+| seed_rank         | INTEGER       |                 | 种子排名   |
+| seed_value        | DECIMAL(10,2) |                 | 种子分值   |
+| is_confirmed      | BOOLEAN       | DEFAULT TRUE    | 是否确认参赛 |
+| registration_time | TIMESTAMP     | DEFAULT NOW()   | 报名时间   |
+| notes             | TEXT          |                 | 备注     |
+| created_at        | TIMESTAMP     | DEFAULT NOW()   | 创建时间   |
+| updated_at        | TIMESTAMP     | DEFAULT NOW()   | 更新时间   |
 
-**主键:** PRIMARY KEY (event_id, fencer_id)
+**主键:** PRIMARY KEY (id)
+
+**约束:**
+
+- UNIQUE(event_id, fencer_id)
+- UNIQUE(event_id, seed_rank)（当seed_rank不为空时）
+- CHECK(seed_rank > 0)
+
+**索引:**
+
+- `idx_event_participant_event` (event_id)
+- `idx_event_participant_fencer` (fencer_id)
+- `idx_event_participant_seed` (event_id, seed_rank)
+
+**说明:**
+
+- 该表记录了运动员参与项目的关系，包含种子信息和报名状态
+- is_confirmed字段用于跟踪运动员是否确认参赛（如已缴费、已签到等）
+- registration_time记录报名时间，可用于先到先得的种子排名
+- 种子排名和分值用于分组算法，确保强弱选手分散在不同小组
 
 ---
 
@@ -298,27 +323,44 @@ TODO：
 
 ### 4.2. Pool_Assignment（小组赛排名）
 
-| 属性                 | 类型      | 约束                            | 描述        |
-|:-------------------|:--------|:------------------------------|:----------|
-| **pool_id**        | UUID    | FK → Pool(id)                 |           |
-| **fencer_id**      | UUID    | FK → Fencer(id)               |           |
-| final_pool_rank    | INTEGER | NOT NULL                      | 最终排名      |
-| victories          | INTEGER | DEFAULT 0                     | 胜场数(V)    |
-| indicator          | INTEGER | DEFAULT 0，通过TS-TR计算得出，不允许直接更新 | 得失分差(Ind) |
-| touches_scored     | INTEGER | DEFAULT 0                     | 总得分(TS)   |
-| touches_received   | INTEGER | DEFAULT 0                     | 总失分(TR)   |
-| matches_played     | INTEGER | DEFAULT 0                     | 已赛场次      |
-| is_qualified       | BOOLEAN | DEFAULT FALSE                 | 是否晋级      |
-| qualification_rank | INTEGER |                               | 晋级排名      |
+| 属性               | 类型      | 约束                                         | 描述               |
+| :----------------- | :-------- | :------------------------------------------- | :----------------- |
+| **id**             | UUID      | PK                                           | 主键               |
+| **pool_id**        | UUID      | FK → Pool(id)                                | 所属小组           |
+| **fencer_id**      | UUID      | FK → Fencer(id)                              | 运动员             |
+| final_pool_rank    | INTEGER   | CHECK(>0)                                    | 最终排名           |
+| victories          | INTEGER   | DEFAULT 0, CHECK(≥0)                         | 胜场数(V)          |
+| indicator          | INTEGER   | DEFAULT 0                                    | 得失分差(TS-TR)    |
+| touches_scored     | INTEGER   | DEFAULT 0, CHECK(≥0)                         | 总得分(TS)         |
+| touches_received   | INTEGER   | DEFAULT 0, CHECK(≥0)                         | 总失分(TR)         |
+| matches_played     | INTEGER   | DEFAULT 0, CHECK(≥0)                         | 已赛场次           |
+| is_qualified       | BOOLEAN   | DEFAULT FALSE                                | 是否晋级           |
+| qualification_rank | INTEGER   | CHECK(>0)                                    | 晋级排名           |
+| created_at         | TIMESTAMP | DEFAULT NOW()                                | 创建时间           |
+| updated_at         | TIMESTAMP | DEFAULT NOW()                                | 更新时间           |
 
-**主键:** PRIMARY KEY (pool_id, fencer_id)
+**主键:** PRIMARY KEY (id)
 
 **约束:**
+- UNIQUE(pool_id, fencer_id) - 同一运动员在同一小组只能出现一次
+- UNIQUE(pool_id, final_pool_rank) - 同一小组内排名必须唯一
+- CHECK(final_pool_rank > 0) - 排名必须为正数
+- CHECK(victories ≤ matches_played) - 胜场数不能超过已赛场次
 
-- UNIQUE(pool_id, final_pool_rank)
-- CHECK(final_pool_rank > 0)
+**索引:**
+- `idx_pool_assignment_pool` (pool_id)
+- `idx_pool_assignment_fencer` (fencer_id)
+- `idx_pool_assignment_qualified` (pool_id, is_qualified, final_pool_rank)
 
-**索引:** `idx_pool_assignment_qualified` (pool_id, is_qualified, final_pool_rank)
+**计算规则:**
+- indicator = touches_scored - touches_received（自动计算，不允许直接更新）
+- 排名计算优先级：1. 胜场数(V) → 2. 得失分差(Ind) → 3. 总得分(TS)
+
+**业务逻辑:**
+1. 小组赛开始时，创建PoolAssignment记录
+2. 每场比赛结束后，更新相关运动员的统计信息
+3. 所有比赛结束后，计算最终排名
+4. 根据项目规则确定晋级选手
 
 ---
 

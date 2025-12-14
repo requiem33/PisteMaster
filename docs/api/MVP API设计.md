@@ -1,7 +1,9 @@
 # PisteMaster MVP API设计
 
 ## MVP目标
+
 实现击剑赛事管理的**最小可行产品**，支持个人赛完整流程：
+
 1. 创建赛事 → 2. 创建项目 → 3. 选择规则 → 4. 添加运动员 → 5. 创建小组 → 6. 生成比赛 → 7. 登记结果 → 8. 计算排名
 
 ## 核心API设计
@@ -9,11 +11,13 @@
 ### 1. 赛事管理 API
 
 #### 1.1 创建赛事
+
 ```http
 POST /api/tournaments/
 ```
 
 **请求体:**
+
 ```json
 {
   "tournament_name": "2024全国击剑锦标赛",
@@ -26,6 +30,7 @@ POST /api/tournaments/
 ```
 
 **响应:**
+
 ```json
 {
   "id": "550e8400-e29b-41d4-a716-446655440000",
@@ -36,16 +41,19 @@ POST /api/tournaments/
 ```
 
 #### 1.2 获取赛事列表
+
 ```http
 GET /api/tournaments/
 ```
 
 **查询参数:**
+
 - `status` (可选): 按状态过滤
 - `start_date__gte` (可选): 开始日期之后
 - `end_date__lte` (可选): 结束日期之前
 
 **响应:**
+
 ```json
 {
   "count": 3,
@@ -67,11 +75,13 @@ GET /api/tournaments/
 ### 2. 项目管理 API
 
 #### 2.1 创建比赛项目（个人赛）
+
 ```http
 POST /api/tournaments/{tournament_id}/events/
 ```
 
 **请求体:**
+
 ```json
 {
   "event_name": "男子个人花剑",
@@ -83,6 +93,7 @@ POST /api/tournaments/{tournament_id}/events/
 ```
 
 **响应:**
+
 ```json
 {
   "id": "550e8400-e29b-41d4-a716-446655440002",
@@ -95,11 +106,13 @@ POST /api/tournaments/{tournament_id}/events/
 ```
 
 #### 2.2 获取项目详情
+
 ```http
 GET /api/events/{event_id}/
 ```
 
 **响应:**
+
 ```json
 {
   "id": "550e8400-e29b-41d4-a716-446655440002",
@@ -128,11 +141,13 @@ GET /api/events/{event_id}/
 ### 3. 规则管理 API
 
 #### 3.1 获取可用规则列表
+
 ```http
 GET /api/rules/
 ```
 
 **响应:**
+
 ```json
 {
   "count": 4,
@@ -164,11 +179,13 @@ GET /api/rules/
 ### 4. 运动员管理 API
 
 #### 4.1 添加运动员到项目
+
 ```http
 POST /api/events/{event_id}/participants/
 ```
 
 **请求体（单个添加）:**
+
 ```json
 {
   "fencer_id": "550e8400-e29b-41d4-a716-446655440010"
@@ -176,6 +193,7 @@ POST /api/events/{event_id}/participants/
 ```
 
 **请求体（批量添加）:**
+
 ```json
 {
   "fencer_ids": [
@@ -187,6 +205,7 @@ POST /api/events/{event_id}/participants/
 ```
 
 **响应:**
+
 ```json
 {
   "success": true,
@@ -204,14 +223,17 @@ POST /api/events/{event_id}/participants/
 ```
 
 #### 4.2 获取项目运动员列表
+
 ```http
 GET /api/events/{event_id}/participants/
 ```
 
 **查询参数:**
+
 - `with_seeds` (可选, boolean): 是否包含种子排名
 
 **响应:**
+
 ```json
 {
   "event_id": "550e8400-e29b-41d4-a716-446655440002",
@@ -238,43 +260,59 @@ GET /api/events/{event_id}/participants/
 ### 5. 小组管理 API
 
 #### 5.1 自动分组
+
 ```http
 POST /api/events/{event_id}/pools/generate/
 ```
 
 **请求体:**
+
 ```json
 {
-  "method": "SEEDED",  // 或 "RANDOM", "MANUAL"
+  "method": "SEEDED",
+  // 或 "RANDOM", "MANUAL"
   "pool_size": 7,
   "ignore_seeds": false
 }
 ```
 
 **响应:**
+
 ```json
 {
   "success": true,
   "pool_count": 6,
-  "participants_per_pool": [7, 7, 7, 7, 7, 7],
+  "participants_per_pool": [
+    7,
+    7,
+    7,
+    7,
+    7,
+    7
+  ],
   "pools": [
     {
       "id": "550e8400-e29b-41d4-a716-446655440101",
       "pool_number": 1,
       "pool_letter": "A",
       "fencer_count": 7,
-      "fencer_ids": ["550e8400-e29b-41d4-a716-446655440010", "..."]
+      "fencer_ids": [
+        "550e8400-e29b-41d4-a716-446655440010",
+        "..."
+      ]
     }
   ]
 }
 ```
 
 #### 5.2 获取项目所有小组
+
 ```http
 GET /api/events/{event_id}/pools/
 ```
 
 **响应:**
+
 ```json
 {
   "event_id": "550e8400-e29b-41d4-a716-446655440002",
@@ -297,22 +335,27 @@ GET /api/events/{event_id}/pools/
 ### 6. 小组赛比赛管理 API
 
 #### 6.1 生成小组赛对阵
+
 ```http
 POST /api/pools/{pool_id}/bouts/generate/
 ```
 
 **请求体:**
+
 ```json
 {
-  "format": "ROUND_ROBIN"  // 循环赛制
+  "format": "ROUND_ROBIN"
+  // 循环赛制
 }
 ```
 
 **响应:**
+
 ```json
 {
   "success": true,
-  "generated_count": 21,  // 7人小组的比赛数：C(7,2)=21
+  "generated_count": 21,
+  // 7人小组的比赛数：C(7,2)=21
   "bouts": [
     {
       "id": "550e8400-e29b-41d4-a716-446655440201",
@@ -326,15 +369,18 @@ POST /api/pools/{pool_id}/bouts/generate/
 ```
 
 #### 6.2 获取小组比赛列表
+
 ```http
 GET /api/pools/{pool_id}/bouts/
 ```
 
 **查询参数:**
+
 - `status` (可选): 按状态过滤
 - `date` (可选): 按日期过滤
 
 **响应:**
+
 ```json
 {
   "pool_id": "550e8400-e29b-41d4-a716-446655440101",
@@ -370,11 +416,13 @@ GET /api/pools/{pool_id}/bouts/
 ### 7. 比赛结果登记 API
 
 #### 7.1 更新比赛结果（单个）
+
 ```http
 PATCH /api/bouts/{bout_id}/
 ```
 
 **请求体:**
+
 ```json
 {
   "fencer_a_score": 5,
@@ -387,6 +435,7 @@ PATCH /api/bouts/{bout_id}/
 ```
 
 **响应:**
+
 ```json
 {
   "id": "550e8400-e29b-41d4-a716-446655440201",
@@ -400,11 +449,13 @@ PATCH /api/bouts/{bout_id}/
 ```
 
 #### 7.2 批量登记比赛结果
+
 ```http
 POST /api/pools/{pool_id}/bouts/batch-update/
 ```
 
 **请求体:**
+
 ```json
 {
   "results": [
@@ -425,6 +476,7 @@ POST /api/pools/{pool_id}/bouts/batch-update/
 ```
 
 **响应:**
+
 ```json
 {
   "success": true,
@@ -444,11 +496,13 @@ POST /api/pools/{pool_id}/bouts/batch-update/
 ### 8. 小组排名计算 API
 
 #### 8.1 计算小组排名
+
 ```http
 POST /api/pools/{pool_id}/calculate-ranking/
 ```
 
 **响应:**
+
 ```json
 {
   "success": true,
@@ -480,14 +534,17 @@ POST /api/pools/{pool_id}/calculate-ranking/
 ```
 
 #### 8.2 获取小组排名
+
 ```http
 GET /api/pools/{pool_id}/rankings/
 ```
 
 **查询参数:**
+
 - `qualified_only` (可选, boolean): 仅显示晋级选手
 
 **响应:**
+
 ```json
 {
   "pool_id": "550e8400-e29b-41d4-a716-446655440101",
@@ -514,11 +571,13 @@ GET /api/pools/{pool_id}/rankings/
 ```
 
 #### 8.3 获取项目总体晋级名单
+
 ```http
 GET /api/events/{event_id}/qualifiers/
 ```
 
 **响应:**
+
 ```json
 {
   "event_id": "550e8400-e29b-41d4-a716-446655440002",
@@ -548,9 +607,11 @@ GET /api/events/{event_id}/qualifiers/
 ### 9. 赛事状态管理
 
 #### 9.1 更新赛事状态
+
 ```http
 PATCH /api/tournaments/{tournament_id}/status/
 ```
+
 ```json
 {
   "status_id": "ONGOING"
@@ -558,9 +619,11 @@ PATCH /api/tournaments/{tournament_id}/status/
 ```
 
 #### 9.2 更新项目状态
+
 ```http
 PATCH /api/events/{event_id}/status/
 ```
+
 ```json
 {
   "status_id": "POOL_ROUND"
@@ -570,14 +633,159 @@ PATCH /api/events/{event_id}/status/
 ### 10. 数据导出API
 
 #### 10.1 导出项目数据
+
 ```http
 GET /api/events/{event_id}/export/
 ```
+
 **查询参数:**
+
 - `format`: `json`, `csv`, `pdf`
 - `include`: `participants`, `pools`, `bouts`, `rankings`
 
 ---
+
+### 11. 事件参与者管理 API
+
+```markdown
+## 11. 事件参与者管理 API
+
+### 11.1 注册运动员到项目
+
+```http
+POST /api/event-participants/
+```
+
+**请求体:**
+
+```json
+{
+  "event_id": "550e8400-e29b-41d4-a716-446655440002",
+  "fencer_id": "550e8400-e29b-41d4-a716-446655440010",
+  "seed_rank": 1,
+  "seed_value": 100.0,
+  "notes": "种子选手"
+}
+```
+
+**响应:**
+
+```json
+{
+  "id": "550e8400-e29b-41d4-a716-446655440101",
+  "event": {
+    "id": "550e8400-e29b-41d4-a716-446655440002",
+    "event_name": "男子个人花剑"
+  },
+  "fencer": {
+    "id": "550e8400-e29b-41d4-a716-446655440010",
+    "display_name": "张三",
+    "country_code": "CHN"
+  },
+  "seed_rank": 1,
+  "seed_value": 100.0,
+  "is_confirmed": true,
+  "registration_time": "2024-01-15T14:30:00Z",
+  "notes": "种子选手",
+  "created_at": "2024-01-15T14:30:00Z",
+  "updated_at": "2024-01-15T14:30:00Z"
+}
+```
+
+### 11.2 批量注册运动员
+
+```http
+POST /api/event-participants/bulk-register/
+```
+
+**请求体:**
+
+```json
+{
+  "event_id": "550e8400-e29b-41d4-a716-446655440002",
+  "fencer_ids": [
+    "550e8400-e29b-41d4-a716-446655440010",
+    "550e8400-e29b-41d4-a716-446655440011",
+    "550e8400-e29b-41d4-a716-446655440012"
+  ]
+}
+```
+
+### 11.3 获取项目参与者列表
+
+```http
+GET /api/event-participants/by-event/{event_id}/
+```
+
+### 11.4 生成种子排名
+
+```http
+POST /api/event-participants/generate-seeds/
+```
+
+```
+
+### 12. 小组分配管理 API
+
+```markdown
+## 12. 小组分配管理 API
+
+### 12.1 分配运动员到小组
+
+```http
+POST /api/pool-assignments/
+```
+
+**请求体:**
+
+```json
+{
+  "pool_id": "550e8400-e29b-41d4-a716-446655440101",
+  "fencer_id": "550e8400-e29b-41d4-a716-446655440010"
+}
+```
+
+### 12.2 批量分配运动员
+
+```http
+POST /api/pool-assignments/bulk-create/
+```
+
+### 12.3 获取小组分配列表
+
+```http
+GET /api/pool-assignments/by-pool/{pool_id}/
+```
+
+### 12.4 更新比赛结果
+
+```http
+POST /api/pool-assignments/{assignment_id}/update-match-result/
+```
+
+**请求体:**
+
+```json
+{
+  "touches_scored": 5,
+  "touches_received": 3,
+  "is_winner": true
+}
+```
+
+### 12.5 计算小组排名
+
+```http
+POST /api/pool-assignments/calculate-pool-ranking/{pool_id}/
+```
+
+### 12.6 计算晋级排名
+
+```http
+POST /api/pool-assignments/calculate-qualification/{event_id}/
+```
+
+```
 
 ## API状态码
 
@@ -603,23 +811,29 @@ POST /api/tournaments/
 # 2. 创建项目
 POST /api/tournaments/{tournament_id}/events/
 
-# 3. 添加运动员到项目
-POST /api/events/{event_id}/participants/
+# 3. 注册运动员到项目
+POST /api/event-participants/bulk-register/
 
-# 4. 自动分组
-POST /api/events/{event_id}/pools/generate/
+# 4. 生成种子排名
+POST /api/event-participants/generate-seeds/
 
-# 5. 生成小组赛对阵
-POST /api/pools/{pool_id}/bouts/generate/
+# 5. 为项目生成小组并分配运动员
+POST /api/events/{event_id}/generate-pools/
 
-# 6. 登记比赛结果
-PATCH /api/bouts/{bout_id}/
+# 6. 生成小组赛对阵
+POST /api/pool-bouts/generate-round-robin/
 
-# 7. 计算小组排名
-POST /api/pools/{pool_id}/calculate-ranking/
+# 7. 登记比赛结果
+POST /api/pool-assignments/{assignment_id}/update-match-result/
 
-# 8. 获取晋级名单
-GET /api/events/{event_id}/qualifiers/
+# 8. 计算小组排名
+POST /api/pool-assignments/calculate-pool-ranking/{pool_id}/
+
+# 9. 计算晋级名单
+POST /api/pool-assignments/calculate-qualification/{event_id}/
+
+# 10. 获取晋级名单
+GET /api/pool-assignments/qualified/{event_id}/
 ```
 
 ---
@@ -627,11 +841,13 @@ GET /api/events/{event_id}/qualifiers/
 ## 权限设计（MVP简化版）
 
 ### 角色
+
 - **管理员**: 全部操作权限
 - **裁判**: 登记比赛结果、查看比赛数据
 - **观众**: 只读权限
 
 ### 权限控制
+
 ```python
 # 简单实现示例
 PERMISSIONS = {
@@ -648,28 +864,28 @@ PERMISSIONS = {
 ### 业务规则示例
 
 1. **分组规则**:
-   - 小组人数必须符合规则设置（3-7人）
-   - 种子选手均匀分布
+    - 小组人数必须符合规则设置（3-7人）
+    - 种子选手均匀分布
 
 2. **比赛结果验证**:
-   - 比分必须小于等于目标分数（小组赛5分，淘汰赛15分）
-   - 胜者必须是对阵双方之一
-   - 比赛不能重复登记
+    - 比分必须小于等于目标分数（小组赛5分，淘汰赛15分）
+    - 胜者必须是对阵双方之一
+    - 比赛不能重复登记
 
 3. **排名计算规则**:
-   - 先看胜场数(V)
-   - 再看Indicator(TS-TR)
-   - 最后看TS（总得分）
+    - 先看胜场数(V)
+    - 再看Indicator(TS-TR)
+    - 最后看TS（总得分）
 
 ---
 
 ## API速率限制（MVP）
 
-| API类型 | 限制 |
-|---------|------|
-| 创建操作 | 10次/分钟 |
-| 更新操作 | 30次/分钟 |
-| 查询操作 | 60次/分钟 |
+| API类型 | 限制     |
+|-------|--------|
+| 创建操作  | 10次/分钟 |
+| 更新操作  | 30次/分钟 |
+| 查询操作  | 60次/分钟 |
 
 ---
 
