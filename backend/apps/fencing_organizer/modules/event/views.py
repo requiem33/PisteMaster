@@ -384,3 +384,106 @@ class EventViewSet(viewsets.ViewSet):
                 {"detail": f"初始化失败: {str(e)}"},
                 status=status.HTTP_500_INTERNAL_SERVER_ERROR
             )
+
+    @action(detail=True, methods=['post'], url_path='register-fencer')
+    def register_fencer(self, request, pk=None):
+        """注册运动员到项目"""
+        event = self.get_object()
+        fencer_id = request.data.get('fencer_id')
+
+        if not fencer_id:
+            return Response({"detail": "fencer_id is required"}, status=status.HTTP_400_BAD_REQUEST)
+
+        try:
+            participant_service = EventParticipantService()
+            participant = participant_service.register_fencer_to_event(event.id, fencer_id)
+
+            # 返回参与者信息
+            from backend.apps.fencing_organizer.modules.event_participant.serializers import EventParticipantSerializer
+            from backend.apps.fencing_organizer.modules.event_participant.models import DjangoEventParticipant
+
+            django_participant = DjangoEventParticipant.objects.get(id=participant.id)
+            serializer = EventParticipantSerializer(django_participant)
+
+            return Response(serializer.data, status=status.HTTP_201_CREATED)
+        except EventParticipantService.EventParticipantServiceError as e:
+            return Response({"detail": e.message, "errors": e.errors}, status=status.HTTP_400_BAD_REQUEST)
+
+    @action(detail=True, methods=['post'], url_path='bulk-register-fencers')
+    def bulk_register_fencers(self, request, pk=None):
+        """批量注册运动员"""
+        event = self.get_object()
+        fencer_ids = request.data.get('fencer_ids', [])
+
+        if not fencer_ids:
+            return Response({"detail": "fencer_ids is required"}, status=status.HTTP_400_BAD_REQUEST)
+
+        try:
+            participant_service = EventParticipantService()
+            successful, failed = participant_service.bulk_register_fencers(event.id, fencer_ids)
+
+            return Response({
+                "successful_count": len(successful),
+                "failed_count": len(failed),
+                "failed_ids": failed,
+                "message": f"成功注册 {len(successful)} 名运动员，失败 {len(failed)} 名"
+            }, status=status.HTTP_201_CREATED)
+        except EventParticipantService.EventParticipantServiceError as e:
+            return Response({"detail": e.message, "errors": e.errors}, status=status.HTTP_400_BAD_REQUEST)
+
+    @action(detail=True, methods=['get'], url_path='participants')
+    def get_participants(self, request, pk=None):
+        """获取项目参与者列表"""
+        event = self.get_object()
+        confirmed_only = request.query_params.get('confirmed_only', 'true').lower() == 'true'
+
+        participant_service = EventParticipantService()
+        participants = participant_service.get_event_participants(event.id, confirmed_only)
+
+        from backend.apps.fencing_organizer.modules.event_participant.serializers import EventParticipantSerializer
+        from backend.apps.fencing_organizer.modules.event_participant.models import DjangoEventParticipant
+
+        participant_ids = [p.id for p in participants]
+        django_participants = DjangoEventParticipant.objects.filter(id__in=participant_ids).select_related('fencer')
+        serializer = EventParticipantSerializer(django_participants, many=True)
+
+        return Response({
+            "event_id": str(event.id),
+            "event_name": event.event_name,
+            "participant_count": len(participants),
+            "participants": serializer.data
+        })
+
+    @action(detail=True, methods=['post'], url_path='generate-pools')
+    def generate_pools(self, request, pk=None):
+        """为项目生成小组并分配运动员"""
+        event = self.get_object()
+        pool_size = request.data.get('pool_size', 7)
+        group_method = request.data.get('group_method', 'random')  # 'random', 'seeded'
+
+        try:
+            pool_service = PoolService()
+            pools, assignments = pool_service.generate_pools_with_assignments(event.id, pool_size, group_method)
+
+            from backend.apps.fencing_organizer.modules.pool.serializers import PoolSerializer
+            from backend.apps.fencing_organizer.modules.pool.models import DjangoPool
+            from backend.apps.fencing_organizer.modules.pool_assignment.serializers import PoolAssignmentSerializer
+            from backend.apps.fencing_organizer.modules.pool_assignment.models import DjangoPoolAssignment
+
+            # 获取生成的Django对象
+            pool_ids = [pool.id for pool in pools]
+            django_pools = DjangoPool.objects.filter(id__in=pool_ids)
+
+            assignment_ids = [assignment.id for assignment in assignments]
+            django_assignments = DjangoPoolAssignment.objects.filter(id__in=assignment_ids)
+
+            pool_serializer = PoolSerializer(django_pools, many=True)
+            assignment_serializer = PoolAssignmentSerializer(django_assignments, many=True)
+
+            return Response({
+                "message": f"成功生成 {len(pools)} 个小组，分配了 {len(assignments)} 名运动员",
+                "pools": pool_serializer.data,
+                "assignments": assignment_serializer.data
+            }, status=status.HTTP_201_CREATED)
+        except PoolService.PoolServiceError as e:
+            return Response({"detail": e.message, "errors": e.errors}, status=status.HTTP_400_BAD_REQUEST)

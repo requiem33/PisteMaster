@@ -4,6 +4,8 @@ from datetime import datetime, timedelta
 from django.db import IntegrityError, transaction
 from django.core.exceptions import ValidationError
 
+from backend.apps.fencing_organizer.repositories.pool_assignment_repo import DjangoPoolAssignmentRepository
+from backend.apps.fencing_organizer.services.pool_assignment_service import PoolAssignmentService
 from core.models.pool import Pool
 from core.constants.pool import PoolStatus, STATUS_TRANSITIONS, PoolLetter
 from backend.apps.fencing_organizer.repositories.pool_repo import DjangoPoolRepository
@@ -11,6 +13,7 @@ from backend.apps.fencing_organizer.repositories.event_repo import DjangoEventRe
 from backend.apps.fencing_organizer.repositories.piste_repo import DjangoPisteRepository
 # from backend.apps.fencing_organizer.repositories.event_seed_repo import DjangoEventSeedRepository
 from backend.apps.fencing_organizer.repositories.fencer_repo import DjangoFencerRepository
+from core.models.pool_assignment import PoolAssignment
 
 
 class PoolService:
@@ -21,12 +24,14 @@ class PoolService:
                  event_repository: Optional[DjangoEventRepository] = None,
                  piste_repository: Optional[DjangoPisteRepository] = None,
                  # event_seed_repository: Optional[DjangoEventSeedRepository] = None
+                 pool_assignment_repository: Optional[DjangoPoolAssignmentRepository] = None
                  ):
 
         self.pool_repository = pool_repository or DjangoPoolRepository()
         self.event_repository = event_repository or DjangoEventRepository()
         self.piste_repository = piste_repository or DjangoPisteRepository()
         # self.event_seed_repository = event_seed_repository or DjangoEventSeedRepository()
+        self.pool_assignment_repository = pool_assignment_repository or DjangoPoolAssignmentRepository()
 
     def get_pool_by_id(self, pool_id: UUID) -> Optional[Pool]:
         """根据ID获取小组"""
@@ -354,6 +359,107 @@ class PoolService:
             number, remainder = divmod(number - 1, 26)
             letters.append(chr(65 + remainder))
         return ''.join(reversed(letters)) if letters else "A"
+
+    def assign_fencers_to_pool(self, pool_id: UUID, fencer_ids: List[UUID]) -> List[PoolAssignment]:
+        """将运动员分配到小组"""
+        from backend.apps.fencing_organizer.services.pool_assignment_service import PoolAssignmentService
+
+        assignment_service = PoolAssignmentService()
+        assignments = []
+
+        for fencer_id in fencer_ids:
+            try:
+                assignment = assignment_service.create_assignment(pool_id, fencer_id)
+                assignments.append(assignment)
+            except Exception as e:
+                # 记录错误但继续分配其他运动员
+                print(f"分配运动员 {fencer_id} 到小组 {pool_id} 失败: {e}")
+                continue
+
+        return assignments
+
+    def generate_pools_with_assignments(self, event_id: UUID, pool_size: int = 7,
+                                        group_method: str = 'random') -> Tuple[List[Pool], List[PoolAssignment]]:
+        """生成小组并分配运动员"""
+        # 获取项目的参与者
+        participants = self.event_participant_repository.get_participants_by_event(event_id, confirmed_only=True)
+
+        if not participants:
+            raise self.PoolServiceError(f"项目 {event_id} 没有确认的参与者")
+
+        # 获取参与者ID列表
+        fencer_ids = [p.fencer_id for p in participants]
+
+        # 根据分组方法排序
+        if group_method == 'seeded':
+            # 按种子排名排序
+            sorted_fencer_ids = [
+                p.fencer_id for p in sorted(
+                    participants,
+                    key=lambda x: x.seed_rank or float('inf')
+                )
+            ]
+        elif group_method == 'random':
+            # 随机排序
+            import random
+            sorted_fencer_ids = list(fencer_ids)
+            random.shuffle(sorted_fencer_ids)
+        else:
+            sorted_fencer_ids = fencer_ids
+
+        # 计算小组数量
+        participant_count = len(sorted_fencer_ids)
+        pool_count = (participant_count + pool_size - 1) // pool_size  # 向上取整
+
+        # 创建小组
+        created_pools = []
+        next_pool_number = self.pool_repository.get_next_pool_number(event_id)
+
+        for i in range(pool_count):
+            pool_data = {
+                'event_id': event_id,
+                'pool_number': next_pool_number + i,
+                'pool_letter': self._number_to_letter(next_pool_number + i),
+                'status': PoolStatus.SCHEDULED.value
+            }
+
+            try:
+                pool = self.create_pool(pool_data)
+                created_pools.append(pool)
+            except self.PoolServiceError as e:
+                raise self.PoolServiceError(f"创建小组失败: {e}")
+
+        # 分配运动员到小组（蛇形分组）
+        all_assignments = []
+        pool_index = 0
+        direction = 1  # 1: 正向, -1: 反向
+
+        for i, fencer_id in enumerate(sorted_fencer_ids):
+            current_pool = created_pools[pool_index]
+
+            # 分配运动员到当前小组
+            try:
+                assignment_service = PoolAssignmentService()
+                assignment = assignment_service.create_assignment(current_pool.id, fencer_id)
+                all_assignments.append(assignment)
+            except Exception as e:
+                print(f"分配运动员 {fencer_id} 到小组 {current_pool.id} 失败: {e}")
+
+            # 更新下一个小组索引
+            if (i + 1) % pool_size == 0:
+                # 每分配完一个小组的人数，改变方向
+                direction *= -1
+
+            if direction == 1:
+                pool_index += 1
+                if pool_index >= len(created_pools):
+                    pool_index = len(created_pools) - 1
+            else:
+                pool_index -= 1
+                if pool_index < 0:
+                    pool_index = 0
+
+        return created_pools, all_assignments
 
     class PoolServiceError(Exception):
         """Service层异常"""

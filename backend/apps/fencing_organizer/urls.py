@@ -9,4 +9,6 @@ urlpatterns = [
     path('events/', include('backend.apps.fencing_organizer.modules.event.urls')),
     path('pools/', include('backend.apps.fencing_organizer.modules.pool.urls')),
     path('pool-bouts/', include('backend.apps.fencing_organizer.modules.pool_bout.urls')),
+    path('event-participants/', include('backend.apps.fencing_organizer.modules.event_participant.urls')),
+    path('pool-assignments/', include('backend.apps.fencing_organizer.modules.pool_assignment.urls')),
 ]

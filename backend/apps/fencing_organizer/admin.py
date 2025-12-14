@@ -13,3 +13,5 @@ from backend.apps.fencing_organizer.modules.match_status.admin import MatchStatu
 from backend.apps.fencing_organizer.modules.piste.admin import PisteAdmin
 from .modules.pool.admin import PoolAdmin
 from .modules.pool_bout.admin import PoolBoutAdmin
+from .modules.event_participant.admin import EventParticipantAdmin
+from .modules.pool_assignment.admin import PoolAssignmentAdmin
