@@ -35,3 +35,18 @@ desktop.ini
 
 # OneDrive可能产生的临时文件
 ~$*
+
+# 后端忽略文件
+backend/__pycache__/
+backend/*.pyc
+backend/.env
+backend/db.sqlite3
+backend/media/
+backend/static/
+
+# 前端忽略文件
+web_frontend/node_modules/
+web_frontend/dist/
+web_frontend/.env.*
+web_frontend/coverage/
+web_frontend/.vitest/
