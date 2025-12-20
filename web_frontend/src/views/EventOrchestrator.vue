@@ -59,7 +59,7 @@ import {ArrowLeft, Printer, UploadFilled} from '@element-plus/icons-vue'
 // 导入步骤组件
 import FencerImport from '@/components/tournament/FencerImport.vue'
 import PoolGeneration from '@/components/tournament/PoolGeneration.vue'
-// import PoolScoring from '@/components/tournament/PoolScoring.vue'
+import PoolScoring from '@/components/tournament/PoolScoring.vue'
 
 const route = useRoute()
 const router = useRouter()
@@ -76,7 +76,7 @@ const currentStep = ref(0)
 const steps = [
   {title: '选手名单', desc: '导入并确认参赛选手，设置初始种子排名', component: FencerImport},
   {title: '小组赛分组', desc: '根据排名自动进行蛇形分组', component: PoolGeneration}, // 待实现
-  {title: '小组赛计分', desc: '录入小组赛矩阵比分，实时计算晋级名额', component: null},
+  {title: '小组赛计分', desc: '录入小组赛矩阵比分，实时计算晋级名额', component: PoolScoring},
   {title: '淘汰赛对阵', desc: '生成并管理 DE 淘汰赛对阵图', component: null},
   {title: '最终排名', desc: '导出最终成绩册与积分', component: null}
 ]
