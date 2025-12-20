@@ -1,151 +1,200 @@
 <template>
-  <el-container class="layout-container">
-    <el-header class="app-header">
-      <div class="logo">PisteMaster <span>Orchestrator</span></div>
-      <div class="tournament-info">
-        <el-tag type="success" effect="dark">ME - 男子重剑个人赛</el-tag>
-        <span class="sync-status"><el-icon><Refresh/></el-icon> 已同步</span>
+  <div class="orchestrator-layout">
+    <nav class="top-nav">
+      <div class="left">
+        <el-button icon="ArrowLeft" circle @click="router.back()"/>
+        <span class="event-title">{{ eventInfo.event_name }}</span>
+        <el-tag size="small" effect="plain">{{ eventInfo.rule_name }}</el-tag>
       </div>
-      <div class="user-actions">
-        <el-button type="primary" plain icon="Printer">打印报表</el-button>
-        <el-avatar :size="32" src="https://cube.elemecdn.com/0/88/03b0d39583f48206768a7534e55bcpng.png"/>
+      <div class="right">
+        <el-button type="info" link icon="Printer">打印当前表单</el-button>
+        <el-divider direction="vertical"/>
+        <el-button type="primary" icon="UploadFilled">同步至服务器</el-button>
       </div>
-    </el-header>
+    </nav>
 
-    <el-container>
-      <el-aside width="240px" class="app-aside">
-        <el-steps direction="vertical" :active="activeStep" finish-status="success">
-          <el-step v-for="(step, index) in workflowSteps"
-                   :key="index"
-                   :title="step.title"
-                   @click="activeStep = index"
-                   class="clickable-step"/>
+    <div class="main-content">
+      <aside class="steps-aside">
+        <el-steps direction="vertical" :active="currentStep" finish-status="success">
+          <el-step
+              v-for="(step, index) in steps"
+              :key="index"
+              :title="step.title"
+              @click="handleStepClick(index)"
+              class="step-item"
+          />
         </el-steps>
-      </el-aside>
+      </aside>
 
-      <el-main class="app-main">
-        <div class="content-card">
-          <div class="step-header">
-            <h2>{{ workflowSteps[activeStep].title }}</h2>
-            <p class="subtitle">{{ workflowSteps[activeStep].description }}</p>
-          </div>
+      <main class="work-area">
+        <div class="step-card">
+          <header class="step-header">
+            <h2>{{ steps[currentStep].title }}</h2>
+            <p>{{ steps[currentStep].desc }}</p>
+          </header>
 
-          <el-divider/>
-
-          <div class="step-body">
-            <div class="placeholder-content">
-              <el-empty :description="`正在开发: ${workflowSteps[activeStep].title} 模块`"/>
-            </div>
-          </div>
-
-          <div class="step-footer">
-            <el-button @click="activeStep--" :disabled="activeStep === 0">上一步</el-button>
-            <el-button type="primary" @click="activeStep++" :disabled="activeStep === workflowSteps.length - 1">
-              保存并进入下一步
-            </el-button>
-          </div>
+          <section class="step-body">
+            <transition name="fade-transform" mode="out-in">
+              <keep-alive>
+                <component
+                    :is="currentStepComponent"
+                    :event-id="eventId"
+                    @next="nextStep"
+                />
+              </keep-alive>
+            </transition>
+          </section>
         </div>
-      </el-main>
-    </el-container>
-  </el-container>
+      </main>
+    </div>
+  </div>
 </template>
 
 <script setup lang="ts">
-import {ref} from 'vue'
+/* 路径：src/views/EventOrchestrator.vue */
+import {ref, computed, shallowRef} from 'vue'
+import {useRoute, useRouter} from 'vue-router'
+import {ArrowLeft, Printer, UploadFilled} from '@element-plus/icons-vue'
 
-const activeStep = ref(0)
+// 导入步骤组件
+import FencerImport from '@/components/tournament/FencerImport.vue'
+// 下面这些组件我们随后逐一实现
+// import PoolGeneration from '@/components/tournament/PoolGeneration.vue'
+// import PoolScoring from '@/components/tournament/PoolScoring.vue'
 
-const workflowSteps = [
-  {title: '基础配置', description: '设置时间、地点及击剑规则'},
-  {title: '选手报名管理', description: '导入选手、检查资格、确认种子排名'},
-  {title: '小组赛分组', description: '自动或手动进行小组蛇形分配'},
-  {title: '小组赛计分', description: '录入小组赛矩阵比分'},
-  {title: '晋级名单确认', description: '根据小组赛成绩计算排名及淘汰赛位'},
-  {title: '淘汰赛对阵', description: '生成并管理 DE 对阵表'},
-  {title: '最终成绩发布', description: '生成最终排名并导出官方成绩单'}
+const route = useRoute()
+const router = useRouter()
+const eventId = route.params.id as string
+
+// 模拟单项信息
+const eventInfo = ref({
+  event_name: '男子重剑个人赛 (ME)',
+  rule_name: 'FIE 标准规则'
+})
+
+const currentStep = ref(0)
+
+const steps = [
+  {title: '选手名单', desc: '导入并确认参赛选手，设置初始种子排名', component: FencerImport},
+  {title: '小组赛分组', desc: '根据排名自动进行蛇形分组', component: null}, // 待实现
+  {title: '小组赛计分', desc: '录入小组赛矩阵比分，实时计算晋级名额', component: null},
+  {title: '淘汰赛对阵', desc: '生成并管理 DE 淘汰赛对阵图', component: null},
+  {title: '最终排名', desc: '导出最终成绩册与积分', component: null}
 ]
+
+// 动态获取当前组件
+const currentStepComponent = computed(() => steps[currentStep.value].component)
+
+const nextStep = () => {
+  if (currentStep.value < steps.length - 1) {
+    currentStep.value++
+  }
+}
+
+const handleStepClick = (index: number) => {
+  // 仅允许点击已完成或当前的步骤
+  if (index <= currentStep.value + 1) {
+    currentStep.value = index
+  }
+}
 </script>
 
-<style lang="scss">
-body {
-  margin: 0;
-  font-family: 'Inter', sans-serif;
-  background-color: #f5f7fa;
-}
-
-.layout-container {
+<style scoped lang="scss">
+.orchestrator-layout {
   height: 100vh;
-}
-
-.app-header {
-  background-color: #1a1a1a;
-  color: white;
   display: flex;
-  align-items: center;
-  justify-content: space-between;
-  padding: 0 20px;
-  border-bottom: 1px solid #333;
+  flex-direction: column;
+  background-color: #f0f2f5;
 
-  .logo {
-    font-weight: bold;
-    font-size: 1.2rem;
-
-    span {
-      color: #409eff;
-    }
-  }
-}
-
-.app-aside {
-  background: white;
-  border-right: 1px solid #e6e6e6;
-  padding: 40px 20px;
-
-  .clickable-step {
-    cursor: pointer;
-
-    &:hover {
-      opacity: 0.8;
-    }
-  }
-}
-
-.app-main {
-  padding: 24px;
-
-  .content-card {
-    background: white;
-    border-radius: 8px;
-    height: 100%;
-    display: flex;
-    flex-direction: column;
-    box-shadow: 0 2px 12px 0 rgba(0, 0, 0, 0.05);
-    padding: 30px;
-  }
-
-  .step-header {
-    h2 {
-      margin: 0;
-      font-size: 1.5rem;
-    }
-
-    .subtitle {
-      color: #909399;
-      margin-top: 8px;
-    }
-  }
-
-  .step-body {
-    flex: 1;
-    overflow-y: auto;
-    padding: 20px 0;
-  }
-
-  .step-footer {
-    border-top: 1px solid #f0f0f0;
-    padding-top: 20px;
+  .top-nav {
+    height: 50px;
+    background: #fff;
+    border-bottom: 1px solid #dcdfe6;
     display: flex;
     justify-content: space-between;
+    align-items: center;
+    padding: 0 20px;
+
+    .left {
+      display: flex;
+      align-items: center;
+      gap: 15px;
+
+      .event-title {
+        font-weight: bold;
+        font-size: 16px;
+      }
+    }
   }
+
+  .main-content {
+    flex: 1;
+    display: flex;
+    overflow: hidden;
+
+    .steps-aside {
+      width: 200px;
+      background: #fff;
+      padding: 30px 20px;
+      border-right: 1px solid #dcdfe6;
+
+      .step-item {
+        cursor: pointer;
+        transition: 0.3s;
+      }
+    }
+
+    .work-area {
+      flex: 1;
+      padding: 24px;
+      overflow-y: auto;
+
+      .step-card {
+        background: #fff;
+        min-height: 100%;
+        border-radius: 8px;
+        box-shadow: 0 2px 12px 0 rgba(0, 0, 0, 0.05);
+        display: flex;
+        flex-direction: column;
+
+        .step-header {
+          padding: 20px 30px;
+          border-bottom: 1px solid #f0f2f5;
+
+          h2 {
+            margin: 0;
+            font-size: 20px;
+          }
+
+          p {
+            margin: 8px 0 0;
+            color: #909399;
+            font-size: 14px;
+          }
+        }
+
+        .step-body {
+          flex: 1;
+          padding: 30px;
+        }
+      }
+    }
+  }
+}
+
+/* 步骤切换动画 */
+.fade-transform-enter-active,
+.fade-transform-leave-active {
+  transition: all 0.3s;
+}
+
+.fade-transform-enter-from {
+  opacity: 0;
+  transform: translateX(-15px);
+}
+
+.fade-transform-leave-to {
+  opacity: 0;
+  transform: translateX(15px);
 }
 </style>
