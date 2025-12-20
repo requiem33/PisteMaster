@@ -61,6 +61,7 @@ import FencerImport from '@/components/tournament/FencerImport.vue'
 import PoolGeneration from '@/components/tournament/PoolGeneration.vue'
 import PoolScoring from '@/components/tournament/PoolScoring.vue'
 import PoolRanking from '@/components/tournament/PoolRanking.vue'
+import DETree from '@/components/tournament/DETree.vue'
 
 const route = useRoute()
 const router = useRouter()
@@ -79,7 +80,7 @@ const steps = [
   {title: '小组赛分组', desc: '根据排名自动进行蛇形分组', component: PoolGeneration},
   {title: '小组赛计分', desc: '录入小组赛矩阵比分，实时计算晋级名额', component: PoolScoring},
   {title: '小组赛排名', desc: '小组赛排名，计算晋级名额', component: PoolRanking},
-  {title: '淘汰赛对阵', desc: '生成并管理 DE 淘汰赛对阵图', component: null},
+  {title: '淘汰赛对阵', desc: '生成并管理 DE 淘汰赛对阵图', component: DETree},
   {title: '最终排名', desc: '导出最终成绩册与积分', component: null}
 ]
 
