@@ -56,7 +56,7 @@ import {ref} from 'vue'
 const activeStep = ref(0)
 
 const workflowSteps = [
-  {title: '赛事基础配置', description: '设置比赛名称、时间、地点及击剑规则'},
+  {title: '基础配置', description: '设置时间、地点及击剑规则'},
   {title: '选手报名管理', description: '导入选手、检查资格、确认种子排名'},
   {title: '小组赛分组', description: '自动或手动进行小组蛇形分配'},
   {title: '小组赛计分', description: '录入小组赛矩阵比分'},
