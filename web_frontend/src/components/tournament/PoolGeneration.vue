@@ -3,19 +3,14 @@
     <el-card shadow="never" class="config-section">
       <el-form :inline="true" :model="config">
         <el-form-item label="每组人数">
-          <el-select v-model="config.sizePerPool" style="width: 100px">
-            <el-option :value="4">4 人</el-option>
-            <el-option :value="5">5 人</el-option>
-            <el-option :value="6">6 人</el-option>
-            <el-option :value="7">7 人</el-option>
-          </el-select>
+          <el-input-number v-model="config.sizePerPool" :min="2" :max="10" size="small"/>
         </el-form-item>
         <el-form-item label="避让原则">
-          <el-checkbox v-model="config.avoidClub" disabled>俱乐部避让</el-checkbox>
-          <el-checkbox v-model="config.avoidCountry">国家/地区避让</el-checkbox>
+          <el-checkbox v-model="config.avoidCountry">国家/地区自动避让</el-checkbox>
         </el-form-item>
         <el-form-item>
-          <el-button type="primary" @click="generatePools">重新生成分组</el-button>
+          <el-button type="primary" size="small" @click="generatePools">重新按算法生成</el-button>
+          <span class="edit-hint">提示：你可以直接在下方拖动选手进行手动调组</span>
         </el-form-item>
       </el-form>
     </el-card>
@@ -25,21 +20,29 @@
         <el-col :md="8" :sm="12" v-for="(pool, pIndex) in pools" :key="pIndex">
           <div class="pool-card">
             <div class="pool-header">
-              <span class="pool-name">第 {{ pIndex + 1 }} 组 (Pool {{ pIndex + 1 }})</span>
-              <el-tag size="small">{{ pool.length }} 人</el-tag>
+              <span class="pool-name">第 {{ pIndex + 1 }} 组</span>
+              <el-tag size="small" type="info">{{ pool.length }} 人</el-tag>
             </div>
 
-            <div class="pool-body">
-              <div
-                  v-for="(fencer, fIndex) in pool"
-                  :key="fencer.id"
-                  class="fencer-item"
-              >
-                <span class="seed">#{{ fencer.current_ranking || 'N/A' }}</span>
-                <span class="name">{{ fencer.last_name }} {{ fencer.first_name }}</span>
-                <span class="ioc">{{ fencer.country_code }}</span>
-              </div>
-            </div>
+            <draggable
+                v-model="pools[pIndex]"
+                group="fencers"
+                item-key="id"
+                class="pool-body-draggable"
+                ghost-class="ghost-item"
+                @end="handleDragEnd"
+            >
+              <template #item="{ element }">
+                <div class="fencer-item draggable-cursor">
+                  <span class="seed">#{{ element.current_ranking }}</span>
+                  <span class="name">{{ element.last_name }} {{ element.first_name }}</span>
+                  <span class="ioc">{{ element.country_code }}</span>
+                  <el-icon class="drag-handle">
+                    <Rank/>
+                  </el-icon>
+                </div>
+              </template>
+            </draggable>
           </div>
         </el-col>
       </el-row>
@@ -48,7 +51,7 @@
     <footer class="footer-actions">
       <el-button @click="$emit('prev')">返回修改名单</el-button>
       <div class="right">
-        <el-button type="warning" plain>手动微调 (Drag & Drop)</el-button>
+        <el-text type="info" class="mr-20">手动调整后将自动锁定当前布局</el-text>
         <el-button type="success" size="large" @click="confirmPools">
           确认分组并生成计分表
         </el-button>
@@ -61,18 +64,19 @@
 /* 路径：src/components/tournament/PoolGeneration.vue */
 import {ref, onMounted} from 'vue'
 import {ElMessage} from 'element-plus'
+import {Rank} from '@element-plus/icons-vue'
+import draggable from 'vuedraggable' // 👈 引入拖拽库
 
 const props = defineProps<{ eventId: string }>()
 const emit = defineEmits(['next', 'prev'])
 
 const config = ref({
   sizePerPool: 7,
-  avoidClub: true,
   avoidCountry: true
 })
 
-// 模拟从上一步传入或从 API 获取的已录入选手
-const fencers = ref<any[]>([
+// 初始选手数据（模拟）
+const initialFencers = [
   {id: 1, last_name: 'ZHANG', first_name: 'San', country_code: 'CHN', current_ranking: 1},
   {id: 2, last_name: 'SMITH', first_name: 'John', country_code: 'USA', current_ranking: 2},
   {id: 3, last_name: 'LEE', first_name: 'Min', country_code: 'KOR', current_ranking: 3},
@@ -82,48 +86,30 @@ const fencers = ref<any[]>([
   {id: 7, last_name: 'BROWN', first_name: 'Charlie', country_code: 'USA', current_ranking: 7},
   {id: 8, last_name: 'SATO', first_name: 'Yuki', country_code: 'JPN', current_ranking: 8},
   {id: 9, last_name: 'CHEN', first_name: 'Li', country_code: 'CHN', current_ranking: 9},
-  {id: 10, last_name: 'ROSSI', first_name: 'Mario', country_code: 'ITA', current_ranking: 10},
-  {id: 11, last_name: 'TANAKA', first_name: 'Ken', country_code: 'JPN', current_ranking: 11},
-  {id: 12, last_name: 'DUBOIS', first_name: 'Jean', country_code: 'FRA', current_ranking: 12},
-])
+]
 
 const pools = ref<any[][]>([])
 
-/**
- * 核心算法：蛇形分配 (Snake Seeding)
- */
+// 蛇形算法（与之前一致）
 const generatePools = () => {
-  // 1. 按排名升序排列
-  const sortedFencers = [...fencers.value].sort((a, b) =>
-      (a.current_ranking || 999) - (b.current_ranking || 999)
-  )
-
-  // 2. 计算需要的小组数量
-  const poolCount = Math.ceil(sortedFencers.length / config.value.sizePerPool)
+  const sorted = [...initialFencers].sort((a, b) => a.current_ranking - b.current_ranking)
+  const poolCount = Math.ceil(sorted.length / config.value.sizePerPool)
   const result: any[][] = Array.from({length: poolCount}, () => [])
 
-  // 3. 执行蛇形分配
-  sortedFencers.forEach((fencer, index) => {
+  sorted.forEach((fencer, index) => {
     const round = Math.floor(index / poolCount)
-    const isForward = round % 2 === 0
-
-    let poolIndex
-    if (isForward) {
-      poolIndex = index % poolCount
-    } else {
-      poolIndex = (poolCount - 1) - (index % poolCount)
-    }
-
+    const poolIndex = (round % 2 === 0) ? (index % poolCount) : (poolCount - 1 - (index % poolCount))
     result[poolIndex].push(fencer)
   })
-
   pools.value = result
-  ElMessage.success(`已生成 ${poolCount} 个小组`)
+}
+
+const handleDragEnd = () => {
+  ElMessage({message: '分组已手动更新', type: 'info', duration: 1000})
 }
 
 const confirmPools = () => {
-  // 逻辑：将分组结果保存到 Django 后端
-  console.log('最终分组结果:', pools.value)
+  console.log('保存最终分组到后端:', pools.value)
   emit('next')
 }
 
@@ -134,75 +120,95 @@ onMounted(() => {
 
 <style scoped lang="scss">
 .pool-gen-container {
-  .config-section {
-    margin-bottom: 30px;
-    background-color: var(--el-fill-color-light);
+  .edit-hint {
+    margin-left: 15px;
+    font-size: 12px;
+    color: #E6A23C;
   }
 
-  .pools-grid {
-    margin-bottom: 40px;
+  .pool-body-draggable {
+    min-height: 100px; // 确保空组也能拖入
+    padding: 10px 0;
+  }
+
+  .fencer-item {
+    display: flex;
+    align-items: center;
+    padding: 10px 15px;
+    background: #fff;
+    border-bottom: 1px solid #f0f0f0;
+    transition: background 0.2s;
+
+    &.draggable-cursor {
+      cursor: grab;
+    }
+
+    &:active {
+      cursor: grabbing;
+    }
+
+    &:hover {
+      background: var(--el-fill-color-light);
+    }
+
+    .seed {
+      width: 35px;
+      font-weight: bold;
+      color: #409eff;
+    }
+
+    .name {
+      flex: 1;
+    }
+
+    .ioc {
+      font-size: 12px;
+      color: #999;
+      margin-right: 10px;
+    }
+
+    .drag-handle {
+      color: #ccc;
+      opacity: 0;
+      transition: 0.2s;
+    }
+
+    &:hover .drag-handle {
+      opacity: 1;
+    }
+  }
+
+  .ghost-item {
+    opacity: 0.5;
+    background: #c8ebfb !important;
+    border: 1px dashed #409eff;
   }
 
   .pool-card {
-    background: #fff;
     border: 1px solid var(--el-border-color-light);
     border-radius: 8px;
     margin-bottom: 20px;
-    overflow: hidden;
+    background: #fff;
 
     .pool-header {
-      background: var(--el-color-primary-light-9);
       padding: 10px 15px;
+      background: var(--el-fill-color-lighter);
       display: flex;
       justify-content: space-between;
-      align-items: center;
-      border-bottom: 1px solid var(--el-border-color-lighter);
-
-      .pool-name {
-        font-weight: bold;
-        color: var(--el-color-primary);
-      }
-    }
-
-    .pool-body {
-      padding: 10px 0;
-
-      .fencer-item {
-        display: flex;
-        align-items: center;
-        padding: 8px 15px;
-        font-size: 13px;
-        border-bottom: 1px solid #f9f9f9;
-
-        &:last-child {
-          border-bottom: none;
-        }
-
-        .seed {
-          width: 40px;
-          color: #909399;
-          font-family: monospace;
-        }
-
-        .name {
-          flex: 1;
-          font-weight: 500;
-        }
-
-        .ioc {
-          color: var(--el-color-info);
-          font-size: 11px;
-        }
-      }
+      border-bottom: 1px solid var(--el-border-color-light);
     }
   }
 
   .footer-actions {
+    margin-top: 30px;
+    padding: 20px;
+    border-top: 1px solid #eee;
     display: flex;
     justify-content: space-between;
-    align-items: center;
-    padding-top: 20px;
-    border-top: 1px solid var(--el-border-color-lighter);
+  }
+
+  .mr-20 {
+    margin-right: 20px;
   }
 }
 </style>
