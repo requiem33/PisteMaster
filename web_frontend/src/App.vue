@@ -1,17 +1,9 @@
 <template>
-  <div id="app">
-    <h1>PisteMaster Frontend</h1>
-    <p>前端环境已准备就绪！</p>
-  </div>
+  <el-config-provider :locale="zhCn">
+    <router-view/>
+  </el-config-provider>
 </template>
 
 <script setup lang="ts">
+import zhCn from 'element-plus/es/locale/lang/zh-cn'
 </script>
-
-<style>
-#app {
-  font-family: Arial, sans-serif;
-  text-align: center;
-  margin-top: 100px;
-}
-</style>
