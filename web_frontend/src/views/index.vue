@@ -80,7 +80,7 @@ const toggleDark = useToggle(isDark)
 
 const handleCreate = () => {
   // 逻辑：弹出创建窗口或跳转
-  console.log('创建赛事')
+  router.push('/tournament/create')
 }
 
 const handleGoToList = () => {

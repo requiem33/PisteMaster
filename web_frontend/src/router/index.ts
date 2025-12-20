@@ -16,6 +16,12 @@ const router = createRouter({
             component: () => import('../views/TournamentList.vue')
         },
         {
+            path: '/tournament/create',
+            name: 'TournamentCreate',
+            component: () => import('../views/TournamentCreate.vue'), // 👈 新建这个组件
+            meta: {title: '创建新赛事'}
+        },
+        {
             path: '/tournament/:id',
             name: 'TournamentDashboard',
             component: () => import('../views/TournamentDashboard.vue')
