@@ -1,7 +1,7 @@
 <template>
   <div class="create-page-wrapper">
     <div class="header-nav">
-      <el-button icon="Back" @click="router.back()">返回首页</el-button>
+      <el-button icon="Back" @click="router.back()">返回</el-button>
     </div>
 
     <div class="form-container">
