@@ -54,11 +54,17 @@ const toggleDark = useToggle(isDark)
   align-items: center;
   padding: 0 40px;
   height: 64px;
-  background-color: var(--el-bg-color);
+
+  /* 毛玻璃效果 */
+  background-color: var(--el-bg-color-overlay);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+
   border-bottom: 1px solid var(--el-border-color-light);
   position: sticky;
   top: 0;
   z-index: 1000;
+  transition: all 0.3s;
 
   .logo-section {
     display: flex;
