@@ -1,0 +1,40 @@
+/* src/styles/theme.scss */
+
+:root {
+  /* --- 柔和白天模式 (Light) --- */
+  --el-bg-color-page: #f5f7fa; /* 淡淡的灰蓝色背景，不刺眼 */
+  --el-bg-color: #ffffff;
+  --el-color-primary: #409eff;
+  --el-border-color-light: #e4e7ed;
+  --el-text-color-primary: #2c3e50; /* 深青石色，比纯黑更柔和 */
+}
+
+html.dark {
+  /* --- 舒适暗黑模式 (Deep Sea) --- */
+  /* 背景不再是纯黑，而是带有深蓝调的石墨色 */
+  --el-bg-color-page: #0a111a; /* 极深蓝底色 */
+  --el-bg-color: #141d29; /* 卡片背景色，稍微亮一点 */
+
+  /* 边框和分割线 */
+  --el-border-color-base: #2a3544;
+  --el-border-color-light: #242f3e;
+  --el-border-color-extra-light: #1b2635;
+
+  /* 文字颜色 */
+  --el-text-color-primary: #cbd5e0; /* 浅灰色文字，减少对比度疲劳 */
+  --el-text-color-regular: #a0aec0;
+  --el-text-color-secondary: #718096;
+
+  /* 品牌色微调：在暗色下稍微提高亮度 */
+  --el-color-primary: #5daeff;
+  --el-color-primary-light-9: #1a2a3c; /* 针对暗色模式的标签背景 */
+
+  /* 遮罩层 */
+  --el-mask-color: rgba(0, 0, 0, 0.8);
+}
+
+/* 按钮和平滑过渡效果 */
+body {
+  transition: background-color 0.4s ease, color 0.4s ease;
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+}
