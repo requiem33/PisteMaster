@@ -1,11 +1,11 @@
 <template>
   <div class="dashboard-container">
-    <AppHeader title="赛事控制台" :showCreate="false">
+    <AppHeader :title="$t('tournament.dashboard.title')" :showCreate="false">
       <template #extra>
         <el-breadcrumb separator-class="el-icon-arrow-right" class="header-breadcrumb">
-          <el-breadcrumb-item :to="{ path: '/' }">首页</el-breadcrumb-item>
-          <el-breadcrumb-item :to="{ path: '/tournament' }">赛事列表</el-breadcrumb-item>
-          <el-breadcrumb-item>当前赛事</el-breadcrumb-item>
+          <el-breadcrumb-item :to="{ path: '/' }">{{ $t('tournament.dashboard.breadcrumb.home') }}</el-breadcrumb-item>
+          <el-breadcrumb-item :to="{ path: '/tournament' }">{{ $t('tournament.dashboard.breadcrumb.tournamentList') }}</el-breadcrumb-item>
+          <el-breadcrumb-item>{{ $t('tournament.dashboard.breadcrumb.currentTournament') }}</el-breadcrumb-item>
         </el-breadcrumb>
       </template>
 
@@ -19,8 +19,8 @@
             </span>
             <template #dropdown>
               <el-dropdown-menu>
-                <el-dropdown-item icon="User">个人中心</el-dropdown-item>
-                <el-dropdown-item divided icon="SwitchButton">退出登录</el-dropdown-item>
+                <el-dropdown-item icon="User">{{ $t('common.userCenter') }}</el-dropdown-item>
+                <el-dropdown-item divided icon="SwitchButton">{{ $t('common.logout') }}</el-dropdown-item>
               </el-dropdown-menu>
             </template>
           </el-dropdown>
@@ -35,7 +35,7 @@
           <div class="tournament-main-info">
             <div class="title-with-tag">
               <h1>{{ tournamentInfo.tournament_name }}</h1>
-              <el-tag effect="dark" type="primary">进行中</el-tag>
+              <el-tag effect="dark" type="primary">{{ $t('tournament.dashboard.tournamentStatus') }}</el-tag>
             </div>
             <div class="meta-tags">
               <span class="meta-item"><el-icon><Location/></el-icon> {{ tournamentInfo.location }}</span>
@@ -46,8 +46,8 @@
             </div>
           </div>
           <div class="header-actions">
-            <el-button icon="Edit">编辑赛事信息</el-button>
-            <el-button type="primary" icon="Plus" @click="eventDrawerVisible = true">新增竞赛项目</el-button>
+            <el-button icon="Edit">{{ $t('tournament.dashboard.editInfo') }}</el-button>
+            <el-button type="primary" icon="Plus" @click="eventDrawerVisible = true">{{ $t('tournament.dashboard.addEvent') }}</el-button>
           </div>
         </div>
       </header>
@@ -55,30 +55,30 @@
       <el-row :gutter="20" class="stat-row">
         <el-col :span="6">
           <el-card shadow="never" class="stat-card">
-            <div class="label">项目总数</div>
+            <div class="label">{{ $t('tournament.dashboard.stats.totalEvents') }}</div>
             <div class="value">{{ events.length }}</div>
           </el-card>
         </el-col>
         <el-col :span="6">
           <el-card shadow="never" class="stat-card">
-            <div class="label">已报名选手</div>
+            <div class="label">{{ $t('tournament.dashboard.stats.totalFencers') }}</div>
             <div class="value">128</div>
           </el-card>
         </el-col>
         <el-col :span="6">
           <el-card shadow="never" class="stat-card">
-            <div class="label">当前活跃剑道</div>
+            <div class="label">{{ $t('tournament.dashboard.stats.activePistes') }}</div>
             <div class="value">12</div>
           </el-card>
         </el-col>
         <el-col :span="6">
           <el-card shadow="never" class="stat-card highlight">
-            <div class="label">同步状态</div>
+            <div class="label">{{ $t('tournament.dashboard.stats.syncStatus') }}</div>
             <div class="value">
               <el-icon>
                 <Cloudy/>
               </el-icon>
-              实时
+              {{ $t('tournament.dashboard.stats.realtime') }}
             </div>
           </el-card>
         </el-col>
@@ -86,15 +86,15 @@
 
       <section class="events-grid">
         <div class="section-title">
-          <h2>竞赛项目 (Events)</h2>
+          <h2>{{ $t('tournament.dashboard.eventSection') }} (Events)</h2>
           <el-radio-group v-model="filterType" size="small">
-            <el-radio-button label="all">全部</el-radio-button>
-            <el-radio-button label="individual">个人赛</el-radio-button>
-            <el-radio-button label="team">团体赛</el-radio-button>
+            <el-radio-button label="all">{{ $t('tournament.dashboard.filterAll') }}</el-radio-button>
+            <el-radio-button label="individual">{{ $t('tournament.dashboard.filterIndividual') }}</el-radio-button>
+            <el-radio-button label="team">{{ $t('tournament.dashboard.filterTeam') }}</el-radio-button>
           </el-radio-group>
         </div>
 
-        <el-empty v-if="events.length === 0" description="暂无项目，点击右上角创建第一个单项"/>
+        <el-empty v-if="events.length === 0" :description="$t('tournament.dashboard.noEvents')"/>
 
         <el-row :gutter="20" v-else>
           <el-col :md="8" :sm="12" :xs="24" v-for="event in events" :key="event.id">

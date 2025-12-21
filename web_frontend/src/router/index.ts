@@ -8,28 +8,32 @@ const router = createRouter({
         {
             path: '/',
             name: 'index',
-            component: () => import('../views/index.vue')
+            component: () => import('../views/index.vue'),
+            meta: {titleKey: 'common.pageTitles.index'}
         },
         {
             path: '/tournament',
             name: 'TournamentList',
-            component: () => import('../views/TournamentList.vue')
+            component: () => import('../views/TournamentList.vue'),
+            meta: {titleKey: 'common.pageTitles.tournamentList'}
         },
         {
             path: '/tournament/create',
             name: 'TournamentCreate',
             component: () => import('../views/TournamentCreate.vue'), // 👈 新建这个组件
-            meta: {title: '创建新赛事'}
+            meta: {titleKey: 'common.pageTitles.tournamentCreate'}
         },
         {
             path: '/tournament/:id',
             name: 'TournamentDashboard',
-            component: () => import('../views/TournamentDashboard.vue')
+            component: () => import('../views/TournamentDashboard.vue'),
+            meta: {titleKey: 'common.pageTitles.tournamentDashboard'}
         },
         {
             path: '/event/:id',
             name: 'EventOrchestrator',
-            component: () => import('../views/EventOrchestrator.vue')
+            component: () => import('../views/EventOrchestrator.vue'),
+            meta: {titleKey: 'common.pageTitles.eventOrchestrator'}
         }
     ]
 })

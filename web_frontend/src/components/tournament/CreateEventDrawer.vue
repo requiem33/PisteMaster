@@ -1,41 +1,41 @@
 <template>
   <el-drawer
       v-model="visible"
-      title="创建竞赛项目"
+      :title="$t('tournament.eventDrawer.title')"
       size="500px"
       @closed="resetForm"
   >
     <el-form :model="form" :rules="rules" ref="formRef" label-position="top">
-      <el-form-item label="项目名称" prop="event_name">
-        <el-input v-model="form.event_name" placeholder="例如：U14 男子重剑个人赛"/>
+      <el-form-item :label="$t('tournament.eventDrawer.form.eventName')" prop="event_name">
+        <el-input v-model="form.event_name" :placeholder="$t('tournament.eventDrawer.placeholder.eventName')"/>
       </el-form-item>
 
-      <el-form-item label="剑种类型" prop="event_type_id">
-        <el-select v-model="form.event_type_id" placeholder="请选择剑种" style="width: 100%">
+      <el-form-item :label="$t('tournament.eventDrawer.form.eventType')" prop="event_type_id">
+        <el-select v-model="form.event_type_id" :placeholder="$t('tournament.eventDrawer.placeholder.eventType')" style="width: 100%">
           <el-option v-for="t in EVENT_TYPES" :key="t.id" :label="t.name" :value="t.id"/>
         </el-select>
       </el-form-item>
 
-      <el-form-item label="应用规则" prop="rule_id">
-        <el-select v-model="form.rule_id" placeholder="请选择赛制规则" style="width: 100%">
+      <el-form-item :label="$t('tournament.eventDrawer.form.rule')" prop="rule_id">
+        <el-select v-model="form.rule_id" :placeholder="$t('tournament.eventDrawer.placeholder.rule')" style="width: 100%">
           <el-option v-for="r in FENCING_RULES" :key="r.id" :label="r.name" :value="r.id"/>
         </el-select>
       </el-form-item>
 
       <el-row :gutter="20">
         <el-col :span="12">
-          <el-form-item label="比赛性质" prop="is_team_event">
+          <el-form-item :label="$t('tournament.eventDrawer.form.eventNature')" prop="is_team_event">
             <el-radio-group v-model="form.is_team_event">
-              <el-radio-button :label="false">个人赛</el-radio-button>
-              <el-radio-button :label="true">团体赛</el-radio-button>
+              <el-radio-button :label="false">{{ $t('tournament.eventDrawer.form.individual') }}</el-radio-button>
+              <el-radio-button :label="true">{{ $t('tournament.eventDrawer.form.team') }}</el-radio-button>
             </el-radio-group>
           </el-form-item>
         </el-col>
         <el-col :span="12">
-          <el-form-item label="预定开始时间" prop="start_time">
+          <el-form-item :label="$t('tournament.eventDrawer.form.startTime')" prop="start_time">
             <el-time-picker
                 v-model="form.start_time"
-                placeholder="选择时间"
+                :placeholder="$t('tournament.eventDrawer.placeholder.startTime')"
                 style="width: 100%"
                 format="HH:mm"
                 value-format="YYYY-MM-DD HH:mm:ss"
@@ -45,8 +45,8 @@
       </el-row>
 
       <el-alert
-          title="提示"
-          description="创建项目后，您将进入选手录入与小组编排环节。"
+          :title="$t('tournament.eventDrawer.alert.title')"
+          :description="$t('tournament.eventDrawer.alert.description')"
           type="info"
           show-icon
           :closable="false"
@@ -55,8 +55,8 @@
 
     <template #footer>
       <div style="flex: auto">
-        <el-button @click="visible = false">取消</el-button>
-        <el-button type="primary" :loading="loading" @click="handleConfirm">确认创建</el-button>
+        <el-button @click="visible = false">{{ $t('tournament.eventDrawer.actions.cancel') }}</el-button>
+        <el-button type="primary" :loading="loading" @click="handleConfirm">{{ $t('tournament.eventDrawer.actions.confirmCreate') }}</el-button>
       </div>
     </template>
   </el-drawer>
@@ -66,6 +66,7 @@
 import {ref, reactive} from 'vue'
 import {EVENT_TYPES, FENCING_RULES} from '@/types/event.ts'
 import {ElMessage} from 'element-plus'
+import i18n from '@/locales'
 
 const props = defineProps<{ tournamentId: string }>()
 const visible = defineModel<boolean>()
@@ -81,9 +82,9 @@ const form = reactive({
 })
 
 const rules = {
-  event_name: [{required: true, message: '请输入项目名称', trigger: 'blur'}],
-  event_type_id: [{required: true, message: '请选择剑种', trigger: 'change'}],
-  rule_id: [{required: true, message: '请选择规则', trigger: 'change'}]
+  event_name: [{required: true, message: () => i18n.global.t('tournament.eventDrawer.messages.eventNameRequired'), trigger: 'blur'}],
+  event_type_id: [{required: true, message: () => i18n.global.t('tournament.eventDrawer.messages.eventTypeRequired'), trigger: 'change'}],
+  rule_id: [{required: true, message: () => i18n.global.t('tournament.eventDrawer.messages.ruleRequired'), trigger: 'change'}]
 }
 
 const handleConfirm = async () => {
@@ -100,7 +101,7 @@ const handleConfirm = async () => {
       try {
         console.log('发送给 Django API:', payload)
         await new Promise(r => setTimeout(r, 800)) // 模拟网络
-        ElMessage.success('竞赛项目创建成功')
+        ElMessage.success(i18n.global.t('tournament.eventDrawer.messages.createSuccess'))
         visible.value = false
         // 这里可以触发一个父组件的刷新事件
       } finally {

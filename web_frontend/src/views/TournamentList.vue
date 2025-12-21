@@ -1,20 +1,20 @@
 <template>
   <div class="tournament-list-page">
-    <AppHeader title="赛事列表" :showCreate="false"/>
+    <AppHeader :title="$t('tournament.listTitle')" :showCreate="false"/>
 
     <main class="content">
       <div class="filter-bar">
         <el-input
             v-model="searchQuery"
-            placeholder="搜索赛事名称..."
+            :placeholder="$t('common.search') + '...'"
             prefix-icon="Search"
             clearable
             style="width: 300px"
         />
         <el-radio-group v-model="statusFilter" class="ml-20">
-          <el-radio-button label="all">全部</el-radio-button>
-          <el-radio-button label="ongoing">进行中</el-radio-button>
-          <el-radio-button label="completed">已结束</el-radio-button>
+          <el-radio-button label="all">{{ $t('common.all') }}</el-radio-button>
+          <el-radio-button label="ongoing">{{ $t('common.ongoing') }}</el-radio-button>
+          <el-radio-button label="completed">{{ $t('common.completed') }}</el-radio-button>
         </el-radio-group>
       </div>
 
@@ -27,7 +27,7 @@
           <el-card shadow="hover" class="event-card" @click="goToOrchestrator(item.id)">
             <div class="card-status">
               <el-tag :type="item.status === 'completed' ? 'info' : 'success'" size="small">
-                {{ item.status === 'completed' ? '已结束' : '进行中' }}
+                {{ item.status === 'completed' ? $t('common.completed') : $t('common.ongoing') }}
               </el-tag>
             </div>
 
@@ -44,14 +44,14 @@
                 <el-icon>
                   <User/>
                 </el-icon>
-                选手人数: {{ item.fencerCount }}
+                {{ $t('common.fencerCount') }}: {{ item.fencerCount }}
               </p>
             </div>
 
             <template #footer>
               <div class="card-footer">
                 <span class="rule-type">{{ item.rule }}</span>
-                <el-button link type="primary">进入编排
+                <el-button link type="primary">{{ $t('common.enterOrchestration') }}
                   <el-icon>
                     <ArrowRight/>
                   </el-icon>
@@ -62,7 +62,7 @@
         </el-col>
       </el-row>
 
-      <el-empty v-if="filteredTournaments.length === 0" description="没有找到匹配的赛事"/>
+      <el-empty v-if="filteredTournaments.length === 0" :description="$t('common.noMatch')"/>
     </main>
   </div>
 </template>
