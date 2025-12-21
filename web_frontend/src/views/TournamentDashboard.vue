@@ -1,106 +1,138 @@
 <template>
   <div class="dashboard-container">
-    <header class="dashboard-header">
-      <el-breadcrumb separator-class="el-icon-arrow-right">
-        <el-breadcrumb-item :to="{ path: '/' }">首页</el-breadcrumb-item>
-        <el-breadcrumb-item>赛事控制台</el-breadcrumb-item>
-      </el-breadcrumb>
+    <AppHeader title="赛事控制台" :showCreate="false">
+      <template #extra>
+        <el-breadcrumb separator-class="el-icon-arrow-right" class="header-breadcrumb">
+          <el-breadcrumb-item :to="{ path: '/' }">首页</el-breadcrumb-item>
+          <el-breadcrumb-item :to="{ path: '/tournament' }">赛事列表</el-breadcrumb-item>
+          <el-breadcrumb-item>当前赛事</el-breadcrumb-item>
+        </el-breadcrumb>
+      </template>
 
-      <div class="title-bar">
-        <div class="tournament-main-info">
-          <h1>{{ tournamentInfo.tournament_name }}</h1>
-          <div class="meta-tags">
-            <el-tag size="small" effect="dark" type="primary">进行中</el-tag>
-            <span class="meta-item"><el-icon><Location/></el-icon> {{ tournamentInfo.location }}</span>
-            <span class="meta-item"><el-icon><Calendar/></el-icon> {{
-                tournamentInfo.start_date
-              }} 至 {{ tournamentInfo.end_date }}</span>
-          </div>
+      <template #user>
+        <div class="header-user-area">
+          <el-dropdown>
+            <span class="user-info">
+              <el-avatar :size="24" src="https://cube.elemecdn.com/0/88/03b0d39583f48206768a7534e55bcpng.png"/>
+              <span class="username">管理员</span>
+              <el-icon><ArrowDown/></el-icon>
+            </span>
+            <template #dropdown>
+              <el-dropdown-menu>
+                <el-dropdown-item icon="User">个人中心</el-dropdown-item>
+                <el-dropdown-item divided icon="SwitchButton">退出登录</el-dropdown-item>
+              </el-dropdown-menu>
+            </template>
+          </el-dropdown>
+          <el-divider direction="vertical"/>
         </div>
-        <div class="header-actions">
-          <el-button icon="Edit">编辑赛事信息</el-button>
-          <el-button type="primary" icon="Plus" @click="eventDrawerVisible = true">新增竞赛项目</el-button>
-        </div>
-      </div>
-    </header>
+      </template>
+    </AppHeader>
 
-    <el-row :gutter="20" class="stat-row">
-      <el-col :span="6">
-        <el-card shadow="never" class="stat-card">
-          <div class="label">项目总数</div>
-          <div class="value">{{ events.length }}</div>
-        </el-card>
-      </el-col>
-      <el-col :span="6">
-        <el-card shadow="never" class="stat-card">
-          <div class="label">已报名选手</div>
-          <div class="value">128</div>
-        </el-card>
-      </el-col>
-      <el-col :span="6">
-        <el-card shadow="never" class="stat-card">
-          <div class="label">当前活跃剑道</div>
-          <div class="value">12</div>
-        </el-card>
-      </el-col>
-      <el-col :span="6">
-        <el-card shadow="never" class="stat-card highlight">
-          <div class="label">同步状态</div>
-          <div class="value">
-            <el-icon>
-              <Cloudy/>
-            </el-icon>
-            实时
-          </div>
-        </el-card>
-      </el-col>
-    </el-row>
-
-    <section class="events-grid">
-      <div class="section-title">
-        <h2>竞赛项目 (Events)</h2>
-        <el-radio-group v-model="filterType" size="small">
-          <el-radio-button label="all">全部</el-radio-button>
-          <el-radio-button label="individual">个人赛</el-radio-button>
-          <el-radio-button label="team">团体赛</el-radio-button>
-        </el-radio-group>
-      </div>
-
-      <el-empty v-if="events.length === 0" description="暂无项目，点击右上角创建第一个单项"/>
-
-      <el-row :gutter="20" v-else>
-        <el-col :md="8" :sm="12" :xs="24" v-for="event in events" :key="event.id">
-          <el-card class="event-card" shadow="hover">
-            <div class="event-card-body">
-              <div class="event-type-icon">
-                <el-icon :size="24">
-                  <Trophy/>
-                </el-icon>
-              </div>
-              <div class="event-details">
-                <h3>{{ event.event_name }}</h3>
-                <p class="rule-text">{{ event.rule_name }}</p>
-                <div class="event-tags">
-                  <el-tag size="small" type="info">{{ event.is_team_event ? '团体赛' : '个人赛' }}</el-tag>
-                  <el-tag size="small" :type="getStatusType(event.status)">{{ event.status }}</el-tag>
-                </div>
-              </div>
+    <div class="dashboard-content">
+      <header class="tournament-info-banner">
+        <div class="title-bar">
+          <div class="tournament-main-info">
+            <div class="title-with-tag">
+              <h1>{{ tournamentInfo.tournament_name }}</h1>
+              <el-tag effect="dark" type="primary">进行中</el-tag>
             </div>
-            <div class="event-card-footer">
-              <div class="fencer-count">
-                <el-icon>
-                  <User/>
-                </el-icon>
-                <span>{{ event.fencer_count }} 选手</span>
-              </div>
-              <el-button type="primary" link icon="Right" @click="goToOrchestrator(event.id)">
-                进入编排
-              </el-button>
+            <div class="meta-tags">
+              <span class="meta-item"><el-icon><Location/></el-icon> {{ tournamentInfo.location }}</span>
+              <span class="meta-item">
+                <el-icon><Calendar/></el-icon>
+                {{ tournamentInfo.start_date }} 至 {{ tournamentInfo.end_date }}
+              </span>
+            </div>
+          </div>
+          <div class="header-actions">
+            <el-button icon="Edit">编辑赛事信息</el-button>
+            <el-button type="primary" icon="Plus" @click="eventDrawerVisible = true">新增竞赛项目</el-button>
+          </div>
+        </div>
+      </header>
+
+      <el-row :gutter="20" class="stat-row">
+        <el-col :span="6">
+          <el-card shadow="never" class="stat-card">
+            <div class="label">项目总数</div>
+            <div class="value">{{ events.length }}</div>
+          </el-card>
+        </el-col>
+        <el-col :span="6">
+          <el-card shadow="never" class="stat-card">
+            <div class="label">已报名选手</div>
+            <div class="value">128</div>
+          </el-card>
+        </el-col>
+        <el-col :span="6">
+          <el-card shadow="never" class="stat-card">
+            <div class="label">当前活跃剑道</div>
+            <div class="value">12</div>
+          </el-card>
+        </el-col>
+        <el-col :span="6">
+          <el-card shadow="never" class="stat-card highlight">
+            <div class="label">同步状态</div>
+            <div class="value">
+              <el-icon>
+                <Cloudy/>
+              </el-icon>
+              实时
             </div>
           </el-card>
         </el-col>
       </el-row>
-    </section>
+
+      <section class="events-grid">
+        <div class="section-title">
+          <h2>竞赛项目 (Events)</h2>
+          <el-radio-group v-model="filterType" size="small">
+            <el-radio-button label="all">全部</el-radio-button>
+            <el-radio-button label="individual">个人赛</el-radio-button>
+            <el-radio-button label="team">团体赛</el-radio-button>
+          </el-radio-group>
+        </div>
+
+        <el-empty v-if="events.length === 0" description="暂无项目，点击右上角创建第一个单项"/>
+
+        <el-row :gutter="20" v-else>
+          <el-col :md="8" :sm="12" :xs="24" v-for="event in events" :key="event.id">
+            <el-card class="event-card" shadow="hover">
+              <div class="event-card-body">
+                <div class="event-type-icon">
+                  <el-icon :size="24">
+                    <Trophy/>
+                  </el-icon>
+                </div>
+                <div class="event-details">
+                  <h3>{{ event.event_name }}</h3>
+                  <p class="rule-text">{{ event.rule_name }}</p>
+                  <div class="event-tags">
+                    <el-tag size="small" type="info">{{ event.is_team_event ? '团体赛' : '个人赛' }}</el-tag>
+                    <el-tag size="small" :type="getStatusType(event.status)">{{ event.status }}</el-tag>
+                  </div>
+                </div>
+              </div>
+              <div class="event-card-footer">
+                <div class="fencer-count">
+                  <el-icon>
+                    <User/>
+                  </el-icon>
+                  <span>{{ event.fencer_count }} 选手</span>
+                </div>
+                <el-button type="primary" link @click="goToOrchestrator(event.id)">
+                  进入编排
+                  <el-icon>
+                    <Right/>
+                  </el-icon>
+                </el-button>
+              </div>
+            </el-card>
+          </el-col>
+        </el-row>
+      </section>
+    </div>
 
     <CreateEventDrawer
         v-model="eventDrawerVisible"
@@ -111,20 +143,19 @@
 </template>
 
 <script setup lang="ts">
-import {ref, onMounted} from 'vue'
+import {ref} from 'vue'
 import {useRoute, useRouter} from 'vue-router'
-import {Location, Calendar, Cloudy, Trophy, User, Right, Plus, Edit} from '@element-plus/icons-vue'
+import {Location, Calendar, Cloudy, Trophy, User, Right, Plus, Edit, ArrowDown} from '@element-plus/icons-vue'
+import AppHeader from '@/components/layout/AppHeader.vue'
 import CreateEventDrawer from '@/components/tournament/CreateEventDrawer.vue'
 
 const route = useRoute()
 const router = useRouter()
 const tournamentId = route.params.id as string
 
-// 状态控制
 const eventDrawerVisible = ref(false)
 const filterType = ref('all')
 
-// 模拟赛事基础数据 (实际应从 API 获取)
 const tournamentInfo = ref({
   tournament_name: '2025年全国击剑冠军赛 (第一站)',
   organizer: '中国击剑协会',
@@ -133,7 +164,6 @@ const tournamentInfo = ref({
   end_date: '2025-12-25'
 })
 
-// 模拟项目数据
 const events = ref([
   {
     id: 'e1',
@@ -154,53 +184,68 @@ const events = ref([
 ])
 
 const getStatusType = (status: string) => {
-  switch (status) {
-    case '正在报名':
-      return 'success'
-    case '编排中':
-      return 'warning'
-    case '已结束':
-      return 'info'
-    default:
-      return ''
-  }
+  const types: Record<string, string> = {'正在报名': 'success', '编排中': 'warning', '已结束': 'info'}
+  return types[status] || ''
 }
 
-const handleEventCreated = () => {
-  // 这里可以重新调用获取列表的接口
-  console.log('项目已创建，刷新列表')
-}
-
-const goToOrchestrator = (eventId: string) => {
-  router.push(`/event/${eventId}`)
-}
+const handleEventCreated = () => console.log('刷新列表')
+const goToOrchestrator = (eventId: string) => router.push(`/event/${eventId}`)
 </script>
 
 <style scoped lang="scss">
 .dashboard-container {
-  padding: 30px;
-  background-color: var(--el-bg-color-page);
   min-height: 100vh;
+  background-color: var(--el-bg-color-page);
 }
 
-.dashboard-header {
+.dashboard-content {
+  padding: 30px 40px;
+  max-width: 1400px;
+  margin: 0 auto;
+}
+
+.header-breadcrumb {
+  margin-left: 10px;
+  font-size: 13px;
+}
+
+.header-user-area {
+  display: flex;
+  align-items: center;
+
+  .user-info {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    cursor: pointer;
+    font-size: 14px;
+    color: var(--el-text-color-primary);
+  }
+}
+
+.tournament-info-banner {
   margin-bottom: 30px;
 
   .title-bar {
     display: flex;
     justify-content: space-between;
     align-items: flex-end;
-    margin-top: 15px;
 
-    h1 {
-      margin: 0 0 10px 0;
-      font-size: 28px;
-      font-weight: 700;
+    .title-with-tag {
+      display: flex;
+      align-items: center;
+      gap: 15px;
+      margin-bottom: 10px;
+
+      h1 {
+        margin: 0;
+        font-size: 28px;
+        font-weight: 700;
+      }
     }
 
     .meta-tags {
       display: flex;
-      align-items: center;
       gap: 20px;
       color: var(--el-text-color-secondary);
       font-size: 14px;
@@ -219,6 +264,8 @@ const goToOrchestrator = (eventId: string) => {
 
   .stat-card {
     border-radius: 12px;
+    border: none;
+    background-color: var(--el-bg-color);
 
     .label {
       color: var(--el-text-color-secondary);
@@ -229,10 +276,13 @@ const goToOrchestrator = (eventId: string) => {
       font-size: 26px;
       font-weight: bold;
       margin-top: 8px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
     }
 
     &.highlight {
-      border-left: 4px solid var(--el-color-primary);
+      border-top: 4px solid var(--el-color-primary);
     }
   }
 }
@@ -252,7 +302,7 @@ const goToOrchestrator = (eventId: string) => {
 .event-card {
   margin-bottom: 20px;
   border-radius: 12px;
-  cursor: default;
+  border: 1px solid var(--el-border-color-lighter);
 
   .event-card-body {
     display: flex;

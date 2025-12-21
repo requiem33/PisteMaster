@@ -1,20 +1,33 @@
 <template>
   <div class="orchestrator-layout">
-    <nav class="top-nav">
-      <div class="left">
-        <el-button icon="ArrowLeft" circle @click="router.back()"/>
-        <span class="event-title">{{ eventInfo.event_name }}</span>
-        <el-tag size="small" effect="plain">{{ eventInfo.rule_name }}</el-tag>
-      </div>
-      <div class="right">
-        <el-button type="info" link icon="Printer">打印当前表单</el-button>
-        <el-divider direction="vertical"/>
-        <el-button type="primary" icon="UploadFilled">同步至服务器</el-button>
-      </div>
-    </nav>
+    <AppHeader :title="eventInfo.event_name" :showCreate="false">
+      <template #extra>
+        <el-breadcrumb separator-class="el-icon-arrow-right" class="header-breadcrumb">
+          <el-breadcrumb-item :to="{ path: '/' }">首页</el-breadcrumb-item>
+          <el-breadcrumb-item :to="{ path: '/tournament' }">赛事列表</el-breadcrumb-item>
+          <el-breadcrumb-item :to="{ path: `/tournament/${tournamentId}` }">赛事控制台</el-breadcrumb-item>
+          <el-breadcrumb-item>{{ eventInfo.event_name }}</el-breadcrumb-item>
+        </el-breadcrumb>
+      </template>
+
+      <template #user>
+        <div class="orchestrator-actions">
+          <el-button type="info" link icon="Printer">打印表单</el-button>
+          <el-divider direction="vertical"/>
+          <el-button type="primary" icon="UploadFilled">同步数据</el-button>
+          <el-divider direction="vertical"/>
+          <el-avatar :size="24" src="https://cube.elemecdn.com/0/88/03b0d39583f48206768a7534e55bcpng.png"/>
+        </div>
+      </template>
+    </AppHeader>
 
     <div class="main-content">
       <aside class="steps-aside">
+        <div class="event-meta-card">
+          <p class="label">当前规则</p>
+          <el-tag size="small" type="warning" effect="light">{{ eventInfo.rule_name }}</el-tag>
+        </div>
+
         <el-steps direction="vertical" :active="currentStep" finish-status="success">
           <el-step
               v-for="(step, index) in steps"
@@ -29,7 +42,10 @@
       <main class="work-area">
         <div class="step-card">
           <header class="step-header">
-            <h2>{{ steps[currentStep].title }}</h2>
+            <div class="title-group">
+              <el-button icon="ArrowLeft" circle size="small" @click="prevStep" :disabled="currentStep === 0"/>
+              <h2>{{ steps[currentStep].title }}</h2>
+            </div>
             <p>{{ steps[currentStep].desc }}</p>
           </header>
 
@@ -37,7 +53,7 @@
             <transition name="fade-transform" mode="out-in">
               <keep-alive>
                 <component
-                    :is="currentStepComponent"
+                    :is="steps[currentStep].component"
                     :event-id="eventId"
                     @next="nextStep"
                 />
@@ -51,12 +67,12 @@
 </template>
 
 <script setup lang="ts">
-/* 路径：src/views/EventOrchestrator.vue */
-import {ref, computed, shallowRef} from 'vue'
+import {ref} from 'vue'
 import {useRoute, useRouter} from 'vue-router'
-import {ArrowLeft, Printer, UploadFilled} from '@element-plus/icons-vue'
+import {Printer, UploadFilled, ArrowLeft} from '@element-plus/icons-vue'
+import AppHeader from '@/components/layout/AppHeader.vue'
 
-// 导入步骤组件
+// 导入步骤子组件
 import FencerImport from '@/components/tournament/FencerImport.vue'
 import PoolGeneration from '@/components/tournament/PoolGeneration.vue'
 import PoolScoring from '@/components/tournament/PoolScoring.vue'
@@ -67,6 +83,7 @@ import FinalRanking from '@/components/tournament/FinalRanking.vue'
 const route = useRoute()
 const router = useRouter()
 const eventId = route.params.id as string
+const tournamentId = ref('t1') // 实际应从 API 或路由 query 获取
 
 // 模拟单项信息
 const eventInfo = ref({
@@ -85,17 +102,15 @@ const steps = [
   {title: '最终排名', desc: '导出最终成绩册与积分', component: FinalRanking}
 ]
 
-// 动态获取当前组件
-const currentStepComponent = computed(() => steps[currentStep.value].component)
-
 const nextStep = () => {
-  if (currentStep.value < steps.length - 1) {
-    currentStep.value++
-  }
+  if (currentStep.value < steps.length - 1) currentStep.value++
+}
+const prevStep = () => {
+  if (currentStep.value > 0) currentStep.value--
 }
 
 const handleStepClick = (index: number) => {
-  // 仅允许点击已完成或当前的步骤
+  // 逻辑：允许自由回看已完成的步骤
   if (index <= currentStep.value + 1) {
     currentStep.value = index
   }
@@ -107,87 +122,98 @@ const handleStepClick = (index: number) => {
   height: 100vh;
   display: flex;
   flex-direction: column;
-  background-color: #f0f2f5;
+  background-color: var(--el-bg-color-page);
+}
 
-  .top-nav {
-    height: 50px;
-    background: #fff;
-    border-bottom: 1px solid #dcdfe6;
+.header-breadcrumb {
+  margin-left: 10px;
+  font-size: 13px;
+}
+
+.orchestrator-actions {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.main-content {
+  flex: 1;
+  display: flex;
+  overflow: hidden;
+
+  .steps-aside {
+    width: 220px;
+    background: var(--el-bg-color);
+    padding: 20px;
+    border-right: 1px solid var(--el-border-color-light);
     display: flex;
-    justify-content: space-between;
-    align-items: center;
-    padding: 0 20px;
+    flex-direction: column;
+    gap: 20px;
 
-    .left {
-      display: flex;
-      align-items: center;
-      gap: 15px;
+    .event-meta-card {
+      padding: 15px;
+      background: var(--el-fill-color-light);
+      border-radius: 8px;
 
-      .event-title {
-        font-weight: bold;
-        font-size: 16px;
+      .label {
+        font-size: 12px;
+        color: var(--el-text-color-secondary);
+        margin-bottom: 8px;
       }
+    }
+
+    .step-item {
+      cursor: pointer;
     }
   }
 
-  .main-content {
+  .work-area {
     flex: 1;
-    display: flex;
-    overflow: hidden;
+    padding: 20px;
+    overflow-y: auto;
+    background-color: var(--el-fill-color-blank);
 
-    .steps-aside {
-      width: 200px;
-      background: #fff;
-      padding: 30px 20px;
-      border-right: 1px solid #dcdfe6;
+    .step-card {
+      background: var(--el-bg-color);
+      min-height: 100%;
+      border-radius: 12px;
+      border: 1px solid var(--el-border-color-light);
+      display: flex;
+      flex-direction: column;
 
-      .step-item {
-        cursor: pointer;
-        transition: 0.3s;
-      }
-    }
+      .step-header {
+        padding: 24px 30px;
+        border-bottom: 1px solid var(--el-border-color-lighter);
 
-    .work-area {
-      flex: 1;
-      padding: 24px;
-      overflow-y: auto;
-
-      .step-card {
-        background: #fff;
-        min-height: 100%;
-        border-radius: 8px;
-        box-shadow: 0 2px 12px 0 rgba(0, 0, 0, 0.05);
-        display: flex;
-        flex-direction: column;
-
-        .step-header {
-          padding: 20px 30px;
-          border-bottom: 1px solid #f0f2f5;
+        .title-group {
+          display: flex;
+          align-items: center;
+          gap: 12px;
 
           h2 {
             margin: 0;
-            font-size: 20px;
-          }
-
-          p {
-            margin: 8px 0 0;
-            color: #909399;
-            font-size: 14px;
+            font-size: 22px;
+            font-weight: 600;
           }
         }
 
-        .step-body {
-          flex: 1;
-          padding: 30px;
+        p {
+          margin: 10px 0 0 44px; /* 对齐标题文字 */
+          color: var(--el-text-color-secondary);
+          font-size: 14px;
         }
+      }
+
+      .step-body {
+        flex: 1;
+        padding: 30px;
       }
     }
   }
 }
 
-/* 步骤切换动画 */
-.fade-transform-enter-active,
-.fade-transform-leave-active {
+/* 动画保持不变 */
+.fade-transform-enter-active, .fade-transform-leave-active {
   transition: all 0.3s;
 }
 

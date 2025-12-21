@@ -1,8 +1,6 @@
 <template>
   <div class="create-page-wrapper">
-    <div class="header-nav">
-      <el-button icon="Back" @click="router.back()">返回</el-button>
-    </div>
+    <AppHeader title="创建赛事" :showCreate="false"/>
 
     <div class="form-container">
       <el-card class="form-card">
@@ -57,13 +55,18 @@
 </template>
 
 <script setup lang="ts">
+/* 1. 确保所有需要的引用都已导入 */
 import {reactive, ref} from 'vue'
 import {useRouter} from 'vue-router'
 import {ElMessage} from 'element-plus'
+import type {FormInstance, FormRules} from 'element-plus'
+import AppHeader from '@/components/layout/AppHeader.vue'
 
 const router = useRouter()
 const loading = ref(false)
+const formRef = ref<FormInstance>() // 表单引用
 
+/* 2. 定义 form 变量 (解决 Property 'form' does not exist 报错) */
 const form = reactive({
   tournament_name: '',
   organizer: '',
@@ -71,27 +74,37 @@ const form = reactive({
   date_range: [] as string[]
 })
 
-const rules = {
+/* 3. 定义 rules (解决 Property 'rules' does not exist 报错) */
+const rules: FormRules = {
   tournament_name: [{required: true, message: '赛事名称不能为空', trigger: 'blur'}],
   date_range: [{required: true, message: '请选择比赛日期', trigger: 'change'}]
 }
 
+/* 4. 定义 handleCreate 函数 (解决 Property 'handleCreate' does not exist 报错) */
 const handleCreate = async () => {
-  loading.value = true
-  try {
-    // 模拟 Django API 调用
-    console.log('正在向后端发送 UUID 格式请求...', form)
-    await new Promise(r => setTimeout(r, 1000))
+  if (!formRef.value) return
 
-    // 假设后端返回了新生成的 UUID: '550e8400-e29b-41d4-a716-446655440000'
-    const newId = '550e8400-e29b-41d4-a716-446655440000'
+  // 校验表单
+  await formRef.value.validate(async (valid) => {
+    if (valid) {
+      loading.value = true
+      try {
+        console.log('正在提交赛事数据:', form)
+        // 模拟 API 延迟
+        await new Promise(r => setTimeout(r, 1000))
 
-    ElMessage.success('赛事创建成功')
-    // 👈 关键跳转：直接带 ID 进入 Dashboard
-    router.push(`/tournament/${newId}`)
-  } finally {
-    loading.value = false
-  }
+        const newId = '550e8400-e29b-41d4-a716-446655440000'
+        ElMessage.success('赛事创建成功')
+
+        // 跳转到编排总控制台（假设路由已配置）
+        router.push(`/orchestrator/${newId}`)
+      } catch (error) {
+        ElMessage.error('创建失败，请重试')
+      } finally {
+        loading.value = false
+      }
+    }
+  })
 }
 </script>
 
@@ -99,17 +112,11 @@ const handleCreate = async () => {
 .create-page-wrapper {
   min-height: 100vh;
   background-color: var(--el-bg-color-page);
-  padding: 40px 20px;
-}
-
-.header-nav {
-  max-width: 800px;
-  margin: 0 auto 20px;
 }
 
 .form-container {
   max-width: 800px;
-  margin: 0 auto;
+  margin: 40px auto;
 
   .form-card {
     border-radius: 16px;
@@ -120,6 +127,7 @@ const handleCreate = async () => {
     h2 {
       margin: 0;
       font-size: 24px;
+      color: var(--el-text-color-primary);
     }
 
     p {

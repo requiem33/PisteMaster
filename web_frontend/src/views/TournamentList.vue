@@ -1,32 +1,6 @@
 <template>
   <div class="tournament-list-page">
-    <header class="list-header">
-      <div class="logo-section" @click="router.push('/')" title="返回首页">
-        <el-icon size="24" color="#409EFF">
-          <Trophy/>
-        </el-icon>
-        <span class="app-name">PisteMaster</span>
-        <el-divider direction="vertical"/>
-        <span class="page-title">赛事中心</span>
-      </div>
-
-      <div class="actions">
-        <el-button link @click="router.push('/')">首页</el-button>
-
-        <el-tooltip :content="isDark ? '切换到白天模式' : '切换到夜晚模式'" placement="bottom">
-          <el-button
-              :icon="isDark ? 'Sunny' : 'Moon'"
-              circle
-              @click="toggleDark"
-              class="theme-toggle"
-          />
-        </el-tooltip>
-
-        <el-divider direction="vertical"/>
-
-        <el-button type="primary" icon="Plus" @click="createNewEvent">新建赛事</el-button>
-      </div>
-    </header>
+    <AppHeader title="赛事列表" :showCreate="false"/>
 
     <main class="content">
       <div class="filter-bar">
@@ -101,6 +75,7 @@ import {
   Trophy, Plus, Moon, Sunny, Search,
   Calendar, User, ArrowRight
 } from '@element-plus/icons-vue'
+import AppHeader from '@/components/layout/AppHeader.vue'
 
 const router = useRouter()
 

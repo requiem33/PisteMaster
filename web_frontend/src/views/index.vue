@@ -1,27 +1,26 @@
 <template>
   <div class="home-container">
-    <div class="top-toolbar">
-      <el-switch
-          v-model="isDark"
-          class="theme-switch"
-          inline-prompt
-          :active-icon="Moon"
-          :inactive-icon="Sunny"
-          @change="toggleDark"
-      />
-      <el-divider direction="vertical"/>
-      <el-button v-if="!isLoggedIn" type="primary" link>注册 / 登录</el-button>
-      <el-dropdown v-else>
-        <span class="user-info">
-          <el-avatar :size="24" src="https://cube.elemecdn.com/0/88/03b0d39583f48206768a7534e55bcpng.png"/>
-          管理员 <el-icon><ArrowDown/></el-icon>
-        </span>
-        <template #footer>
-          <el-dropdown-item>个人中心</el-dropdown-item>
-          <el-dropdown-item divided>退出登录</el-dropdown-item>
-        </template>
-      </el-dropdown>
-    </div>
+    <AppHeader title="欢迎使用" :showCreate="false">
+      <template #user>
+        <div class="header-user-area">
+          <el-button v-if="!isLoggedIn" type="primary" link @click="isLoggedIn = true">注册 / 登录</el-button>
+          <el-dropdown v-else>
+            <span class="user-info">
+              <el-avatar :size="24" src="https://cube.elemecdn.com/0/88/03b0d39583f48206768a7534e55bcpng.png"/>
+              <span class="username">管理员</span>
+              <el-icon><ArrowDown/></el-icon>
+            </span>
+            <template #dropdown>
+              <el-dropdown-menu>
+                <el-dropdown-item>个人中心</el-dropdown-item>
+                <el-dropdown-item divided @click="isLoggedIn = false">退出登录</el-dropdown-item>
+              </el-dropdown-menu>
+            </template>
+          </el-dropdown>
+          <el-divider direction="vertical"/>
+        </div>
+      </template>
+    </AppHeader>
 
     <el-row class="hero-section">
       <el-col :md="12" class="left-brand">
@@ -55,7 +54,7 @@
               </el-icon>
             </div>
             <div class="text-box">
-              <h3>已有赛事</h3>
+              <h3>赛事列表</h3>
               <p>查看并管理正在进行中或已结束的历史赛事</p>
             </div>
           </div>
@@ -68,25 +67,14 @@
 <script setup lang="ts">
 import {ref} from 'vue'
 import {useRouter} from 'vue-router'
-import {Sunny, Moon, Plus, List, Odometer, ArrowDown} from '@element-plus/icons-vue'
-import {useDark, useToggle} from '@vueuse/core'
+import {Plus, List, Odometer, ArrowDown} from '@element-plus/icons-vue'
+import AppHeader from '@/components/layout/AppHeader.vue'
 
 const router = useRouter()
 const isLoggedIn = ref(false)
 
-// 主题切换逻辑 (需安装 @vueuse/core)
-const isDark = useDark()
-const toggleDark = useToggle(isDark)
-
-const handleCreate = () => {
-  // 逻辑：弹出创建窗口或跳转
-  router.push('/tournament/create')
-}
-
-const handleGoToList = () => {
-  // 跳转到赛事列表（你可以复用之前的 Dashboard 或列表逻辑）
-  router.push('/tournament')
-}
+const handleCreate = () => router.push('/tournament/create')
+const handleGoToList = () => router.push('/tournament')
 </script>
 
 <style scoped lang="scss">
@@ -95,16 +83,24 @@ const handleGoToList = () => {
   display: flex;
   flex-direction: column;
   background-color: var(--el-bg-color-page);
-  transition: all 0.3s ease;
 }
 
-.top-toolbar {
-  position: absolute;
-  top: 20px;
-  right: 40px;
+.header-user-area {
   display: flex;
   align-items: center;
-  z-index: 10;
+
+  .user-info {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    cursor: pointer;
+    font-size: 14px;
+    color: var(--el-text-color-primary);
+
+    .username {
+      font-weight: 500;
+    }
+  }
 }
 
 .hero-section {
@@ -119,6 +115,7 @@ const handleGoToList = () => {
   align-items: center;
   text-align: center;
   border-right: 1px solid var(--el-border-color-lighter);
+  height: 60%; /* 限制高度使分割线不贯穿全屏 */
 
   .brand-title {
     font-size: 4rem;
@@ -126,6 +123,7 @@ const handleGoToList = () => {
     background: linear-gradient(45deg, #409eff, #67c23a);
     -webkit-background-clip: text;
     -webkit-text-fill-color: transparent;
+    font-weight: 800;
   }
 
   .brand-subtitle {
@@ -155,11 +153,11 @@ const handleGoToList = () => {
   border: 1px solid var(--el-border-color-light);
   border-radius: 12px;
   cursor: pointer;
-  transition: all 0.2s ease;
+  transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
 
   &:hover {
-    transform: translateY(-4px);
-    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.1);
+    transform: translateX(10px); /* 首页特有的横向位移动效 */
+    box-shadow: var(--el-box-shadow-light);
     border-color: #409eff;
   }
 
@@ -192,11 +190,10 @@ const handleGoToList = () => {
   p {
     margin: 0;
     font-size: 0.9rem;
-    color: #909399;
+    color: var(--el-text-color-secondary);
   }
 }
 
-/* 移动端适配 */
 @media (max-width: 768px) {
   .hero-section {
     flex-direction: column;
@@ -204,10 +201,12 @@ const handleGoToList = () => {
   .left-brand {
     border-right: none;
     border-bottom: 1px solid var(--el-border-color-lighter);
-    padding: 60px 0;
+    width: 100%;
+    padding: 40px 0;
   }
   .right-actions {
     padding: 40px 20px;
+    width: 100%;
   }
 }
 </style>
