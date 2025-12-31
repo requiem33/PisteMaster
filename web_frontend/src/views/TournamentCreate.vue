@@ -61,6 +61,7 @@ import {ElMessage} from 'element-plus'
 import type {FormInstance, FormRules} from 'element-plus'
 import AppHeader from '@/components/layout/AppHeader.vue'
 import i18n from '@/locales'
+import {DataManager} from '@/services/DataManager'
 
 const router = useRouter()
 const loading = ref(false)
@@ -76,7 +77,11 @@ const form = reactive({
 
 /* 3. 定义 rules (解决 Property 'rules' does not exist 报错) */
 const rules: FormRules = {
-  tournament_name: [{required: true, message: () => i18n.global.t('tournament.messages.nameRequired'), trigger: 'blur'}],
+  tournament_name: [{
+    required: true,
+    message: () => i18n.global.t('tournament.messages.nameRequired'),
+    trigger: 'blur'
+  }],
   date_range: [{required: true, message: () => i18n.global.t('tournament.messages.dateRequired'), trigger: 'change'}]
 }
 
@@ -84,22 +89,20 @@ const rules: FormRules = {
 const handleCreate = async () => {
   if (!formRef.value) return
 
-  // 校验表单
   await formRef.value.validate(async (valid) => {
     if (valid) {
       loading.value = true
       try {
-        console.log('正在提交赛事数据:', form)
-        // 模拟 API 延迟
-        await new Promise(r => setTimeout(r, 1000))
+        // 调用中控层进行存储
+        const result = await DataManager.createTournament(form);
 
-        const newId = '550e8400-e29b-41d4-a716-446655440000'
-        ElMessage.success(i18n.global.t('tournament.messages.createSuccess'))
+        ElMessage.success(i18n.global.t('tournament.messages.createSuccess'));
 
-        // 跳转到编排总控制台（假设路由已配置）
-        router.push(`/orchestrator/${newId}`)
+        // 跳转到赛事列表
+        await router.push('/tournament');
       } catch (error) {
-        ElMessage.error(i18n.global.t('tournament.messages.createFailed'))
+        console.error(error);
+        ElMessage.error(i18n.global.t('tournament.messages.createFailed'));
       } finally {
         loading.value = false
       }
