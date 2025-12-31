@@ -30,5 +30,15 @@ export const DataManager = {
         }
 
         return newTournament;
-    }
+    },
+
+    async getTournamentList(): Promise<any[]> { // 明确指定返回 Promise<any[]>
+        try {
+            return await IndexedDBService.getAllTournaments() || [];
+        } catch (error) {
+            console.error('Fetch error:', error);
+            // 关键：发生任何错误都返回一个空数组，防止前端崩溃
+            return [];
+        }
+    },
 };

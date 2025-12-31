@@ -1,6 +1,6 @@
 <template>
   <div class="tournament-list-page">
-    <AppHeader :title="$t('tournament.listTitle')" :showCreate="false"/>
+    <AppHeader :title="$t('tournament.listTitle')" :showCreate="true" @create="createNewEvent"/>
 
     <main class="content">
       <div class="filter-bar">
@@ -18,91 +18,106 @@
         </el-radio-group>
       </div>
 
-      <el-row :gutter="20" class="tournament-grid">
-        <el-col
-            v-for="item in filteredTournaments"
-            :key="item.id"
-            :xs="24" :sm="12" :md="8" :lg="6"
-        >
-          <el-card shadow="hover" class="event-card" @click="goToOrchestrator(item.id)">
-            <div class="card-status">
-              <el-tag :type="item.status === 'completed' ? 'info' : 'success'" size="small">
-                {{ item.status === 'completed' ? $t('common.completed') : $t('common.ongoing') }}
-              </el-tag>
-            </div>
-
-            <h3 class="event-name">{{ item.name }}</h3>
-
-            <div class="meta-info">
-              <p class="event-meta">
-                <el-icon>
-                  <Calendar/>
-                </el-icon>
-                {{ item.date }}
-              </p>
-              <p class="event-meta">
-                <el-icon>
-                  <User/>
-                </el-icon>
-                {{ $t('common.fencerCount') }}: {{ item.fencerCount }}
-              </p>
-            </div>
-
-            <template #footer>
-              <div class="card-footer">
-                <span class="rule-type">{{ item.rule }}</span>
-                <el-button link type="primary">{{ $t('common.enterOrchestration') }}
-                  <el-icon>
-                    <ArrowRight/>
-                  </el-icon>
-                </el-button>
+      <div v-loading="loading">
+        <el-row :gutter="20" class="tournament-grid">
+          <el-col
+              v-for="item in filteredTournaments"
+              :key="item.id"
+              :xs="24" :sm="12" :md="8" :lg="6"
+          >
+            <el-card shadow="hover" class="event-card" @click="goToOrchestrator(item.id)">
+              <div class="card-status">
+                <el-tag :type="item.status === 'completed' ? 'info' : 'success'" size="small">
+                  {{ item.status === 'completed' ? $t('common.completed') : $t('common.ongoing') }}
+                </el-tag>
+                <el-tag v-if="!item.is_synced" type="warning" size="small" effect="plain" class="ml-10">
+                  {{ $t('common.offline') || '离线' }}
+                </el-tag>
               </div>
-            </template>
-          </el-card>
-        </el-col>
-      </el-row>
 
-      <el-empty v-if="filteredTournaments.length === 0" :description="$t('common.noMatch')"/>
+              <h3 class="event-name">{{ item.tournament_name }}</h3>
+
+              <div class="meta-info">
+                <p class="event-meta">
+                  <el-icon>
+                    <Calendar/>
+                  </el-icon>
+                  {{ item.start_date }} ~ {{ item.end_date }}
+                </p>
+                <p class="event-meta">
+                  <el-icon>
+                    <User/>
+                  </el-icon>
+                  {{ $t('common.fencerCount') }}: {{ item.fencerCount || 0 }}
+                </p>
+              </div>
+
+              <template #footer>
+                <div class="card-footer">
+                  <span class="rule-type">{{ item.organizer }}</span>
+                  <el-button link type="primary">{{ $t('common.enterOrchestration') }}
+                    <el-icon>
+                      <ArrowRight/>
+                    </el-icon>
+                  </el-button>
+                </div>
+              </template>
+            </el-card>
+          </el-col>
+        </el-row>
+
+        <el-empty v-if="!loading && filteredTournaments.length === 0" :description="$t('common.noMatch')"/>
+      </div>
     </main>
   </div>
 </template>
 
 <script setup lang="ts">
-import {ref, computed} from 'vue'
+import {ref, computed, onMounted} from 'vue'
 import {useRouter} from 'vue-router'
-import {useDark, useToggle} from '@vueuse/core'
-import {
-  Trophy, Plus, Moon, Sunny, Search,
-  Calendar, User, ArrowRight
-} from '@element-plus/icons-vue'
+import {Search, Calendar, User, ArrowRight} from '@element-plus/icons-vue'
 import AppHeader from '@/components/layout/AppHeader.vue'
+// 导入存储服务
+import {DataManager} from '@/services/DataManager';
 
 const router = useRouter()
-
-// --- 主题切换逻辑 ---
-const isDark = useDark()
-const toggleDark = useToggle(isDark)
+const loading = ref(false)
 
 // --- 搜索与过滤 ---
 const searchQuery = ref('')
 const statusFilter = ref('all')
+const tournaments = ref<any[]>([])
 
-const tournaments = ref([
-  {
-    id: 'e1',
-    name: '2024 全国击剑俱乐部联赛 (上海站)',
-    date: '2024-10-20',
-    status: 'ongoing',
-    fencerCount: 128,
-    rule: 'FIE 标准'
-  },
-  {id: 'e2', name: '公开赛 - 男子重剑个人', date: '2024-11-05', status: 'ongoing', fencerCount: 64, rule: 'FIE 标准'},
-  {id: 'e3', name: '高校击剑邀请赛', date: '2023-12-15', status: 'completed', fencerCount: 45, rule: '简易规则'},
-])
+// --- 获取数据 ---
+const loadTournaments = async () => {
+  loading.value = true;
+  try {
+    // 即使 DataManager 报错返回了 undefined，这里也会保证赋值为 []
+    const result = await DataManager.getTournamentList();
+    tournaments.value = result ?? [];
+
+    // 排序前加一个判断，增强健壮性
+    if (tournaments.value.length > 0) {
+      tournaments.value.sort((a, b) =>
+          (b.updated_at || 0) - (a.updated_at || 0)
+      );
+    }
+  } catch (error) {
+    console.error('Failed to load:', error);
+    tournaments.value = []; // 错误时清空或保持原状
+  } finally {
+    loading.value = false;
+  }
+};
+
+onMounted(() => {
+  loadTournaments()
+})
 
 const filteredTournaments = computed(() => {
   return tournaments.value.filter(t => {
-    const matchesSearch = t.name.toLowerCase().includes(searchQuery.value.toLowerCase())
+    const name = t.tournament_name || ''
+    const matchesSearch = name.toLowerCase().includes(searchQuery.value.toLowerCase())
     const matchesStatus = statusFilter.value === 'all' || t.status === statusFilter.value
     return matchesSearch && matchesStatus
   })
@@ -113,7 +128,8 @@ const createNewEvent = () => {
 }
 
 const goToOrchestrator = (id: string) => {
-  router.push(`/tournament/${id}`)
+  // 确保跳转路径与路由器配置一致
+  router.push(`/orchestrator/${id}`)
 }
 </script>
 
@@ -121,48 +137,6 @@ const goToOrchestrator = (id: string) => {
 .tournament-list-page {
   min-height: 100vh;
   background-color: var(--el-bg-color-page);
-}
-
-.list-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  padding: 0 40px;
-  height: 64px;
-  background-color: var(--el-bg-color);
-  border-bottom: 1px solid var(--el-border-color-light);
-  position: sticky;
-  top: 0;
-  z-index: 100;
-
-  .logo-section {
-    display: flex;
-    align-items: center;
-    gap: 8px;
-    cursor: pointer;
-    transition: opacity 0.2s;
-
-    &:hover {
-      opacity: 0.8;
-    }
-
-    .app-name {
-      font-size: 18px;
-      font-weight: bold;
-      letter-spacing: -0.5px;
-    }
-
-    .page-title {
-      font-size: 14px;
-      color: var(--el-text-color-secondary);
-    }
-  }
-
-  .actions {
-    display: flex;
-    align-items: center;
-    gap: 8px;
-  }
 }
 
 .content {
@@ -179,33 +153,38 @@ const goToOrchestrator = (id: string) => {
   .ml-20 {
     margin-left: 20px;
   }
+
+  .ml-10 {
+    margin-left: 10px;
+  }
 }
 
 .event-card {
   height: 100%;
-  display: flex;
-  flex-direction: column;
   cursor: pointer;
-  transition: all 0.3s cubic-bezier(0.25, 0.8, 0.25, 1);
+  transition: all 0.3s ease;
   margin-bottom: 20px;
-  border: 1px solid var(--el-border-color-lighter);
 
   &:hover {
     transform: translateY(-4px);
     box-shadow: var(--el-box-shadow-light);
-    border-color: var(--el-color-primary-light-5);
+  }
+
+  .card-status {
+    display: flex;
+    justify-content: flex-start;
+    margin-bottom: 12px;
   }
 
   .event-name {
     margin: 10px 0;
     font-size: 16px;
-    line-height: 1.5;
     font-weight: 600;
-    min-height: 48px;
-  }
-
-  .meta-info {
-    margin-bottom: 15px;
+    min-height: 44px;
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
   }
 
   .event-meta {
@@ -214,7 +193,7 @@ const goToOrchestrator = (id: string) => {
     display: flex;
     align-items: center;
     gap: 6px;
-    margin: 4px 0;
+    margin: 6px 0;
   }
 
   .card-footer {
