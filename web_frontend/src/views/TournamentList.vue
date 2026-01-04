@@ -129,7 +129,7 @@ const createNewEvent = () => {
 
 const goToOrchestrator = (id: string) => {
   // 确保跳转路径与路由器配置一致
-  router.push(`/orchestrator/${id}`)
+  router.push(`/tournament/${id}`)
 }
 </script>
 
