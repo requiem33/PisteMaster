@@ -119,10 +119,9 @@
                   <el-icon>
                     <User/>
                   </el-icon>
-                  <span>{{ event.fencer_count }} 选手</span>
+                  <span>{{ event.fencer_count }}</span>
                 </div>
                 <el-button type="primary" link @click="goToOrchestrator(event.id)">
-                  进入编排
                   <el-icon>
                     <Right/>
                   </el-icon>
