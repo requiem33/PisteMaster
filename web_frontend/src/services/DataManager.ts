@@ -41,4 +41,29 @@ export const DataManager = {
             return [];
         }
     },
+
+    async getTournamentById(id: string): Promise<any | null> {
+        try {
+            // 1. 优先从本地 IndexedDB 查找
+            const localData = await IndexedDBService.getTournamentById(id);
+
+            // 2. 如果在线，可以尝试从后台刷新一下最新状态
+            if (navigator.onLine) {
+                // const remoteData = await ApiService.getTournamentById(id);
+                // await IndexedDBService.saveTournament(remoteData);
+                // return remoteData;
+            }
+
+            return localData || null;
+        } catch (error) {
+            console.error('Failed to get tournament detail:', error);
+            return null;
+        }
+    },
+
+    // 假设项目（Events）存储在另一个 ObjectStore
+    async getEventsByTournamentId(tournamentId: string): Promise<any[]> {
+        // 逻辑类似：先查本地，再查远程
+        return await IndexedDBService.getEventsByTournamentId(tournamentId) || [];
+    }
 };

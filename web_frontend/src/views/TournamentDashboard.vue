@@ -4,7 +4,10 @@
       <template #extra>
         <el-breadcrumb separator-class="el-icon-arrow-right" class="header-breadcrumb">
           <el-breadcrumb-item :to="{ path: '/' }">{{ $t('tournament.dashboard.breadcrumb.home') }}</el-breadcrumb-item>
-          <el-breadcrumb-item :to="{ path: '/tournament' }">{{ $t('tournament.dashboard.breadcrumb.tournamentList') }}</el-breadcrumb-item>
+          <el-breadcrumb-item :to="{ path: '/tournament' }">{{
+              $t('tournament.dashboard.breadcrumb.tournamentList')
+            }}
+          </el-breadcrumb-item>
           <el-breadcrumb-item>{{ $t('tournament.dashboard.breadcrumb.currentTournament') }}</el-breadcrumb-item>
         </el-breadcrumb>
       </template>
@@ -47,7 +50,9 @@
           </div>
           <div class="header-actions">
             <el-button icon="Edit">{{ $t('tournament.dashboard.editInfo') }}</el-button>
-            <el-button type="primary" icon="Plus" @click="eventDrawerVisible = true">{{ $t('tournament.dashboard.addEvent') }}</el-button>
+            <el-button type="primary" icon="Plus" @click="eventDrawerVisible = true">
+              {{ $t('tournament.dashboard.addEvent') }}
+            </el-button>
           </div>
         </div>
       </header>
@@ -142,52 +147,71 @@
 </template>
 
 <script setup lang="ts">
-import {ref} from 'vue'
+import {onMounted, ref} from 'vue'
 import {useRoute, useRouter} from 'vue-router'
 import {Location, Calendar, Cloudy, Trophy, User, Right, Plus, Edit, ArrowDown} from '@element-plus/icons-vue'
 import AppHeader from '@/components/layout/AppHeader.vue'
 import CreateEventDrawer from '@/components/tournament/CreateEventDrawer.vue'
+import {DataManager} from '@/services/DataManager'
+import {ElMessage} from "element-plus";
 
 const route = useRoute()
 const router = useRouter()
 const tournamentId = route.params.id as string
 
+const loading = ref(false)
 const eventDrawerVisible = ref(false)
 const filterType = ref('all')
 
-const tournamentInfo = ref({
-  tournament_name: '2025年全国击剑冠军赛 (第一站)',
-  organizer: '中国击剑协会',
-  location: '上海静安体育中心',
-  start_date: '2025-12-20',
-  end_date: '2025-12-25'
+// 初始值设为空，等待加载
+const tournamentInfo = ref<any>({
+  tournament_name: '',
+  location: '',
+  start_date: '',
+  end_date: ''
 })
 
-const events = ref([
-  {
-    id: 'e1',
-    event_name: '成年男子重剑个人',
-    rule_name: '15剑/9分钟',
-    is_team_event: false,
-    fencer_count: 64,
-    status: '正在报名'
-  },
-  {
-    id: 'e2',
-    event_name: '成年女子花剑个人',
-    rule_name: '15剑/9分钟',
-    is_team_event: false,
-    fencer_count: 42,
-    status: '已结束'
+const events = ref<any[]>([])
+
+// --- 加载数据函数 ---
+const loadAllData = async () => {
+  loading.value = true
+  try {
+    // 并行获取赛事信息和下属项目
+    const [info, eventList] = await Promise.all([
+      DataManager.getTournamentById(tournamentId),
+      DataManager.getEventsByTournamentId(tournamentId)
+    ])
+
+    if (info) {
+      tournamentInfo.value = info
+    } else {
+      ElMessage.error('未找到赛事信息')
+      router.push('/tournament')
+    }
+
+    events.value = eventList
+  } catch (error) {
+    console.error(error)
+  } finally {
+    loading.value = false
   }
-])
+}
+
+onMounted(() => {
+  loadAllData()
+})
 
 const getStatusType = (status: string) => {
   const types: Record<string, string> = {'正在报名': 'success', '编排中': 'warning', '已结束': 'info'}
   return types[status] || ''
 }
 
-const handleEventCreated = () => console.log('刷新列表')
+const handleEventCreated = () => {
+  loadAllData() // 项目创建成功后刷新列表
+  eventDrawerVisible.value = false
+}
+
 const goToOrchestrator = (eventId: string) => router.push(`/event/${eventId}`)
 </script>
 

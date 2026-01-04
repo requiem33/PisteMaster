@@ -24,5 +24,17 @@ export const IndexedDBService = {
     async getAllTournaments() {
         const db = await this.getDB();
         return db.getAll(STORE_NAME);
+    },
+
+    async getTournamentById(id: string) {
+        const db = await this.getDB();
+        return db.get('tournaments', id);
+    },
+
+    // 如果你有 events 表
+    async getEventsByTournamentId(tournamentId: string) {
+        const db = await this.getDB();
+        // 使用索引查询（需要在 Schema 升级时为 events 表增加 tournamentId 索引）
+        return db.getAllFromIndex('events', 'tournamentId', tournamentId);
     }
 };
