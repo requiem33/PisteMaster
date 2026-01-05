@@ -61,9 +61,28 @@ export const DataManager = {
         }
     },
 
-    // 假设项目（Events）存储在另一个 ObjectStore
+    async createEvent(eventData: any) {
+        const newEvent = {
+            ...JSON.parse(JSON.stringify(eventData)), // 脱敏 Vue Proxy
+            id: uuidv4(),
+            status: '正在报名', // 初始状态名，实际开发建议用状态码
+            fencer_count: 0,
+            is_synced: false,
+            updated_at: Date.now()
+        };
+
+        // 1. 存入本地
+        await IndexedDBService.saveEvent(newEvent);
+
+        // 2. 尝试在线同步 (此处留空给后端对接)
+        if (navigator.onLine) {
+            // ApiService.post('/events', newEvent)...
+        }
+
+        return newEvent;
+    },
+
     async getEventsByTournamentId(tournamentId: string): Promise<any[]> {
-        // 逻辑类似：先查本地，再查远程
-        return await IndexedDBService.getEventsByTournamentId(tournamentId) || [];
+        return (await IndexedDBService.getEventsByTournamentId(tournamentId)) || [];
     }
 };
