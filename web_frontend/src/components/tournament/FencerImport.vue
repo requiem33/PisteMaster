@@ -85,9 +85,17 @@
 
 <script setup lang="ts">
 /* 路径：src/components/tournament/FencerImport.vue */
-import {ref} from 'vue'
+import {onMounted, ref} from 'vue'
 import {ElMessage, ElMessageBox} from 'element-plus'
-import {Plus, Memo, Delete, Check} from '@element-plus/icons-vue'
+import {DataManager} from '@/services/DataManager'
+import {v4 as uuidv4} from 'uuid'
+
+const props = defineProps<{
+  eventId: string,
+  weapon?: string // 可选，用于限制主剑种
+}>()
+
+const emit = defineEmits(['imported'])
 
 interface FencerRow {
   last_name: string
@@ -101,6 +109,7 @@ const fencers = ref<FencerRow[]>([])
 const showPasteArea = ref(false)
 const rawPasteData = ref('')
 const isSubmitting = ref(false)
+const loading = ref(false)
 
 const addRow = () => {
   fencers.value.push({
@@ -150,16 +159,59 @@ const parsePasteData = () => {
 }
 
 const submitImport = async () => {
-  if (fencers.length === 0) return ElMessage.warning('请先添加选手')
+  if (fencers.value.length === 0) {
+    // 如果允许清空名单，则继续，否则拦截
+    const confirmClear = await ElMessageBox.confirm('名单为空，确定要移除该项目所有选手吗？', '提示');
+    if (!confirmClear) return;
+  }
 
-  isSubmitting.value = true
-  // 这里将对接你的 Django 后端 API
-  setTimeout(() => {
-    isSubmitting.value = false
-    ElMessage.success('选手名单上传成功！')
-    // TODO: 调用父组件方法切换到下一步
-  }, 1000)
+  isSubmitting.value = true;
+  try {
+    // 1. 先保存选手基本信息（确保 fencers 表里有这些人）
+    const savedFencers = await DataManager.saveFencers(fencers.value);
+
+    // 2. 获取当前表格中所有选手的 ID
+    const currentIds = savedFencers.map(f => f.id);
+
+    // 3. 同步关联关系（会自动删除那些被你 removeRow 的人）
+    await DataManager.syncEventFencers(props.eventId, currentIds);
+
+    ElMessage.success('名单同步成功');
+    emit('imported');
+  } catch (error) {
+    console.error(error);
+    ElMessage.error('保存失败');
+  } finally {
+    isSubmitting.value = false;
+  }
+};
+
+const loadExistingFencers = async () => {
+  loading.value = true
+  try {
+    // 从 DataManager 获取已关联到此 eventId 的所有选手详情
+    const data = await DataManager.getFencersByEvent(props.eventId)
+    fencers.value = data.map(f => ({
+      id: f.id, // 保留 ID 极其重要，用于判断是更新还是新增
+      last_name: f.last_name,
+      first_name: f.first_name,
+      gender: f.gender,
+      country_code: f.country_code,
+      current_ranking: f.current_ranking,
+      fencing_id: f.fencing_id // 唯一标识
+    }))
+  } catch (error) {
+    console.error('加载选手失败:', error)
+  } finally {
+    loading.value = false
+  }
 }
+
+onMounted(() => {
+  if (props.eventId) {
+    loadExistingFencers()
+  }
+})
 </script>
 
 <style scoped lang="scss">
