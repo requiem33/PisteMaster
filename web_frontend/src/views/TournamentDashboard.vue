@@ -67,7 +67,7 @@
         <el-col :span="6">
           <el-card shadow="never" class="stat-card">
             <div class="label">{{ $t('tournament.dashboard.stats.totalFencers') }}</div>
-            <div class="value">128</div>
+            <div class="value">{{ totalFencersCount }}</div>
           </el-card>
         </el-col>
         <el-col :span="6">
@@ -147,7 +147,7 @@
 </template>
 
 <script setup lang="ts">
-import {onMounted, ref} from 'vue'
+import {onMounted, ref, computed} from 'vue'
 import {useRoute, useRouter} from 'vue-router'
 import {Location, Calendar, Cloudy, Trophy, User, Right, Plus, Edit, ArrowDown} from '@element-plus/icons-vue'
 import AppHeader from '@/components/layout/AppHeader.vue'
@@ -172,6 +172,13 @@ const tournamentInfo = ref<any>({
 })
 
 const events = ref<any[]>([])
+
+// 计算总参赛人数 (所有项目的人数总和)
+const totalFencersCount = computed(() => {
+  return events.value.reduce((sum, event) => {
+    return sum + (Number(event.fencer_count) || 0)
+  }, 0)
+})
 
 // --- 加载数据函数 ---
 const loadAllData = async () => {
