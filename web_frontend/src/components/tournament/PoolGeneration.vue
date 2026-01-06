@@ -65,7 +65,8 @@
 import {ref, onMounted} from 'vue'
 import {ElMessage} from 'element-plus'
 import {Rank} from '@element-plus/icons-vue'
-import draggable from 'vuedraggable' // 👈 引入拖拽库
+import draggable from 'vuedraggable'
+import {DataManager} from '@/services/DataManager' // 👈 引入 DataManager
 
 const props = defineProps<{ eventId: string }>()
 const emit = defineEmits(['next', 'prev'])
@@ -75,32 +76,67 @@ const config = ref({
   avoidCountry: true
 })
 
-// 初始选手数据（模拟）
-const initialFencers = [
-  {id: 1, last_name: 'ZHANG', first_name: 'San', country_code: 'CHN', current_ranking: 1},
-  {id: 2, last_name: 'SMITH', first_name: 'John', country_code: 'USA', current_ranking: 2},
-  {id: 3, last_name: 'LEE', first_name: 'Min', country_code: 'KOR', current_ranking: 3},
-  {id: 4, last_name: 'WANG', first_name: 'Wu', country_code: 'CHN', current_ranking: 4},
-  {id: 5, last_name: 'GARCIA', first_name: 'Maria', country_code: 'ESP', current_ranking: 5},
-  {id: 6, last_name: 'MULLER', first_name: 'Hans', country_code: 'GER', current_ranking: 6},
-  {id: 7, last_name: 'BROWN', first_name: 'Charlie', country_code: 'USA', current_ranking: 7},
-  {id: 8, last_name: 'SATO', first_name: 'Yuki', country_code: 'JPN', current_ranking: 8},
-  {id: 9, last_name: 'CHEN', first_name: 'Li', country_code: 'CHN', current_ranking: 9},
-]
-
+const fencers = ref<any[]>([]) // 存储从数据库查出的原始选手列表
 const pools = ref<any[][]>([])
+const loading = ref(false)
 
-// 蛇形算法（与之前一致）
+// --- 加载数据 ---
+const loadFencers = async () => {
+  loading.value = true
+  try {
+    // 获取该项目已关联的选手详情
+    const data = await DataManager.getFencersByEvent(props.eventId)
+
+    // 如果没有选手，提醒用户
+    if (!data || data.length === 0) {
+      ElMessage.warning('当前项目暂无参赛选手，请先导入名单')
+      return
+    }
+
+    // 格式化并根据排名排序 (排名 0 或 null 的排在最后)
+    fencers.value = data.sort((a, b) => {
+      const rA = a.current_ranking || 999
+      const rB = b.current_ranking || 999
+      return rA - rB
+    })
+
+    // 数据加载后，执行第一次自动分组
+    generatePools()
+  } catch (error) {
+    console.error('加载选手失败:', error)
+    ElMessage.error('无法读取选手名单')
+  } finally {
+    loading.value = false
+  }
+}
+
+// --- 蛇形分组算法 (Serpentine System) ---
 const generatePools = () => {
-  const sorted = [...initialFencers].sort((a, b) => a.current_ranking - b.current_ranking)
+  if (fencers.value.length === 0) return
+
+  const sorted = [...fencers.value]
+  // 计算需要分多少组
   const poolCount = Math.ceil(sorted.length / config.value.sizePerPool)
   const result: any[][] = Array.from({length: poolCount}, () => [])
 
+  // 蛇形排列：
+  // 组1: 1, 12, 13...
+  // 组2: 2, 11, 14...
+  // 组3: 3, 10, 15...
   sorted.forEach((fencer, index) => {
     const round = Math.floor(index / poolCount)
-    const poolIndex = (round % 2 === 0) ? (index % poolCount) : (poolCount - 1 - (index % poolCount))
+    const isEvenRound = round % 2 === 0
+    let poolIndex: number
+
+    if (isEvenRound) {
+      poolIndex = index % poolCount
+    } else {
+      poolIndex = (poolCount - 1) - (index % poolCount)
+    }
+
     result[poolIndex].push(fencer)
   })
+
   pools.value = result
 }
 
@@ -114,7 +150,9 @@ const confirmPools = () => {
 }
 
 onMounted(() => {
-  generatePools()
+  if (props.eventId) {
+    loadFencers()
+  }
 })
 </script>
 

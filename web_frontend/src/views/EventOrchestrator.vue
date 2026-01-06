@@ -51,13 +51,11 @@
 
           <section class="step-body">
             <transition name="fade-transform" mode="out-in">
-              <keep-alive>
-                <component
-                    :is="steps[currentStep].component"
-                    :event-id="eventId"
-                    @next="nextStep"
-                />
-              </keep-alive>
+              <component
+                  :is="steps[currentStep].component"
+                  :event-id="eventId"
+                  @next="nextStep"
+              />
             </transition>
           </section>
         </div>
