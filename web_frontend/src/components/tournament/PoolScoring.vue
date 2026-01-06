@@ -57,7 +57,7 @@
     </div>
 
     <div v-else class="loading-state">
-      <el-skeleton :rows="5" animated />
+      <el-skeleton :rows="5" animated/>
     </div>
 
     <footer class="action-footer">
@@ -72,41 +72,38 @@
 /* 路径：src/components/tournament/PoolScoring.vue */
 import {ref, reactive, onMounted} from 'vue'
 import {ElMessage} from 'element-plus'
+import {DataManager} from '@/services/DataManager'
 
 const props = defineProps<{ eventId: string }>()
 const emit = defineEmits(['next', 'prev'])
 
+const poolGroups = ref<any[]>([]) // 初始为空
 // 模拟多小组数据
-const poolGroups = ref([
-  {
-    fencers: [
-      {id: '101', last_name: 'CHUMAK', country_code: 'UKR'},
-      {id: '102', last_name: 'KANO', country_code: 'JPN'},
-      {id: '103', last_name: 'BOREL', country_code: 'FRA'},
-      {id: '104', last_name: 'WANG', country_code: 'CHN'},
-      {id: '105', last_name: 'MINOBE', country_code: 'JPN'}
-    ]
-  },
-  {
-    fencers: [
-      {id: '201', last_name: 'SIKLOSI', country_code: 'HUN'},
-      {id: '202', last_name: 'REIZLIN', country_code: 'UKR'},
-      {id: '203', last_name: 'KOCH', country_code: 'HUN'},
-      {id: '204', last_name: 'LAN', country_code: 'CHN'},
-      {id: '205', last_name: 'PIZZO', country_code: 'ITA'},
-      {id: '206', last_name: 'LIMARDO', country_code: 'VEN'}
-    ]
-  },
-  {
-    fencers: [
-      {id: '301', last_name: 'HEINZER', country_code: 'SUI'},
-      {id: '302', last_name: 'PARK', country_code: 'KOR'},
-      {id: '303', last_name: 'FREILICH', country_code: 'ISR'},
-      {id: '304', last_name: 'GAROZZO', country_code: 'ITA'},
-      {id: '305', last_name: 'SANTOS', country_code: 'BRA'}
-    ]
+const loadPoolData = async () => {
+  try {
+    // 1. 获取分组定义（此时只有选手 ID 数组）
+    const poolsFromDB = await DataManager.getPoolsByEvent(props.eventId);
+
+    // 2. 补全选手详情
+    const detailedPools = [];
+    for (const p of poolsFromDB) {
+      const fencerPromises = p.fencer_ids.map(id => DataManager.getFencerById(id));
+      const fencerDetails = await Promise.all(fencerPromises);
+
+      detailedPools.push({
+        id: p.id,
+        pool_number: p.pool_number,
+        fencers: fencerDetails.filter(f => f !== undefined) // 过滤掉可能的空值
+      });
+    }
+
+    // 3. 赋值并初始化矩阵
+    poolGroups.value = detailedPools;
+    initMatrix();
+  } catch (e) {
+    console.error('加载计分表数据失败', e);
   }
-])
+};
 
 const results = reactive<any[]>([])
 const stats = reactive<any[]>([])
@@ -118,8 +115,8 @@ const initMatrix = () => {
 
   poolGroups.value.forEach((pool, pIdx) => {
     const size = pool.fencers.length
-    results.push(Array.from({ length: size }, () => Array(size).fill('')))
-    stats.push(Array.from({ length: size }, () => ({ V: 0, TS: 0, TR: 0, Ind: 0 })))
+    results.push(Array.from({length: size}, () => Array(size).fill('')))
+    stats.push(Array.from({length: size}, () => ({V: 0, TS: 0, TR: 0, Ind: 0})))
   })
 }
 
@@ -159,7 +156,9 @@ const submitScores = () => {
   emit('next')
 }
 
-onMounted(initMatrix)
+onMounted(() => {
+  loadPoolData();
+})
 </script>
 
 <style scoped lang="scss">

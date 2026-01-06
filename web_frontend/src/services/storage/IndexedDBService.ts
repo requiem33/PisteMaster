@@ -48,6 +48,14 @@ export const IndexedDBService = {
                         store.createIndex('by_event', 'event_id');
                     }
                 }
+
+                if (oldVersion < 5) {
+                    if (!db.objectStoreNames.contains('pools')) {
+                        const poolStore = db.createObjectStore('pools', {keyPath: 'id'});
+                        // 建立 event_id 索引，方便查询某个项目下的所有组
+                        poolStore.createIndex('by_event', 'event_id');
+                    }
+                }
             },
         });
     },
@@ -140,5 +148,14 @@ export const IndexedDBService = {
         // 因为我们定义了 keyPath: ['event_id', 'fencer_id']
         // 所以删除时需要传入对应的数组键
         return db.delete('event_fencers', [eventId, fencerId]);
+    },
+
+    /**
+     * 从 pools 表中根据项目 ID 查找所有分组
+     */
+    async getPoolsByEvent(eventId: string) {
+        const db = await this.getDB();
+        // 使用我们在版本 6 中创建的 'by_event' 索引
+        return db.getAllFromIndex('pools', 'by_event', eventId);
     },
 };

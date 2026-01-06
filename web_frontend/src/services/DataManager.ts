@@ -205,5 +205,81 @@ export const DataManager = {
             console.error('Sync Fencers Error:', error);
             throw error;
         }
+    },
+
+    /**
+     * 保存分组结果
+     * @param eventId 项目ID
+     * @param poolsData 二维数组 [ [fencer1, fencer2], [fencer3, fencer4] ]
+     */
+    async savePools(eventId: string, poolsData: any[][]) {
+        const db = await IndexedDBService.getDB();
+        // 注意：确保事务包含所有要操作的表
+        const tx = db.transaction(['pools', 'event_fencers'], 'readwrite');
+
+        try {
+            // 1. 删除旧分组
+            const poolStore = tx.objectStore('pools');
+            const oldPools = await poolStore.index('by_event').getAllKeys(eventId);
+            for (const key of oldPools) {
+                await poolStore.delete(key);
+            }
+
+            // 2. 写入新分组并更新选手关联
+            const linkStore = tx.objectStore('event_fencers');
+
+            for (let i = 0; i < poolsData.length; i++) {
+                const poolId = `${eventId}_p${i + 1}`;
+
+                await poolStore.put({
+                    id: poolId,
+                    event_id: eventId,
+                    pool_number: i + 1,
+                    fencer_ids: poolsData[i].map(f => f.id)
+                });
+
+                for (const fencer of poolsData[i]) {
+                    // 使用联合主键获取关联记录
+                    const link = await linkStore.get([eventId, fencer.id]);
+                    if (link) {
+                        link.pool_id = poolId;
+                        await linkStore.put(link);
+                    }
+                }
+            }
+
+            await tx.done;
+            return true;
+        } catch (e) {
+            console.error('Save Pools Transaction Failed:', e);
+            // 事务会自动回滚
+            throw e;
+        }
+    },
+
+    /**
+     * 获取某个项目下的所有分组定义
+     * @param eventId 项目 ID
+     */
+    async getPoolsByEvent(eventId: string) {
+        try {
+            return await IndexedDBService.getPoolsByEvent(eventId);
+        } catch (error) {
+            console.error('DataManager.getPoolsByEvent Error:', error);
+            throw error;
+        }
+    },
+
+    /**
+     * 根据 ID 获取单个选手详情
+     * @param fencerId 选手 ID
+     */
+    async getFencerById(fencerId: string) {
+        try {
+            return await IndexedDBService.getFencerById(fencerId);
+        } catch (error) {
+            console.error('DataManager.getFencerById Error:', error);
+            throw error;
+        }
     }
 };

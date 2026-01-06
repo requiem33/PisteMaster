@@ -144,9 +144,15 @@ const handleDragEnd = () => {
   ElMessage({message: '分组已手动更新', type: 'info', duration: 1000})
 }
 
-const confirmPools = () => {
-  console.log('保存最终分组到后端:', pools.value)
-  emit('next')
+const confirmPools = async () => {
+  try {
+    // 真正持久化到数据库
+    await DataManager.savePools(props.eventId, pools.value);
+    ElMessage.success('分组已成功保存');
+    emit('next'); // 进入计分页面
+  } catch (error) {
+    ElMessage.error('分组保存失败');
+  }
 }
 
 onMounted(() => {
