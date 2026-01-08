@@ -315,4 +315,28 @@ export const DataManager = {
             return null;
         }
     },
+
+    /**
+     * 更新小组赛比分及状态
+     */
+    async updatePoolResults(poolId: string, results: any[][], stats: any[], isLocked: boolean) {
+        const db = await IndexedDBService.getDB();
+        const tx = db.transaction('pools', 'readwrite');
+        const store = tx.objectStore('pools');
+
+        try {
+            const pool = await store.get(poolId);
+            if (pool) {
+                pool.results = JSON.parse(JSON.stringify(results)); // 脱敏保存
+                pool.stats = JSON.parse(JSON.stringify(stats));
+                pool.is_locked = isLocked;
+                await store.put(pool);
+            }
+            await tx.done;
+            return true;
+        } catch (error) {
+            console.error('更新比分失败:', error);
+            return false;
+        }
+    }
 };

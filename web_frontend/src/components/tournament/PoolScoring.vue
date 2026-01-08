@@ -1,18 +1,39 @@
 <template>
   <div class="pool-scoring-wrapper">
-    <div v-if="results.length > 0" class="pools-flex-container">
+    <div v-if="poolGroups.length > 0" class="pools-flex-container">
+      <!-- 遍历每个小组 -->
       <div v-for="(pool, pIndex) in poolGroups" :key="pIndex" class="pool-card">
+
+        <!-- 小组头部：包含标题和操作按钮 -->
         <div class="pool-header">
-          <span class="pool-tag">Pool {{ pIndex + 1 }}</span>
-          <span class="pool-info">{{ pool.fencers.length }} 选手</span>
+          <div class="pool-title">
+            <span class="pool-tag">第 {{ pIndex + 1 }} 组 (Pool {{ pIndex + 1 }})</span>
+            <span class="pool-info">{{ pool.fencers.length }} 选手</span>
+          </div>
+          <div class="pool-actions">
+            <el-button
+                size="small"
+                type="primary"
+                :disabled="!isPoolComplete(pIndex) || isLocked[pIndex]"
+                @click="handleConfirmPool(pIndex)"
+            >确定
+            </el-button>
+            <el-button
+                size="small"
+                :disabled="!isLocked[pIndex]"
+                @click="handleUnlockPool(pIndex)"
+            >重新录入
+            </el-button>
+          </div>
         </div>
 
-        <div class="table-scroll-wrapper">
+        <!-- 计分表格核心区 -->
+        <div class="table-container">
           <table class="custom-scoring-table">
             <thead>
             <tr>
               <th class="col-index">#</th>
-              <th class="col-name">Name</th>
+              <th class="col-name">选手姓名 (Name)</th>
               <th v-for="n in pool.fencers.length" :key="n" class="col-score-head">{{ n }}</th>
               <th class="col-stat">V</th>
               <th class="col-stat">TS</th>
@@ -24,27 +45,31 @@
             <tr v-for="(fencer, rowIndex) in pool.fencers" :key="fencer.id">
               <td class="cell-index">{{ rowIndex + 1 }}</td>
               <td class="cell-name">
-                <div class="fencer-text">
-                  <span class="last-name">{{ fencer.last_name }}</span>
-                  <span class="country">{{ fencer.country_code }}</span>
+                <div class="name-box">
+                  <span class="full-name">{{ fencer.last_name }} {{ fencer.first_name }}</span>
+                  <span class="country-tag">{{ fencer.country_code }}</span>
                 </div>
               </td>
 
+              <!-- 循环生成得分输入格 -->
               <td
                   v-for="n in pool.fencers.length"
                   :key="n"
                   class="cell-score"
-                  :class="{ 'is-diagonal': rowIndex === n - 1 }"
+                  :class="{ 'is-diagonal': rowIndex === n - 1, 'is-locked-cell': isLocked[pIndex] }"
               >
                 <input
                     v-if="rowIndex !== n - 1"
                     v-model="results[pIndex][rowIndex][n-1]"
                     class="score-input"
+                    :class="{ 'disabled-input': isLocked[pIndex] }"
                     maxlength="2"
+                    :disabled="isLocked[pIndex]"
                     @input="handleScoreChange(pIndex, rowIndex, n-1)"
                 />
               </td>
 
+              <!-- 统计列 -->
               <td class="cell-stat v-text">{{ stats[pIndex][rowIndex].V }}</td>
               <td class="cell-stat">{{ stats[pIndex][rowIndex].TS }}</td>
               <td class="cell-stat">{{ stats[pIndex][rowIndex].TR }}</td>
@@ -57,19 +82,19 @@
     </div>
 
     <div v-else class="loading-state">
-      <el-skeleton :rows="5" animated/>
+      <el-skeleton :rows="10" animated/>
     </div>
 
     <footer class="action-footer">
       <el-button @click="$emit('prev')">返回分组</el-button>
-      <div class="summary-info">所有分数已实时保存</div>
-      <el-button type="success" size="large" @click="submitScores">保存并查看总排名</el-button>
+      <div class="summary-info">比分实时同步中...</div>
+      <el-button type="success" size="large" @click="submitScores">查看总排名</el-button>
     </footer>
   </div>
 </template>
 
 <script setup lang="ts">
-/* 路径：src/components/tournament/PoolScoring.vue */
+/* ... script 逻辑保持不变（包含 handleScoreChange, calculateStats 等） ... */
 import {ref, reactive, onMounted} from 'vue'
 import {ElMessage} from 'element-plus'
 import {DataManager} from '@/services/DataManager'
@@ -77,172 +102,230 @@ import {DataManager} from '@/services/DataManager'
 const props = defineProps<{ eventId: string }>()
 const emit = defineEmits(['next', 'prev'])
 
-const poolGroups = ref<any[]>([]) // 初始为空
-// 模拟多小组数据
+const poolGroups = ref<any[]>([])
+const results = reactive<any[]>([])
+const stats = reactive<any[]>([])
+const isLocked = ref<boolean[]>([])
+
 const loadPoolData = async () => {
   try {
-    // 1. 获取分组定义（此时只有选手 ID 数组）
     const poolsFromDB = await DataManager.getPoolsByEvent(props.eventId);
-
-    // 2. 补全选手详情
     const detailedPools = [];
+    results.length = 0;
+    stats.length = 0;
+    isLocked.value = [];
+
     for (const p of poolsFromDB) {
       const fencerPromises = p.fencer_ids.map(id => DataManager.getFencerById(id));
       const fencerDetails = await Promise.all(fencerPromises);
+      const size = fencerDetails.length;
 
       detailedPools.push({
         id: p.id,
         pool_number: p.pool_number,
-        fencers: fencerDetails.filter(f => f !== undefined) // 过滤掉可能的空值
+        fencers: fencerDetails.filter(f => f !== undefined)
       });
-    }
 
-    // 3. 赋值并初始化矩阵
+      results.push(p.results || Array.from({length: size}, () => Array(size).fill('')));
+      stats.push(p.stats || Array.from({length: size}, () => ({V: 0, TS: 0, TR: 0, Ind: 0})));
+      isLocked.value.push(p.is_locked || false);
+    }
     poolGroups.value = detailedPools;
-    initMatrix();
   } catch (e) {
-    console.error('加载计分表数据失败', e);
+    console.error('加载计分表失败', e);
   }
 };
 
-const results = reactive<any[]>([])
-const stats = reactive<any[]>([])
-
-const initMatrix = () => {
-  // 先清空，确保响应式追踪
-  results.length = 0
-  stats.length = 0
-
-  poolGroups.value.forEach((pool, pIdx) => {
-    const size = pool.fencers.length
-    results.push(Array.from({length: size}, () => Array(size).fill('')))
-    stats.push(Array.from({length: size}, () => ({V: 0, TS: 0, TR: 0, Ind: 0})))
-  })
-}
+const isPoolComplete = (pIdx: number) => {
+  const poolResults = results[pIdx];
+  if (!poolResults) return false;
+  for (let i = 0; i < poolResults.length; i++) {
+    for (let j = 0; j < poolResults[i].length; j++) {
+      if (i !== j && (poolResults[i][j] === '' || poolResults[i][j] === null)) return false;
+    }
+  }
+  return true;
+};
 
 const handleScoreChange = (pIdx: number, row: number, col: number) => {
-  let val = results[pIdx][row][col].toUpperCase()
-  if (val === '5') val = 'V'
-  results[pIdx][row][col] = val
-  calculateStats(pIdx)
-}
+  let val = results[pIdx][row][col].toUpperCase();
+  if (val === '5') val = 'V';
+  results[pIdx][row][col] = val;
+  calculateStats(pIdx);
+  persistPoolData(pIdx);
+};
 
 const calculateStats = (pIdx: number) => {
-  const size = poolGroups.value[pIdx].fencers.length
-  const currentPoolStats = Array.from({length: size}, () => ({V: 0, TS: 0, TR: 0, Ind: 0}))
-
+  const size = poolGroups.value[pIdx].fencers.length;
+  const currentPoolStats = Array.from({length: size}, () => ({V: 0, TS: 0, TR: 0, Ind: 0}));
   for (let i = 0; i < size; i++) {
     for (let j = 0; j < size; j++) {
-      if (i === j) continue
-      const score = parseScore(results[pIdx][i][j])
-      const oppScore = parseScore(results[pIdx][j][i])
-
-      currentPoolStats[i].TS += score
-      currentPoolStats[i].TR += oppScore
-
+      if (i === j) continue;
+      const score = parseScore(results[pIdx][i][j]);
+      const oppScore = parseScore(results[pIdx][j][i]);
+      currentPoolStats[i].TS += score;
+      currentPoolStats[i].TR += oppScore;
       if (results[pIdx][i][j] === 'V' || (score > oppScore && results[pIdx][j][i] !== '')) {
-        currentPoolStats[i].V += 1
+        currentPoolStats[i].V += 1;
       }
     }
-    currentPoolStats[i].Ind = currentPoolStats[i].TS - currentPoolStats[i].TR
+    currentPoolStats[i].Ind = currentPoolStats[i].TS - currentPoolStats[i].TR;
   }
-  stats[pIdx] = currentPoolStats
-}
+  stats[pIdx] = currentPoolStats;
+};
 
-const parseScore = (s: string) => s === 'V' ? 5 : (parseInt(s) || 0)
+const parseScore = (s: string) => s === 'V' ? 5 : (parseInt(s) || 0);
+
+const persistPoolData = async (pIdx: number) => {
+  const pool = poolGroups.value[pIdx];
+  await DataManager.updatePoolResults(pool.id, results[pIdx], stats[pIdx], isLocked.value[pIdx]);
+};
+
+const handleConfirmPool = (pIdx: number) => {
+  isLocked.value[pIdx] = true;
+  persistPoolData(pIdx);
+  ElMessage.success(`第 ${pIdx + 1} 组已锁定`);
+};
+
+const handleUnlockPool = (pIdx: number) => {
+  isLocked.value[pIdx] = false;
+  persistPoolData(pIdx);
+};
 
 const submitScores = () => {
-  ElMessage.success('比分已同步')
-  emit('next')
-}
+  if (isLocked.value.some(locked => !locked)) {
+    ElMessage.warning('请先锁定所有小组的比分');
+    return;
+  }
+  emit('next');
+};
 
-onMounted(() => {
-  loadPoolData();
-})
+onMounted(() => loadPoolData());
 </script>
 
 <style scoped lang="scss">
 .pool-scoring-wrapper {
-  padding: 10px;
+  padding: 20px;
+  background-color: #f8f9fa;
 
   .pools-flex-container {
     display: flex;
-    flex-wrap: wrap; /* 核心：一行放不下自动换行 */
-    gap: 30px;
-    justify-content: flex-start;
+    flex-direction: column; // 改为纵向排列，或者用 wrap
+    gap: 40px;
   }
 
   .pool-card {
     background: #fff;
-    border: 1px solid #dcdfe6;
+    border: 1px solid #ebeef5;
     border-radius: 8px;
-    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
+    box-shadow: 0 2px 12px 0 rgba(0, 0, 0, 0.1);
     overflow: hidden;
-    flex: 0 0 auto; /* 不随 flex 增长拉伸 */
   }
 
   .pool-header {
-    background: #409eff;
-    color: white;
-    padding: 10px 15px;
+    background: #f5f7fa;
+    padding: 12px 20px;
+    border-bottom: 1px solid #ebeef5;
     display: flex;
     justify-content: space-between;
     align-items: center;
 
     .pool-tag {
       font-weight: bold;
+      font-size: 16px;
+      color: #303133;
+      margin-right: 15px;
     }
 
     .pool-info {
-      font-size: 12px;
-      opacity: 0.9;
+      font-size: 13px;
+      color: #909399;
     }
+  }
+
+  .table-container {
+    padding: 20px;
+    overflow-x: auto;
   }
 
   .custom-scoring-table {
     border-collapse: collapse;
-    font-size: 13px;
-    table-layout: fixed; /* 锁定宽度 */
+    width: auto;
+    min-width: 600px;
+    border: 2px solid #303133; // 击剑表格通常外框较粗
 
     th, td {
-      border: 1px solid #ebeef5;
-      text-align: center;
+      border: 1px solid #303133; // 内部实线
       padding: 0;
+      text-align: center;
+      vertical-align: middle;
     }
 
-    /* 宽度控制 */
+    th {
+      background: #f5f7fa;
+      height: 40px;
+      font-size: 13px;
+    }
+
+    /* 列宽控制 */
     .col-index {
-      width: 30px;
+      width: 40px;
     }
 
     .col-name {
-      width: 120px;
+      width: 200px;
+      text-align: left;
+      padding-left: 10px;
     }
 
     .col-score-head {
-      width: 45px;
+      width: 50px;
     }
 
-    /* 计分区表头 */
     .col-stat {
-      width: 40px;
-      background: #f9f9f9;
+      width: 50px;
+      background: #fafafa;
+      font-weight: bold;
     }
 
     .highlight {
-      background: #f0f7ff;
+      background: #eef5fe;
       color: #409eff;
     }
 
-    /* 正方形格子： aspect-ratio 确保宽高 1:1 */
+    .cell-index {
+      font-weight: bold;
+      background: #f5f7fa;
+    }
+
+    .name-box {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 0 10px;
+
+      .full-name {
+        font-weight: bold;
+      }
+
+      .country-tag {
+        font-size: 11px;
+        color: #909399;
+        margin-left: 8px;
+      }
+    }
+
     .cell-score {
-      width: 45px;
-      height: 45px;
-      padding: 0;
-      background: white;
+      width: 50px;
+      height: 50px;
+      position: relative;
 
       &.is-diagonal {
-        background: #909399;
+        background-color: #606266 !important; // 对角线灰色
+      }
+
+      &.is-locked-cell {
+        background-color: #f5f7fa;
       }
     }
 
@@ -251,62 +334,39 @@ onMounted(() => {
       height: 100%;
       border: none;
       text-align: center;
+      font-size: 18px;
       font-weight: bold;
-      font-size: 16px;
+      background: transparent;
       outline: none;
 
       &:focus {
         background: #ecf5ff;
       }
-    }
 
-    .cell-name {
-      text-align: left;
-      padding-left: 10px;
-
-      .fencer-text {
-        display: flex;
-        flex-direction: column;
-
-        .last-name {
-          font-weight: bold;
-          font-size: 12px;
-        }
-
-        .country {
-          font-size: 10px;
-          color: #909399;
-        }
+      &.disabled-input {
+        cursor: not-allowed;
+        color: #606266;
       }
-    }
-
-    .cell-stat {
-      font-weight: 500;
     }
 
     .v-text {
       color: #67c23a;
-      font-weight: bold;
+      font-size: 16px;
     }
 
     .ind-text {
-      font-weight: bold;
       color: #409eff;
+      font-size: 16px;
     }
   }
 
   .action-footer {
-    margin-top: 50px;
+    margin-top: 40px;
     padding: 20px;
-    border-top: 1px solid #eee;
     display: flex;
     justify-content: space-between;
     align-items: center;
-
-    .summary-info {
-      color: #909399;
-      font-style: italic;
-    }
+    border-top: 1px solid #dcdfe6;
   }
 }
 </style>
