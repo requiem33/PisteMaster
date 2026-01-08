@@ -338,5 +338,50 @@ export const DataManager = {
             console.error('更新比分失败:', error);
             return false;
         }
+    },
+
+    /**
+     * 获取小组赛汇总排名数据
+     */
+    async getEventPoolRanking(eventId: string) {
+        try {
+            // 1. 获取该项目下的所有小组记录
+            const pools = await IndexedDBService.getPoolsByEvent(eventId);
+            if (!pools || pools.length === 0) return [];
+
+            const rankingData = [];
+
+            // 2. 遍历每个小组，提取选手的统计信息
+            for (const pool of pools) {
+                // 确保小组已有计分统计 (stats)
+                if (!pool.stats || !pool.fencer_ids) continue;
+
+                const matchCount = pool.fencer_ids.length - 1; // 每个人在该组应打的场数
+
+                for (let i = 0; i < pool.fencer_ids.length; i++) {
+                    const fencerId = pool.fencer_ids[i];
+                    const fStats = pool.stats[i];
+
+                    // 获取选手基本信息
+                    const fencer = await this.getFencerById(fencerId);
+
+                    if (fencer && fStats) {
+                        rankingData.push({
+                            ...fencer,
+                            v: fStats.V,
+                            m: matchCount,
+                            ts: fStats.TS,
+                            tr: fStats.TR,
+                            ind: fStats.Ind,
+                            v_m: matchCount > 0 ? fStats.V / matchCount : 0
+                        });
+                    }
+                }
+            }
+            return rankingData;
+        } catch (error) {
+            console.error('获取汇总排名失败:', error);
+            return [];
+        }
     }
 };

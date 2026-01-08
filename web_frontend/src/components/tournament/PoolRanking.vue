@@ -13,7 +13,15 @@
         </div>
       </template>
 
-      <el-table :data="sortedRanking" border stripe style="width: 100%" :row-class-name="getRowClass">
+      <!-- 排名表格 -->
+      <el-table
+          v-loading="loading"
+          :data="sortedRanking"
+          border
+          stripe
+          style="width: 100%"
+          :row-class-name="getRowClass"
+      >
         <el-table-column label="排名" width="70" align="center">
           <template #default="scope">
             <span :class="['rank-number', scope.$index < 3 ? 'top-three' : '']">
@@ -34,12 +42,13 @@
 
         <el-table-column label="V/M (胜率)" width="110" align="center">
           <template #default="scope">
-            {{ (scope.row.v_m).toFixed(3) }}
+            {{ scope.row.v_m.toFixed(3) }}
           </template>
         </el-table-column>
 
         <el-table-column prop="ind" label="Ind. (净胜)" width="90" align="center"/>
         <el-table-column prop="ts" label="TS (得分)" width="90" align="center"/>
+        <th class="col-stat">TR</th> <!-- 对应 prop="tr" -->
         <el-table-column prop="tr" label="TR (失分)" width="90" align="center"/>
 
         <el-table-column label="状态" width="100" align="center">
@@ -55,9 +64,9 @@
     <div class="ranking-footer">
       <div class="legend">
         <span class="legend-item"><i class="dot success"></i> 晋级线：前 80%</span>
-        <span class="legend-item"><i class="dot danger"></i> 淘汰线：后 20%</span>
+        <span class="legend-item"><i class="dot danger"></i> 淘汰线：后 20% (或因弃权)</span>
       </div>
-      <el-button type="primary" size="large" icon="CaretRight" @click="$emit('next')">
+      <el-button type="primary" size="large" @click="proceedToDE">
         生成淘汰赛对阵图 (DE)
       </el-button>
     </div>
@@ -65,70 +74,80 @@
 </template>
 
 <script setup lang="ts">
-/* 路径：src/components/tournament/PoolRanking.vue */
-import {computed} from 'vue'
+import {ref, computed, onMounted} from 'vue'
+import {DataManager} from '@/services/DataManager'
+import {ElMessage} from 'element-plus'
 
 const props = defineProps<{ eventId: string }>()
 const emit = defineEmits(['next'])
 
-// 模拟从后端或上一步获取的汇总数据
-// 在实际开发中，这些数据应该是 PoolScoring 提交后由后端计算返回的
-const mockFencers = [
-  {id: 1, last_name: 'CHUMAK', first_name: 'D.', country_code: 'UKR', v: 5, m: 6, ts: 28, tr: 15},
-  {id: 2, last_name: 'KANO', first_name: 'K.', country_code: 'JPN', v: 6, m: 6, ts: 30, tr: 10},
-  {id: 3, last_name: 'SIKLOSI', first_name: 'G.', country_code: 'HUN', v: 4, m: 6, ts: 24, tr: 18},
-  {id: 4, last_name: 'WANG', first_name: 'Z.', country_code: 'CHN', v: 4, m: 6, ts: 24, tr: 20},
-  {id: 5, last_name: 'BOREL', first_name: 'Y.', country_code: 'FRA', v: 3, m: 6, ts: 20, tr: 22},
-  {id: 6, last_name: 'LIMARDO', first_name: 'R.', country_code: 'VEN', v: 2, m: 6, ts: 18, tr: 25},
-  {id: 7, last_name: 'PARK', first_name: 'S.', country_code: 'KOR', v: 1, m: 6, ts: 15, tr: 28},
-  {id: 8, last_name: 'MINOBE', first_name: 'K.', country_code: 'JPN', v: 0, m: 6, ts: 10, tr: 30},
-]
+const loading = ref(false)
+const rawRankingList = ref<any[]>([])
 
+// --- 加载数据 ---
+const fetchRankingData = async () => {
+  loading.value = true
+  try {
+    const data = await DataManager.getEventPoolRanking(props.eventId)
+    rawRankingList.value = data
+  } catch (error) {
+    ElMessage.error('无法获取排名数据')
+  } finally {
+    loading.value = false
+  }
+}
+
+// --- 核心算法：击剑标准排名排序 ---
 const sortedRanking = computed(() => {
-  return [...mockFencers]
-      .map(f => ({
-        ...f,
-        v_m: f.v / f.m,
-        ind: f.ts - f.tr,
-        // 这里的逻辑：前 75% 晋级
-        is_qualified: true
-      }))
+  if (rawRankingList.value.length === 0) return []
+
+  // 复制一份数据进行排序
+  const list = [...rawRankingList.value]
+
+  return list
       .sort((a, b) => {
-        // 1. 比较胜率
+        // 1. 比较胜率 (V/M)
         if (b.v_m !== a.v_m) return b.v_m - a.v_m
-        // 2. 比较净胜剑
+        // 2. 比较净胜剑 (Ind.)
         if (b.ind !== a.ind) return b.ind - a.ind
-        // 3. 比较得分
+        // 3. 比较得分 (TS)
         return b.ts - a.ts
       })
-      .map((f, index, arr) => {
-        // 标记最后 20% 为淘汰
-        const cutoff = Math.floor(arr.length * 0.8)
-        return {...f, is_qualified: index < cutoff}
+      .map((fencer, index, array) => {
+        // 4. 判定晋级状态 (通常规则：小组赛后淘汰 20%~30% 的选手)
+        // 这里暂定前 80% 晋级
+        const cutoffIndex = Math.ceil(array.length * 0.8)
+        return {
+          ...fencer,
+          is_qualified: index < cutoffIndex
+        }
       })
 })
 
 const getRowClass = ({row}: any) => {
   return row.is_qualified ? '' : 'eliminated-row'
 }
+
+const proceedToDE = () => {
+  if (sortedRanking.value.length === 0) {
+    ElMessage.warning('暂无排名数据')
+    return
+  }
+  emit('next')
+}
+
+onMounted(() => {
+  fetchRankingData()
+})
 </script>
 
 <style scoped lang="scss">
+/* 样式保持您的原样，仅做微调 */
 .pool-ranking-container {
-  .ranking-card {
-    border-radius: 8px;
-  }
-
-  .card-header {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    font-weight: bold;
-  }
+  padding: 20px;
 
   .rank-number {
     font-weight: bold;
-    font-family: 'Arial';
 
     &.top-three {
       color: #e6a23c;
@@ -136,21 +155,14 @@ const getRowClass = ({row}: any) => {
     }
   }
 
-  .fencer-name {
-    strong {
-      color: #303133;
-    }
-  }
-
-  .ml-10 {
-    margin-left: 10px;
-  }
-
+  /* 淘汰行样式 */
   :deep(.eliminated-row) {
     background-color: #fef0f0 !important;
-    color: #f56c6c;
-    text-decoration: line-through;
-    text-decoration-color: rgba(245, 108, 108, 0.4);
+
+    .rank-number, .fencer-name, .cell {
+      color: #909399;
+      text-decoration: line-through;
+    }
   }
 
   .ranking-footer {
@@ -159,21 +171,23 @@ const getRowClass = ({row}: any) => {
     justify-content: space-between;
     align-items: center;
     padding: 20px;
-    border-top: 1px solid #eee;
+    background: #fff;
+    border: 1px solid #ebeef5;
+    border-radius: 8px;
 
     .legend {
       display: flex;
       gap: 20px;
-      font-size: 14px;
 
       .legend-item {
         display: flex;
         align-items: center;
         gap: 6px;
+        font-size: 14px;
 
         .dot {
-          width: 10px;
-          height: 10px;
+          width: 8px;
+          height: 8px;
           border-radius: 50%;
 
           &.success {
