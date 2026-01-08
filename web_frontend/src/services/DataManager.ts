@@ -383,5 +383,27 @@ export const DataManager = {
             console.error('获取汇总排名失败:', error);
             return [];
         }
+    },
+
+    /**
+     * 获取淘汰赛初始对阵名单（仅限晋级选手）
+     */
+    async getQualifiedFencersForDE(eventId: string) {
+        // 1. 获取所有选手的汇总统计（复用之前的逻辑）
+        const allRanked = await this.getEventPoolRanking(eventId);
+
+        // 2. 按照击剑规则排序：胜率 > 净胜剑 > 总得分
+        const sorted = allRanked.sort((a, b) => {
+            if (b.v_m !== a.v_m) return b.v_m - a.v_m;
+            if (b.ind !== a.ind) return b.ind - a.ind;
+            return b.ts - a.ts;
+        });
+
+        // 3. 筛选晋级选手（假设取前 80%，你可以根据需求调整或从 Event 设置中读取）
+        const cutoff = Math.ceil(sorted.length * 0.8);
+        return sorted.slice(0, cutoff).map((f, index) => ({
+            ...f,
+            seed: index + 1 // 赋予淘汰赛初始种子位
+        }));
     }
 };

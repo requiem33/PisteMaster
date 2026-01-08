@@ -68,6 +68,8 @@
 
 <script setup lang="ts">
 import {ref, onMounted, onUnmounted, nextTick} from 'vue'
+import { DataManager } from '@/services/DataManager'
+import { ElMessage } from 'element-plus'
 
 // --- 类型定义 ---
 interface Fencer {
@@ -95,48 +97,110 @@ const props = defineProps<{ eventId: string }>()
 const viewBracket = ref('16')
 const bracketData = ref<Match[][]>([])
 const connections = ref<Connection[]>([])
+const loading = ref(false)
 
 const viewportRef = ref<HTMLElement>()
 const matchRefs = new Map<string, HTMLElement>()
 let resizeObserver: ResizeObserver | null = null
 
-// --- 核心逻辑 ---
-
-// 初始化数据
-const initMockDE = () => {
-  const fencers = {
-    a1: {id: 'a1', last_name: 'KANO', seed: 1},
-    a2: {id: 'a2', last_name: 'CHUMAK', seed: 2},
-    a3: {id: 'a3', last_name: 'SIKLOSI', seed: 3},
-    a4: {id: 'a4', last_name: 'WANG', seed: 4},
-    a5: {id: 'a5', last_name: 'BOREL', seed: 5},
-    a6: {id: 'a6', last_name: 'LIMARDO', seed: 6},
-    a7: {id: 'a7', last_name: 'PARK', seed: 7},
-    a8: {id: 'a8', last_name: 'MINOBE', seed: 8}
+// --- 核心算法：生成标准对阵种子序列 ---
+// 例如 size=8, 返回 [1, 8, 5, 4, 3, 6, 7, 2]
+const getSeedOrder = (size: number): number[] => {
+  let order = [1];
+  while (order.length < size) {
+    const nextOrder = [];
+    const currentMax = order.length * 2;
+    for (const s of order) {
+      nextOrder.push(s);
+      nextOrder.push(currentMax + 1 - s);
+    }
+    order = nextOrder;
   }
+  return order;
+};
 
-  const t8: Match[] = [
-    {id: 1, fencerA: fencers.a1, fencerB: fencers.a8, scoreA: 15, scoreB: 12, winnerId: 'a1'},
-    {id: 2, fencerA: fencers.a5, fencerB: fencers.a4, scoreA: 10, scoreB: 15, winnerId: 'a4'},
-    {id: 3, fencerA: fencers.a3, fencerB: fencers.a6, scoreA: 15, scoreB: 14, winnerId: 'a3'},
-    {id: 4, fencerA: fencers.a7, fencerB: fencers.a2, scoreA: 13, scoreB: 15, winnerId: 'a2'},
-  ]
+// --- 初始化真实 DE 数据 ---
+const initRealDE = async () => {
+  loading.value = true;
+  try {
+    // 1. 获取晋级名单
+    const qualifiedFencers = await DataManager.getQualifiedFencersForDE(props.eventId);
+    if (qualifiedFencers.length === 0) {
+      ElMessage.warning('暂无晋级选手数据，请先完成小组赛计分');
+      return;
+    }
 
-  // 仅占位，数据由上一轮填充
-  const createEmptyMatch = (id: number): Match => ({
-    id, fencerA: null, fencerB: null, scoreA: '', scoreB: '', winnerId: null
-  })
+    // 2. 确定对阵表规模 (16强, 32强, 64强...)
+    // 根据选手人数自动计算最小的 2 的幂
+    const count = qualifiedFencers.length;
+    const bracketSize = Math.pow(2, Math.ceil(Math.log2(count)));
+    viewBracket.value = bracketSize.toString();
 
-  // 预填 T4 (基于 T8 结果)
-  const t4 = [
-    {...createEmptyMatch(5), fencerA: t8[0].fencerA, fencerB: t8[1].fencerB}, // 简化模拟逻辑
-    {...createEmptyMatch(6), fencerA: t8[2].fencerA, fencerB: t8[3].fencerB}
-  ]
-  const t2 = [createEmptyMatch(7)]
+    // 3. 生成第一轮对阵 (Table of X)
+    const seedOrder = getSeedOrder(bracketSize);
+    const firstRound: Match[] = [];
+    const fencerMap = new Map(qualifiedFencers.map(f => [f.seed, f]));
 
-  bracketData.value = [t8, t4, t2]
-  nextTick(drawLines)
-}
+    for (let i = 0; i < seedOrder.length; i += 2) {
+      const seedA = seedOrder[i];
+      const seedB = seedOrder[i + 1];
+      const fencerA = fencerMap.get(seedA) || null;
+      const fencerB = fencerMap.get(seedB) || null;
+
+      const match: Match = {
+        id: i / 2 + 1,
+        fencerA: fencerA,
+        fencerB: fencerB,
+        scoreA: '',
+        scoreB: '',
+        winnerId: null
+      };
+
+      // 自动处理轮空 (Bye)
+      if (fencerA && !fencerB) {
+        match.winnerId = fencerA.id;
+        match.scoreA = 'V';
+        match.scoreB = '0';
+      } else if (!fencerA && fencerB) {
+        match.winnerId = fencerB.id;
+        match.scoreB = 'V';
+        match.scoreA = '0';
+      }
+
+      firstRound.push(match);
+    }
+
+    // 4. 初始化后续轮次（空位）
+    const allRounds = [firstRound];
+    let currentSize = firstRound.length / 2;
+    while (currentSize >= 1) {
+      const roundMatches = Array.from({ length: currentSize }, (_, i) => ({
+        id: Math.random(), // 实际开发建议用固定 ID 规则
+        fencerA: null,
+        fencerB: null,
+        scoreA: '',
+        scoreB: '',
+        winnerId: null
+      }));
+      allRounds.push(roundMatches);
+      currentSize /= 2;
+    }
+
+    bracketData.value = allRounds;
+
+    // 5. 自动将第一轮的轮空优胜者晋级
+    firstRound.forEach((m, idx) => {
+      if (m.winnerId) promoteWinner(m, 0, idx);
+    });
+
+    nextTick(drawLines);
+  } catch (error) {
+    console.error(error);
+    ElMessage.error('初始化对阵表失败');
+  } finally {
+    loading.value = false;
+  }
+};
 
 // 统一处理比分变更
 const handleScoreChange = (rIdx: number, mIdx: number) => {
@@ -163,21 +227,18 @@ const handleScoreChange = (rIdx: number, mIdx: number) => {
 
 // 晋级逻辑
 const promoteWinner = (match: Match, rIdx: number, mIdx: number) => {
-  if (rIdx >= bracketData.value.length - 1) return // 决赛无下一轮
+  if (rIdx >= bracketData.value.length - 1) return;
+  const winner = match.winnerId === match.fencerA?.id ? match.fencerA : match.fencerB;
+  const nextRoundMatch = bracketData.value[rIdx + 1][Math.floor(mIdx / 2)];
 
-  const winner = match.winnerId === match.fencerA?.id ? match.fencerA : match.fencerB
-  const nextRoundMatch = bracketData.value[rIdx + 1][Math.floor(mIdx / 2)]
+  if (mIdx % 2 === 0) nextRoundMatch.fencerA = winner;
+  else nextRoundMatch.fencerB = winner;
 
-  // 根据当前是偶数还是奇数位置，决定放入下一轮的 A 位还是 B 位
-  if (mIdx % 2 === 0) nextRoundMatch.fencerA = winner
-  else nextRoundMatch.fencerB = winner
-
-  // 如果下一轮因此变成轮空（例如对手还没产生），递归检查
+  // 如果下一轮因为当前晋级也变成了“自动轮空”，则递归
   if (winner && (!nextRoundMatch.fencerA || !nextRoundMatch.fencerB)) {
-    // 这里可以选择是否自动处理下一轮的轮空胜出，视规则而定
-    // 简单起见，这里只更新数据，UI会自动响应
+     // 可以在这里处理连续轮空逻辑
   }
-}
+};
 
 // --- 视图渲染辅助 ---
 
@@ -241,7 +302,7 @@ const drawLines = () => {
 
 // --- 生命周期 ---
 onMounted(() => {
-  initMockDE()
+  initRealDE();
 
   if (viewportRef.value) {
     resizeObserver = new ResizeObserver(() => requestAnimationFrame(drawLines))
