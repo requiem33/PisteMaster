@@ -281,5 +281,38 @@ export const DataManager = {
             console.error('DataManager.getFencerById Error:', error);
             throw error;
         }
-    }
+    },
+
+    async getPoolsDetailed(eventId: string) {
+        try {
+            // 1. 从 IndexedDB 获取原始分组定义
+            const poolDefinitions = await IndexedDBService.getPoolsByEvent(eventId);
+
+            if (!poolDefinitions || poolDefinitions.length === 0) {
+                return null;
+            }
+
+            // 2. 按组号排序，确保顺序正确
+            poolDefinitions.sort((a: any, b: any) => a.pool_number - b.pool_number);
+
+            const detailedPools = [];
+
+            // 3. 遍历每个小组，根据 fencer_ids 还原选手的完整对象
+            for (const pool of poolDefinitions) {
+                const fencersInPool = [];
+                for (const fId of pool.fencer_ids) {
+                    const detail = await this.getFencerById(fId);
+                    if (detail) {
+                        fencersInPool.push(detail);
+                    }
+                }
+                detailedPools.push(fencersInPool);
+            }
+
+            return detailedPools;
+        } catch (error) {
+            console.error('获取详细分组失败:', error);
+            return null;
+        }
+    },
 };

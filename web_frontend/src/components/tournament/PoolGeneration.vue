@@ -9,7 +9,7 @@
           <el-checkbox v-model="config.avoidCountry">国家/地区自动避让</el-checkbox>
         </el-form-item>
         <el-form-item>
-          <el-button type="primary" size="small" @click="generatePools">重新按算法生成</el-button>
+          <el-button type="primary" size="small" @click="handleReGenerate">重新按算法生成</el-button>
           <span class="edit-hint">提示：你可以直接在下方拖动选手进行手动调组</span>
         </el-form-item>
       </el-form>
@@ -63,7 +63,7 @@
 <script setup lang="ts">
 /* 路径：src/components/tournament/PoolGeneration.vue */
 import {ref, onMounted} from 'vue'
-import {ElMessage} from 'element-plus'
+import {ElMessage, ElMessageBox} from 'element-plus'
 import {Rank} from '@element-plus/icons-vue'
 import draggable from 'vuedraggable'
 import {DataManager} from '@/services/DataManager' // 👈 引入 DataManager
@@ -84,27 +84,40 @@ const loading = ref(false)
 const loadFencers = async () => {
   loading.value = true
   try {
-    // 获取该项目已关联的选手详情
+    // 1. 【关键修改】无论有没有分组，都必须先拿到这个项目的所有选手详情
+    // 因为 generatePools 算法依赖 fencers.value 作为“原材料”
     const data = await DataManager.getFencersByEvent(props.eventId)
 
-    // 如果没有选手，提醒用户
     if (!data || data.length === 0) {
       ElMessage.warning('当前项目暂无参赛选手，请先导入名单')
       return
     }
 
-    // 格式化并根据排名排序 (排名 0 或 null 的排在最后)
+    // 填充原始选手列表并排序（为蛇形算法做准备）
     fencers.value = data.sort((a, b) => {
       const rA = a.current_ranking || 999
       const rB = b.current_ranking || 999
       return rA - rB
     })
 
-    // 数据加载后，执行第一次自动分组
-    generatePools()
+    // 2. 尝试获取该项目【已经保存过】的分组信息
+    const savedPools = await DataManager.getPoolsDetailed(props.eventId)
+
+    if (savedPools && savedPools.length > 0) {
+      // 如果有历史分组，直接恢复
+      pools.value = savedPools
+
+      // 同步“每组人数”配置
+      if (savedPools[0]) {
+        config.value.sizePerPool = savedPools[0].length
+      }
+    } else {
+      // 3. 只有在没有历史分组的情况下，才自动执行第一次算法生成
+      generatePools()
+    }
   } catch (error) {
-    console.error('加载选手失败:', error)
-    ElMessage.error('无法读取选手名单')
+    console.error('加载数据失败:', error)
+    ElMessage.error('无法读取选手或分组信息')
   } finally {
     loading.value = false
   }
@@ -138,6 +151,21 @@ const generatePools = () => {
   })
 
   pools.value = result
+}
+
+const handleReGenerate = () => {
+  if (pools.value.length > 0) {
+    ElMessageBox.confirm(
+        '重新生成将清除你当前的手动调整结果，确定要按算法重新分组吗？',
+        '确认重新生成',
+        {confirmButtonText: '确定', cancelButtonText: '取消', type: 'warning'}
+    ).then(() => {
+      generatePools()
+    }).catch(() => {
+    })
+  } else {
+    generatePools()
+  }
 }
 
 const handleDragEnd = () => {
