@@ -34,7 +34,13 @@
               <div class="fencer-slot" :class="getSlotClass(match, 'A')">
                 <template v-if="match.fencerA">
                   <span class="seed">{{ match.fencerA.seed }}</span>
-                  <span class="name">{{ match.fencerA.last_name }}</span>
+                  <div class="fencer-info">
+                    <span class="name">
+                      <span class="ln">{{ match.fencerA.last_name }}</span>
+                      {{ match.fencerA.first_name }}
+                    </span>
+                    <span class="org">{{ match.fencerA.country_code }}</span>
+                  </div>
                   <input
                       v-model.number="match.scoreA"
                       class="score-input"
@@ -49,7 +55,13 @@
               <div class="fencer-slot" :class="getSlotClass(match, 'B')">
                 <template v-if="match.fencerB">
                   <span class="seed">{{ match.fencerB.seed }}</span>
-                  <span class="name">{{ match.fencerB.last_name }}</span>
+                  <div class="fencer-info">
+                    <span class="name">
+                      <span class="ln">{{ match.fencerB.last_name }}</span>
+                      {{ match.fencerB.first_name }}
+                    </span>
+                    <span class="org">{{ match.fencerB.country_code }}</span>
+                  </div>
                   <input
                       v-model.number="match.scoreB"
                       class="score-input"
@@ -68,13 +80,15 @@
 
 <script setup lang="ts">
 import {ref, onMounted, onUnmounted, nextTick} from 'vue'
-import { DataManager } from '@/services/DataManager'
-import { ElMessage } from 'element-plus'
+import {DataManager} from '@/services/DataManager'
+import {ElMessage} from 'element-plus'
 
 // --- 类型定义 ---
 interface Fencer {
   id: string
   last_name: string
+  first_name: string    // 👈 新增
+  country_code: string  // 👈 新增
   seed: number
 }
 
@@ -174,7 +188,7 @@ const initRealDE = async () => {
     const allRounds = [firstRound];
     let currentSize = firstRound.length / 2;
     while (currentSize >= 1) {
-      const roundMatches = Array.from({ length: currentSize }, (_, i) => ({
+      const roundMatches = Array.from({length: currentSize}, (_, i) => ({
         id: Math.random(), // 实际开发建议用固定 ID 规则
         fencerA: null,
         fencerB: null,
@@ -236,7 +250,7 @@ const promoteWinner = (match: Match, rIdx: number, mIdx: number) => {
 
   // 如果下一轮因为当前晋级也变成了“自动轮空”，则递归
   if (winner && (!nextRoundMatch.fencerA || !nextRoundMatch.fencerB)) {
-     // 可以在这里处理连续轮空逻辑
+    // 可以在这里处理连续轮空逻辑
   }
 };
 
@@ -415,9 +429,41 @@ $bg-color: #f8f9fa;
     display: flex;
     align-items: center;
     height: 36px;
-    padding: 0 10px;
-    font-size: 13px;
-    background: #fff;
+    padding: 0 0 0 10px; // 输入框自带左边框，所以右边距设为0
+
+    .fencer-info {
+      flex: 1;
+      display: flex;
+      justify-content: space-between; // 名字靠左，单位靠右
+      align-items: center;
+      overflow: hidden;
+      margin-right: 8px;
+    }
+
+    .name {
+      @include text-ellipsis;
+      font-size: 12px;
+
+      .ln {
+        text-transform: uppercase; // 击剑惯例：姓氏大写
+        font-weight: bold;
+      }
+    }
+
+    .org {
+      font-size: 10px;
+      color: #909399;
+      background: #f0f2f5;
+      padding: 0 4px;
+      border-radius: 2px;
+      margin-left: 5px;
+      flex-shrink: 0; // 确保国家代码不会被压缩
+    }
+
+    .score-input {
+      width: 35px; // 略微加宽，防止两位数比分拥挤
+      /* 其余样式保持不变 */
+    }
 
     &.winner {
       background: #f0f9eb;
