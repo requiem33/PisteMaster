@@ -438,4 +438,107 @@ export const DataManager = {
             return null;
         }
     },
+
+    /**
+     * 生成并获取最终的赛事总排名
+     */
+    async getFinalRanking(eventId: string) {
+        // 1. 获取小组赛排名作为排序基准
+        const poolRanking = await this.getEventPoolRanking(eventId);
+        if (!poolRanking || poolRanking.length === 0) return [];
+
+        const baseRankedFencers = poolRanking.sort((a, b) => {
+            if (b.v_m !== a.v_m) return b.v_m - a.v_m;
+            if (b.ind !== a.ind) return b.ind - a.ind;
+            return b.ts - a.ts;
+        }).map((f, index) => ({
+            ...f,
+            pool_rank: index + 1 // 附加小组赛名次
+        }));
+
+        // 2. 获取淘汰赛对阵图
+        const deTree = await this.getDETree(eventId);
+        if (!deTree || deTree.length === 0) {
+            return baseRankedFencers.map(f => ({...f, last_round: '小组赛'}));
+        }
+
+        // 3.【关键修复】构建“选手ID -> 淘汰轮次”的映射表
+        const eliminationMap = new Map<string, string>();
+        const totalRounds = deTree.length;
+
+        // 3.1【先处理特殊名次】
+        const finalMatch = totalRounds > 0 ? deTree[totalRounds - 1][0] : null;
+        const semiFinals = totalRounds > 1 ? deTree[totalRounds - 2] : [];
+
+        // 处理冠亚军
+        if (finalMatch && finalMatch.winnerId) {
+            const winnerId = String(finalMatch.winnerId);
+            const runnerUp = finalMatch.fencerA?.id === finalMatch.winnerId ? finalMatch.fencerB : finalMatch.fencerA;
+            if (runnerUp) {
+                eliminationMap.set(winnerId, "冠军 (Gold)");
+                eliminationMap.set(String(runnerUp.id), "亚军 (Silver)");
+            }
+        }
+
+        // 处理季军
+        semiFinals.forEach(match => {
+            if (match.winnerId) {
+                const loser = match.fencerA?.id === match.winnerId ? match.fencerB : match.fencerA;
+                if (loser && !eliminationMap.has(String(loser.id))) {
+                    eliminationMap.set(String(loser.id), "季军 (Bronze)");
+                }
+            }
+        });
+
+        // 3.2【再处理其他所有轮次的淘汰者】
+        deTree.forEach((round, rIdx) => {
+            const roundName = `Table of ${Math.pow(2, totalRounds - rIdx)}`;
+            round.forEach(match => {
+                // 找出负方
+                const loser = match.winnerId
+                    ? (String(match.winnerId) === String(match.fencerA?.id) ? match.fencerB : match.fencerA)
+                    : null;
+
+                // 如果负方存在，并且【尚未】在特殊名次中被标记，则记录其淘汰轮次
+                if (loser && !eliminationMap.has(String(loser.id))) {
+                    eliminationMap.set(String(loser.id), roundName);
+                }
+            });
+        });
+
+        // 4. 合并数据
+        const fullResults = baseRankedFencers.map(fencer => ({
+            ...fencer,
+            last_round: eliminationMap.get(String(fencer.id)) || '小组赛' // 默认小组赛
+        }));
+
+        // 5. 定义轮次排序权重 (索引越小，排名越高)
+        const roundOrder = [
+            "冠军 (Gold)",
+            "亚军 (Silver)",
+            "季军 (Bronze)",
+            "Table of 4", // 理论上不会出现，因为半决赛负者是季军
+            "Table of 8",
+            "Table of 16",
+            "Table of 32",
+            "Table of 64",
+            "小组赛",
+        ];
+
+        // 6. 最终排序
+        fullResults.sort((a, b) => {
+            const rankA = roundOrder.indexOf(a.last_round);
+            const rankB = roundOrder.indexOf(b.last_round);
+
+            // a. 比较淘汰轮次
+            if (rankA !== rankB) {
+                return rankA - rankB; // rankA=0 (冠军) > rankB=1 (亚军)，所以用 a-b
+            }
+
+            // b. 如果淘汰轮次相同，则按小组赛排名
+            return a.pool_rank - b.pool_rank;
+        });
+
+        return fullResults;
+    },
 };
