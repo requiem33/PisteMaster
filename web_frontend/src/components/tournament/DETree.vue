@@ -9,7 +9,7 @@
       <el-button type="primary" icon="Printer" plain>打印对阵表</el-button>
     </div>
 
-    <div class="bracket-viewport" ref="viewportRef">
+    <div v-loading="loading" class="bracket-viewport" ref="viewportRef">
       <svg class="connection-layer">
         <path
             v-for="(line, idx) in connections"
@@ -22,7 +22,6 @@
 
       <div v-for="(round, rIdx) in bracketData" :key="rIdx" class="round-column">
         <div class="round-header">Table of {{ Math.pow(2, bracketData.length - rIdx) }}</div>
-
         <div class="matches-container">
           <div
               v-for="(match, mIdx) in round"
@@ -35,37 +34,35 @@
                 <template v-if="match.fencerA">
                   <span class="seed">{{ match.fencerA.seed }}</span>
                   <div class="fencer-info">
-                    <span class="name">
-                      <span class="ln">{{ match.fencerA.last_name }}</span>
-                      {{ match.fencerA.first_name }}
-                    </span>
+                    <span class="name"><span class="ln">{{ match.fencerA.last_name }}</span> {{
+                        match.fencerA.first_name
+                      }}</span>
                     <span class="org">{{ match.fencerA.country_code }}</span>
                   </div>
                   <input
-                      v-model.number="match.scoreA"
+                      v-model="match.scoreA"
                       class="score-input"
-                      @input="handleScoreChange(rIdx, mIdx)"
+                      :disabled="!match.fencerB"
+                      @change="handleScoreChange(rIdx, mIdx)"
                   />
                 </template>
                 <span v-else class="name bye-text">BYE</span>
               </div>
-
               <div class="divider"></div>
-
               <div class="fencer-slot" :class="getSlotClass(match, 'B')">
                 <template v-if="match.fencerB">
                   <span class="seed">{{ match.fencerB.seed }}</span>
                   <div class="fencer-info">
-                    <span class="name">
-                      <span class="ln">{{ match.fencerB.last_name }}</span>
-                      {{ match.fencerB.first_name }}
-                    </span>
+                    <span class="name"><span class="ln">{{ match.fencerB.last_name }}</span> {{
+                        match.fencerB.first_name
+                      }}</span>
                     <span class="org">{{ match.fencerB.country_code }}</span>
                   </div>
                   <input
-                      v-model.number="match.scoreB"
+                      v-model="match.scoreB"
                       class="score-input"
-                      @input="handleScoreChange(rIdx, mIdx)"
+                      :disabled="!match.fencerA"
+                      @change="handleScoreChange(rIdx, mIdx)"
                   />
                 </template>
                 <span v-else class="name bye-text">BYE</span>
@@ -85,10 +82,10 @@ import {ElMessage} from 'element-plus'
 
 // --- 类型定义 ---
 interface Fencer {
-  id: string
+  id: string | number // 兼容数字ID
   last_name: string
-  first_name: string    // 👈 新增
-  country_code: string  // 👈 新增
+  first_name: string
+  country_code: string
   seed: number
 }
 
@@ -98,7 +95,7 @@ interface Match {
   fencerB: Fencer | null
   scoreA: number | string
   scoreB: number | string
-  winnerId: string | null
+  winnerId: string | null // 统一存储为字符串以保证比较安全
 }
 
 interface Connection {
@@ -112,13 +109,141 @@ const viewBracket = ref('16')
 const bracketData = ref<Match[][]>([])
 const connections = ref<Connection[]>([])
 const loading = ref(false)
-
 const viewportRef = ref<HTMLElement>()
 const matchRefs = new Map<string, HTMLElement>()
 let resizeObserver: ResizeObserver | null = null
 
-// --- 核心算法：生成标准对阵种子序列 ---
-// 例如 size=8, 返回 [1, 8, 5, 4, 3, 6, 7, 2]
+// --- 核心交互逻辑 (修复部分) ---
+
+// 辅助：安全获取 ID 字符串
+const getSafeId = (fencer: Fencer | null): string | null => {
+  return fencer && fencer.id !== undefined && fencer.id !== null ? String(fencer.id) : null;
+}
+
+// 辅助：解析分数为数字，支持 "V"
+const parseScore = (val: string | number): number => {
+  if (val === null || val === undefined) return -1;
+  const strVal = String(val).trim().toUpperCase();
+  if (strVal === '') return -1;
+  if (strVal === 'V') return 999; // V 视为最大值
+  // 处理 "V5" 这种情况，如果包含 V，提取后面的数字并加上权重，或者简单处理
+  if (strVal.startsWith('V')) {
+    const numPart = parseInt(strVal.replace('V', ''));
+    return isNaN(numPart) ? 999 : 100 + numPart; // V5 > 5
+  }
+  const num = Number(val);
+  return isNaN(num) ? -1 : num;
+}
+
+/**
+ * 计算并更新单场比赛的胜者
+ */
+const updateMatchWinner = (rIdx: number, mIdx: number) => {
+  const match = bracketData.value[rIdx][mIdx];
+
+  // 获取 ID
+  const idA = getSafeId(match.fencerA);
+  const idB = getSafeId(match.fencerB);
+
+  // 如果有一方是轮空 (BYE)，另一方自动获胜
+  if (match.fencerA && !match.fencerB) {
+    match.winnerId = idA;
+    return;
+  }
+  if (!match.fencerA && match.fencerB) {
+    match.winnerId = idB;
+    return;
+  }
+
+  // 双方都在，比较分数
+  const sA = parseScore(match.scoreA);
+  const sB = parseScore(match.scoreB);
+
+  // 只有当两个分数都有效输入时才判断胜负
+  if (sA !== -1 && sB !== -1) {
+    if (sA > sB) match.winnerId = idA;
+    else if (sB > sA) match.winnerId = idB;
+    else match.winnerId = null; // 平局或未完成
+  } else {
+    // 分数不完整，重置胜者
+    match.winnerId = null;
+  }
+};
+
+
+/**
+ * 核心：处理比分变更，并触发连锁更新
+ */
+const handleScoreChange = (rIdx: number, mIdx: number) => {
+  // 1. 更新当前比赛胜者
+  updateMatchWinner(rIdx, mIdx);
+
+  // 2. 连锁更新后续轮次
+  for (let currentRIdx = rIdx; currentRIdx < bracketData.value.length - 1; currentRIdx++) {
+    // 当前循环处理的比赛索引
+    const currentMIdxInLoop = Math.floor(mIdx / Math.pow(2, currentRIdx - rIdx));
+    const currentMatch = bracketData.value[currentRIdx][currentMIdxInLoop];
+
+    // 获取当前决出的胜者对象
+    let winner: Fencer | null = null;
+    const wId = currentMatch.winnerId;
+
+    if (wId) {
+      if (getSafeId(currentMatch.fencerA) === wId) winner = currentMatch.fencerA;
+      else if (getSafeId(currentMatch.fencerB) === wId) winner = currentMatch.fencerB;
+    }
+
+    // 定位下一轮的比赛
+    const nextRIdx = currentRIdx + 1;
+    const nextMIdx = Math.floor(currentMIdxInLoop / 2);
+
+    // 边界检查
+    if (!bracketData.value[nextRIdx] || !bracketData.value[nextRIdx][nextMIdx]) break;
+
+    const nextMatch = bracketData.value[nextRIdx][nextMIdx];
+
+    // 检查是否有变更
+    let participantChanged = false;
+    const isSourceA = (currentMIdxInLoop % 2 === 0);
+
+    if (isSourceA) {
+      // 下一轮的 A 选手位置
+      if (getSafeId(nextMatch.fencerA) !== getSafeId(winner)) {
+        nextMatch.fencerA = winner;
+        participantChanged = true;
+      }
+    } else {
+      // 下一轮的 B 选手位置
+      if (getSafeId(nextMatch.fencerB) !== getSafeId(winner)) {
+        nextMatch.fencerB = winner;
+        participantChanged = true;
+      }
+    }
+
+    // 如果参赛者变了，清空下一轮的比分并重新计算其胜者（通常会变成 null）
+    if (participantChanged) {
+      nextMatch.scoreA = '';
+      nextMatch.scoreB = '';
+      updateMatchWinner(nextRIdx, nextMIdx);
+    }
+
+    // 如果没有变更，且下一轮也没有胜者，通常不需要继续深层递归，但为了安全继续循环
+  }
+
+  // 3. 保存并重绘
+  saveProgress();
+  // 强制 Vue 更新视图后再画线
+  nextTick(() => {
+    drawLines();
+  });
+};
+
+// --- 数据持久化 ---
+const saveProgress = async () => {
+  await DataManager.saveDETree(props.eventId, bracketData.value);
+};
+
+// --- 初始化与数据加载 ---
 const getSeedOrder = (size: number): number[] => {
   let order = [1];
   while (order.length < size) {
@@ -133,81 +258,75 @@ const getSeedOrder = (size: number): number[] => {
   return order;
 };
 
-// --- 初始化真实 DE 数据 ---
 const initRealDE = async () => {
   loading.value = true;
   try {
-    // 1. 获取晋级名单
-    const qualifiedFencers = await DataManager.getQualifiedFencersForDE(props.eventId);
-    if (qualifiedFencers.length === 0) {
-      ElMessage.warning('暂无晋级选手数据，请先完成小组赛计分');
+    const savedTree = await DataManager.getDETree(props.eventId);
+    if (savedTree && savedTree.length > 0) {
+      bracketData.value = savedTree;
+      nextTick(drawLines);
+      ElMessage.success('已恢复上次保存的对阵图进度');
       return;
     }
-
-    // 2. 确定对阵表规模 (16强, 32强, 64强...)
-    // 根据选手人数自动计算最小的 2 的幂
+    const qualifiedFencers = await DataManager.getQualifiedFencersForDE(props.eventId);
+    if (qualifiedFencers.length === 0) {
+      ElMessage.warning('暂无晋级选手数据');
+      return;
+    }
     const count = qualifiedFencers.length;
     const bracketSize = Math.pow(2, Math.ceil(Math.log2(count)));
     viewBracket.value = bracketSize.toString();
-
-    // 3. 生成第一轮对阵 (Table of X)
     const seedOrder = getSeedOrder(bracketSize);
+
     const firstRound: Match[] = [];
     const fencerMap = new Map(qualifiedFencers.map(f => [f.seed, f]));
 
     for (let i = 0; i < seedOrder.length; i += 2) {
-      const seedA = seedOrder[i];
-      const seedB = seedOrder[i + 1];
-      const fencerA = fencerMap.get(seedA) || null;
-      const fencerB = fencerMap.get(seedB) || null;
+      const fencerA = fencerMap.get(seedOrder[i]) || null;
+      const fencerB = fencerMap.get(seedOrder[i + 1]) || null;
 
       const match: Match = {
         id: i / 2 + 1,
-        fencerA: fencerA,
-        fencerB: fencerB,
+        fencerA,
+        fencerB,
         scoreA: '',
         scoreB: '',
         winnerId: null
       };
 
-      // 自动处理轮空 (Bye)
+      // 自动处理首轮轮空
       if (fencerA && !fencerB) {
-        match.winnerId = fencerA.id;
+        match.winnerId = getSafeId(fencerA);
         match.scoreA = 'V';
-        match.scoreB = '0';
-      } else if (!fencerA && fencerB) {
-        match.winnerId = fencerB.id;
-        match.scoreB = 'V';
-        match.scoreA = '0';
       }
-
       firstRound.push(match);
     }
 
-    // 4. 初始化后续轮次（空位）
     const allRounds = [firstRound];
     let currentSize = firstRound.length / 2;
     while (currentSize >= 1) {
-      const roundMatches = Array.from({length: currentSize}, (_, i) => ({
-        id: Math.random(), // 实际开发建议用固定 ID 规则
+      allRounds.push(Array.from({length: currentSize}, (_, idx) => ({
+        id: Math.random(), // 临时 ID，仅用于 Key
         fencerA: null,
         fencerB: null,
         scoreA: '',
         scoreB: '',
         winnerId: null
-      }));
-      allRounds.push(roundMatches);
+      })));
       currentSize /= 2;
     }
-
     bracketData.value = allRounds;
 
-    // 5. 自动将第一轮的轮空优胜者晋级
-    firstRound.forEach((m, idx) => {
-      if (m.winnerId) promoteWinner(m, 0, idx);
+    // 重新运行一次分数检查，确保初始化的 'V' 被正确识别
+    nextTick(() => {
+      firstRound.forEach((m, idx) => {
+        if (m.winnerId) {
+          handleScoreChange(0, idx);
+        }
+      });
+      drawLines();
     });
 
-    nextTick(drawLines);
   } catch (error) {
     console.error(error);
     ElMessage.error('初始化对阵表失败');
@@ -216,125 +335,66 @@ const initRealDE = async () => {
   }
 };
 
-// 统一处理比分变更
-const handleScoreChange = (rIdx: number, mIdx: number) => {
-  const match = bracketData.value[rIdx][mIdx]
+// --- 绘图与辅助函数 ---
 
-  // 1. 检查轮空 (Bye)
-  if (!match.fencerA || !match.fencerB) {
-    match.winnerId = match.fencerA?.id || match.fencerB?.id || null
-  } else {
-    // 2. 比较分数
-    const sA = Number(match.scoreA) || 0
-    const sB = Number(match.scoreB) || 0
-    if (sA > sB) match.winnerId = match.fencerA.id
-    else if (sB > sA) match.winnerId = match.fencerB.id
-    else match.winnerId = null
-  }
-
-  // 3. 晋级到下一轮
-  promoteWinner(match, rIdx, mIdx)
-
-  // 4. 重绘线条（因为 winner 状态可能改变线条样式）
-  drawLines()
-}
-
-// 晋级逻辑
-const promoteWinner = (match: Match, rIdx: number, mIdx: number) => {
-  if (rIdx >= bracketData.value.length - 1) return;
-  const winner = match.winnerId === match.fencerA?.id ? match.fencerA : match.fencerB;
-  const nextRoundMatch = bracketData.value[rIdx + 1][Math.floor(mIdx / 2)];
-
-  if (mIdx % 2 === 0) nextRoundMatch.fencerA = winner;
-  else nextRoundMatch.fencerB = winner;
-
-  // 如果下一轮因为当前晋级也变成了“自动轮空”，则递归
-  if (winner && (!nextRoundMatch.fencerA || !nextRoundMatch.fencerB)) {
-    // 可以在这里处理连续轮空逻辑
-  }
+// 修复：使用 String 强转 ID 进行比较，避免数字/字符串不匹配
+const getSlotClass = (match: Match, side: 'A' | 'B') => {
+  const fencer = side === 'A' ? match.fencerA : match.fencerB;
+  // 核心修复点：将两边都转为 String 再比较
+  const isWinner = match.winnerId && fencer && String(match.winnerId) === String(fencer.id);
+  return {'winner': isWinner, 'bye-slot': !fencer};
 };
 
-// --- 视图渲染辅助 ---
-
 const setMatchRef = (el: HTMLElement | null, rIdx: number, mIdx: number) => {
-  if (el) matchRefs.set(`${rIdx}-${mIdx}`, el)
-}
+  if (el) matchRefs.set(`${rIdx}-${mIdx}`, el);
+};
 
-const getSlotClass = (match: Match, side: 'A' | 'B') => {
-  const fencer = side === 'A' ? match.fencerA : match.fencerB
-  const isWinner = match.winnerId && fencer && match.winnerId === fencer.id
-  return {
-    'winner': isWinner,
-    'bye-slot': !fencer
-  }
-}
-
-// --- SVG 连线绘制 ---
 const drawLines = () => {
-  if (!viewportRef.value) return
-  const newConnections: Connection[] = []
-  const viewportRect = viewportRef.value.getBoundingClientRect()
-
-  // 遍历每一轮（除最后一轮）
+  if (!viewportRef.value) return;
+  const newConnections: Connection[] = [];
+  const viewportRect = viewportRef.value.getBoundingClientRect();
   for (let r = 0; r < bracketData.value.length - 1; r++) {
-    const currentRound = bracketData.value[r]
+    for (let m = 0; m < bracketData.value[r].length; m++) {
+      const currEl = matchRefs.get(`${r}-${m}`);
+      const nextEl = matchRefs.get(`${r + 1}-${Math.floor(m / 2)}`);
+      if (!currEl || !nextEl) continue;
 
-    // 获取列之间的间隙中点作为折线转折点
-    const currCol = matchRefs.get(`${r}-0`)?.parentElement?.parentElement
-    const nextCol = matchRefs.get(`${r + 1}-0`)?.parentElement?.parentElement
-    if (!currCol || !nextCol) continue
+      const startRect = currEl.getBoundingClientRect();
+      const endRect = nextEl.getBoundingClientRect();
 
-    // 遍历当前轮次比赛
-    for (let m = 0; m < currentRound.length; m++) {
-      const currEl = matchRefs.get(`${r}-${m}`)
-      const nextEl = matchRefs.get(`${r + 1}-${Math.floor(m / 2)}`)
-      if (!currEl || !nextEl) continue
+      const startX = startRect.right - viewportRect.left;
+      const startY = startRect.top + startRect.height / 2 - viewportRect.top;
+      const endX = endRect.left - viewportRect.left;
+      const endY = endRect.top + endRect.height / 2 - viewportRect.top;
 
-      const startRect = currEl.getBoundingClientRect()
-      const endRect = nextEl.getBoundingClientRect()
+      const midX = startX + (endX - startX) / 2;
+      const d = `M ${startX} ${startY} H ${midX} V ${endY} H ${endX}`;
 
-      // 坐标计算 (相对于 viewport)
-      const startX = startRect.right - viewportRect.left
-      const startY = startRect.top + startRect.height / 2 - viewportRect.top
-      const endX = endRect.left - viewportRect.left
-      const endY = endRect.top + endRect.height / 2 - viewportRect.top
-
-      const midX = startX + (endX - startX) / 2
-
-      // 绘制 "横-竖-横" 路径
-      const d = `M ${startX} ${startY} H ${midX} V ${endY} H ${endX}`
-
-      // 检查是否是轮空线 (虚线)
-      const match = currentRound[m]
-      const isBye = !match.fencerA || !match.fencerB
-
-      newConnections.push({d, isBye})
+      const isBye = !bracketData.value[r][m].fencerA || !bracketData.value[r][m].fencerB;
+      newConnections.push({d, isBye});
     }
   }
-  connections.value = newConnections
-}
+  connections.value = newConnections;
+};
 
 // --- 生命周期 ---
 onMounted(() => {
   initRealDE();
-
   if (viewportRef.value) {
-    resizeObserver = new ResizeObserver(() => requestAnimationFrame(drawLines))
-    resizeObserver.observe(viewportRef.value)
+    resizeObserver = new ResizeObserver(() => requestAnimationFrame(drawLines));
+    resizeObserver.observe(viewportRef.value);
   }
-})
-
+});
 onUnmounted(() => {
-  resizeObserver?.disconnect()
-})
+  resizeObserver?.disconnect();
+});
 </script>
 
 <style scoped lang="scss">
+/* 样式保持不变 */
 $border-color: #dcdfe6;
 $winner-color: #67c23a;
 $bg-color: #f8f9fa;
-
-/* Mixins & Helpers */
 @mixin text-ellipsis {
   overflow: hidden;
   text-overflow: ellipsis;
@@ -356,11 +416,11 @@ $bg-color: #f8f9fa;
 
 .bracket-viewport {
   display: flex;
-  gap: 60px;
+  gap: 80px;
   padding: 40px 20px;
   position: relative;
   overflow-x: auto;
-  min-height: 600px; /* 调整高度 */
+  min-height: 600px;
 }
 
 .connection-layer {
@@ -370,24 +430,23 @@ $bg-color: #f8f9fa;
   height: 100%;
   pointer-events: none;
   z-index: 1;
+}
 
-  .connection-line {
-    fill: none;
-    stroke: $border-color;
-    stroke-width: 2;
+.connection-line {
+  fill: none;
+  stroke: $border-color;
+  stroke-width: 2;
 
-    &.bye-connection {
-      stroke-dasharray: 5, 5;
-      stroke: #909399;
-      opacity: 0.6;
-    }
+  &.bye-connection {
+    stroke-dasharray: 5, 5;
+    opacity: 0.7;
   }
 }
 
 .round-column {
   display: flex;
   flex-direction: column;
-  min-width: 220px;
+  min-width: 280px;
   z-index: 2;
 
   .round-header {
@@ -408,124 +467,108 @@ $bg-color: #f8f9fa;
 }
 
 .match-wrapper {
+  display: flex;
+  align-items: center;
+  gap: 10px;
   position: relative;
-  padding: 10px 0;
+  padding: 5px 0;
 }
 
 .match-box {
+  flex-grow: 1;
   background: white;
   border: 1px solid $border-color;
   border-radius: 4px;
-  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.04);
   overflow: hidden;
   transition: all 0.2s;
 
   &.has-winner {
     border-color: $winner-color;
-    box-shadow: 0 2px 8px rgba(103, 194, 58, 0.15);
+  }
+}
+
+.fencer-slot {
+  display: flex;
+  align-items: center;
+  height: 38px;
+  padding: 0 0 0 10px;
+  font-size: 13px;
+
+  &.winner {
+    background: #f0f9eb;
+    font-weight: bold;
+
+    .name, .seed, .org {
+      color: #529b2e;
+    }
   }
 
-  .fencer-slot {
+  &.bye-slot {
+    background: #fafafa;
+    color: #c0c4cc;
+    font-style: italic;
+  }
+
+  .seed {
+    width: 24px;
+    color: #999;
+    font-size: 11px;
+  }
+
+  .fencer-info {
+    flex: 1;
     display: flex;
+    justify-content: space-between;
     align-items: center;
-    height: 36px;
-    padding: 0 0 0 10px; // 输入框自带左边框，所以右边距设为0
+    overflow: hidden;
+    margin-right: 8px;
+  }
 
-    .fencer-info {
-      flex: 1;
-      display: flex;
-      justify-content: space-between; // 名字靠左，单位靠右
-      align-items: center;
-      overflow: hidden;
-      margin-right: 8px;
-    }
+  .name {
+    @include text-ellipsis;
 
-    .name {
-      @include text-ellipsis;
-      font-size: 12px;
-
-      .ln {
-        text-transform: uppercase; // 击剑惯例：姓氏大写
-        font-weight: bold;
-      }
-    }
-
-    .org {
-      font-size: 10px;
-      color: #909399;
-      background: #f0f2f5;
-      padding: 0 4px;
-      border-radius: 2px;
-      margin-left: 5px;
-      flex-shrink: 0; // 确保国家代码不会被压缩
-    }
-
-    .score-input {
-      width: 35px; // 略微加宽，防止两位数比分拥挤
-      /* 其余样式保持不变 */
-    }
-
-    &.winner {
-      background: #f0f9eb;
-      color: $winner-color;
+    .ln {
+      text-transform: uppercase;
       font-weight: bold;
-    }
-
-    &.bye-slot {
-      background: #f5f7fa;
-      color: #c0c4cc;
-      font-style: italic;
-    }
-
-    .seed {
-      width: 24px;
-      color: #999;
-      font-size: 11px;
-    }
-
-    .name {
-      flex: 1;
-      @include text-ellipsis;
-    }
-
-    .bye-text {
-      color: #c0c4cc;
-    }
-
-    .score-input {
-      width: 32px;
-      height: 100%;
-      border: none;
-      border-left: 1px solid #eee;
-      text-align: center;
-      font-weight: bold;
-      background: transparent;
-      outline: none;
-
-      &:focus {
-        background: #e6f7ff;
-      }
     }
   }
 
-  .divider {
-    height: 1px;
-    background: #eee;
+  .org {
+    font-size: 10px;
+    color: #909399;
+    background: #f0f2f5;
+    padding: 1px 4px;
+    border-radius: 3px;
+    margin-left: 5px;
+    flex-shrink: 0;
+  }
+
+  .score-input {
+    width: 35px;
+    height: 100%;
+    border: none;
+    border-left: 1px solid #f0f0f0;
+    text-align: center;
+    font-weight: bold;
+    background: transparent;
+    outline: none;
+
+    &:focus {
+      background: #e6f7ff;
+    }
+
+    &:disabled {
+      background: #fafafa;
+      cursor: not-allowed;
+      color: #c0c4cc;
+    }
   }
 }
 
-/* Responsive */
-@media (max-width: 768px) {
-  .bracket-viewport {
-    gap: 30px;
-    padding: 20px 10px;
-  }
-  .round-column {
-    min-width: 160px;
-  }
-  .match-box .fencer-slot {
-    height: 30px;
-    font-size: 12px;
-  }
+.divider {
+  height: 1px;
+  background: #f0f0f0;
 }
+
 </style>

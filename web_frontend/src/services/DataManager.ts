@@ -405,5 +405,37 @@ export const DataManager = {
             ...f,
             seed: index + 1 // 赋予淘汰赛初始种子位
         }));
-    }
+    },
+
+    /**
+     * 保存淘汰赛的完整状态
+     * @param eventId
+     * @param bracketData
+     */
+    async saveDETree(eventId: string, bracketData: any) {
+        try {
+            const event = await IndexedDBService.getEventById(eventId);
+            if (event) {
+                // 将整个对阵图数据（脱敏后）存入 event 记录中
+                event.de_tree = JSON.parse(JSON.stringify(bracketData));
+                await IndexedDBService.saveEvent(event);
+            }
+        } catch (error) {
+            console.error('保存 DE 对阵图状态失败:', error);
+        }
+    },
+
+    /**
+     * 获取已保存的淘汰赛状态
+     * @param eventId
+     */
+    async getDETree(eventId: string) {
+        try {
+            const event = await IndexedDBService.getEventById(eventId);
+            return event?.de_tree || null;
+        } catch (error) {
+            console.error('获取 DE 对阵图状态失败:', error);
+            return null;
+        }
+    },
 };
