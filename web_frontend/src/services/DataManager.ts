@@ -541,4 +541,31 @@ export const DataManager = {
 
         return fullResults;
     },
+
+    /**
+     * 【新增】保存当前操作的步骤索引
+     */
+    async saveCurrentStep(eventId: string, stepIndex: number) {
+        try {
+            const event = await IndexedDBService.getEventById(eventId);
+            if (event) {
+                event.current_step = stepIndex;
+                await IndexedDBService.saveEvent(event);
+            }
+        } catch (error) {
+            console.error('保存当前步骤失败:', error);
+        }
+    },
+
+    /**
+     * 【确保存在】根据ID获取单个比赛项目详情
+     */
+    async getEventById(eventId: string) {
+        try {
+            return await IndexedDBService.getEventById(eventId);
+        } catch (error) {
+            console.error('获取比赛项目详情失败:', error);
+            return null;
+        }
+    },
 };

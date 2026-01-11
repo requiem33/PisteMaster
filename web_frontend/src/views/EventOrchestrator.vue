@@ -65,9 +65,9 @@
 </template>
 
 <script setup lang="ts">
-import {ref} from 'vue'
+import {ref, onMounted, watch} from 'vue' // 1. 引入 onMounted 和 watch
 import {useRoute, useRouter} from 'vue-router'
-import {Printer, UploadFilled, ArrowLeft} from '@element-plus/icons-vue'
+import {DataManager} from '@/services/DataManager'
 import AppHeader from '@/components/layout/AppHeader.vue'
 
 // 导入步骤子组件
@@ -79,16 +79,11 @@ import DETree from '@/components/tournament/DETree.vue'
 import FinalRanking from '@/components/tournament/FinalRanking.vue'
 
 const route = useRoute()
-const router = useRouter()
 const eventId = route.params.id as string
-const tournamentId = ref('t1') // 实际应从 API 或路由 query 获取
+const tournamentId = ref('t1') // 假设的赛事ID
 
-// 模拟单项信息
-const eventInfo = ref({
-  event_name: '男子重剑个人赛 (ME)',
-  rule_name: 'FIE 标准规则'
-})
-
+// 2. 将 eventInfo 和 currentStep 的初始值设为更中性的状态
+const eventInfo = ref({event_name: '加载中...', rule_name: ''})
 const currentStep = ref(0)
 
 const steps = [
@@ -100,18 +95,40 @@ const steps = [
   {title: '最终排名', desc: '导出最终成绩册与积分', component: FinalRanking}
 ]
 
+// 3. 【核心】在页面加载时，读取并恢复状态
+onMounted(async () => {
+  if (eventId) {
+    const eventData = await DataManager.getEventById(eventId);
+    if (eventData) {
+      eventInfo.value = eventData;
+      // 如果数据库里存有 current_step，就用它，否则用默认值 0
+      if (typeof eventData.current_step === 'number') {
+        currentStep.value = eventData.current_step;
+      }
+    }
+  }
+});
+
+// 4. 【核心】使用 watch 监听 currentStep 的变化，并自动保存
+watch(currentStep, (newStepIndex) => {
+  if (eventId) {
+    DataManager.saveCurrentStep(eventId, newStepIndex);
+  }
+});
+
+
+// --- 导航函数 (保持不变) ---
 const nextStep = () => {
   if (currentStep.value < steps.length - 1) currentStep.value++
 }
+
 const prevStep = () => {
   if (currentStep.value > 0) currentStep.value--
 }
 
 const handleStepClick = (index: number) => {
-  // 逻辑：允许自由回看已完成的步骤
-  if (index <= currentStep.value + 1) {
-    currentStep.value = index
-  }
+  // 允许自由切换到任意步骤
+  currentStep.value = index
 }
 </script>
 
