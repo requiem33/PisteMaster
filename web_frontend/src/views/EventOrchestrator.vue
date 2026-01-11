@@ -116,6 +116,7 @@ const handleStepClick = (index: number) => {
 </script>
 
 <style scoped lang="scss">
+// --- 顶部样式 (保持不变) ---
 .orchestrator-layout {
   height: 100vh;
   display: flex;
@@ -134,24 +135,23 @@ const handleStepClick = (index: number) => {
   gap: 12px;
 }
 
+// --- 主内容区 ---
 .main-content {
   flex: 1;
   display: flex;
   overflow: hidden;
 
   .steps-aside {
-    width: 220px;
+    width: 240px;
     background: var(--el-bg-color);
     padding: 20px;
     border-right: 1px solid var(--el-border-color-light);
-    display: flex;
-    flex-direction: column;
-    gap: 20px;
 
     .event-meta-card {
       padding: 15px;
       background: var(--el-fill-color-light);
       border-radius: 8px;
+      margin-bottom: 30px;
 
       .label {
         font-size: 12px;
@@ -160,11 +160,34 @@ const handleStepClick = (index: number) => {
       }
     }
 
+    .el-steps {
+      height: auto !important;
+    }
+
     .step-item {
       cursor: pointer;
+
+      // =======================================================
+      // ==  👇👇👇  就是在这里修改间距  👇👇👇  ==
+      // =======================================================
+      :deep(.el-step__main) {
+        /*
+         * 这个属性控制了步骤标题下方到下一个步骤图标顶部的距离。
+         * Element Plus 的默认值大约是 20px。
+         * 您可以根据需要调整这个值。
+         */
+        padding-bottom: 32px; /* 示例：增加间距 */
+        /* padding-bottom: 16px; */
+        /* 示例：减小间距 */
+      }
+
+      &:hover :deep(.el-step__title) {
+        color: var(--el-color-primary);
+      }
     }
   }
 
+  // --- 右侧工作区 (保持不变) ---
   .work-area {
     flex: 1;
     padding: 20px;
@@ -196,7 +219,7 @@ const handleStepClick = (index: number) => {
         }
 
         p {
-          margin: 10px 0 0 44px; /* 对齐标题文字 */
+          margin: 10px 0 0 44px;
           color: var(--el-text-color-secondary);
           font-size: 14px;
         }
@@ -210,7 +233,7 @@ const handleStepClick = (index: number) => {
   }
 }
 
-/* 动画保持不变 */
+// --- 动画 (保持不变) ---
 .fade-transform-enter-active, .fade-transform-leave-active {
   transition: all 0.3s;
 }
