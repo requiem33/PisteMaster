@@ -1,6 +1,6 @@
 <template>
   <div class="home-container">
-    <AppHeader title="欢迎使用" :showCreate="false">
+    <AppHeader :showCreate="false">
       <template #user>
         <div class="header-user-area">
           <el-button v-if="!isLoggedIn" type="primary" link @click="isLoggedIn = true">注册 / 登录</el-button>

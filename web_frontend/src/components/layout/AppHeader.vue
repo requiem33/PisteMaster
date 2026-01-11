@@ -1,16 +1,20 @@
 <template>
   <header class="list-header">
-    <div class="logo-section" @click="router.push('/')">
-      <el-icon :size="28" class="logo-icon">
-        <Trophy/>
-      </el-icon>
-      <span class="app-name">PisteMaster</span>
+    <div class="logo-section">
+      <div class="home-link" @click="router.push('/')">
+        <el-icon :size="28" class="logo-icon">
+          <Trophy/>
+        </el-icon>
+        <span class="app-name">PisteMaster</span>
+      </div>
       <el-divider direction="vertical"/>
-      <span class="page-title">{{ title }}</span>
+
+      <!-- 移除 title, 让 slot 里的面包屑直接跟在后面 -->
       <slot name="extra"></slot>
     </div>
 
     <div class="actions-section">
+      <!-- ... (右侧操作区保持不变) ... -->
       <el-dropdown @command="handleLanguageCommand" trigger="click" class="tool-item">
         <el-button circle>
           <span class="lang-text">{{ locale === 'zh-CN' ? '中' : 'EN' }}</span>
@@ -22,7 +26,6 @@
           </el-dropdown-menu>
         </template>
       </el-dropdown>
-
       <el-tooltip :content="isDark ? '切换到白天模式' : '切换到夜晚模式'" placement="bottom">
         <el-button
             class="tool-item"
@@ -31,9 +34,7 @@
             @click="toggleDark()"
         />
       </el-tooltip>
-
       <el-divider direction="vertical"/>
-
       <div class="user-slot">
         <slot name="user"></slot>
         <el-button v-if="showCreate" type="primary" :icon="Plus" @click="$emit('create')">
@@ -45,35 +46,24 @@
 </template>
 
 <script setup lang="ts">
+// --- <script> 部分完全保持不变 ---
 import {useRouter} from 'vue-router'
 import {useDark, useToggle} from '@vueuse/core'
 import {useI18n} from 'vue-i18n'
 import {Trophy, Sunny, Moon, Plus} from '@element-plus/icons-vue'
 
-// 定义属性
 interface Props {
-  title: string
   showCreate?: boolean
 }
 
-const props = withDefaults(defineProps<Props>(), {
-  showCreate: false
-})
-
-// 定义事件
+withDefaults(defineProps<Props>(), {showCreate: false})
 defineEmits(['create'])
-
 const router = useRouter()
-
-/* --- 国际化逻辑 --- */
 const {locale} = useI18n()
-
 const handleLanguageCommand = (lang: string) => {
   locale.value = lang
-  localStorage.setItem('lang', lang) // 持久化存储用户选择
+  localStorage.setItem('lang', lang)
 }
-
-/* --- 暗黑模式逻辑 --- */
 const isDark = useDark({
   selector: 'html',
   attribute: 'class',
@@ -92,7 +82,6 @@ const toggleDark = useToggle(isDark)
   height: 60px;
   background-color: var(--el-bg-color);
   border-bottom: 1px solid var(--el-border-color-light);
-  /* 毛玻璃效果 */
   backdrop-filter: blur(10px);
   position: sticky;
   top: 0;
@@ -102,7 +91,15 @@ const toggleDark = useToggle(isDark)
     display: flex;
     align-items: center;
     gap: 12px;
-    cursor: pointer;
+    // 移除父元素的 cursor: pointer
+  }
+
+  // 【关键修复】2. 为新的 home-link 容器添加样式
+  .home-link {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    cursor: pointer; // 只让这部分可点击
 
     .logo-icon {
       color: var(--el-color-primary);
@@ -116,14 +113,15 @@ const toggleDark = useToggle(isDark)
       -webkit-background-clip: text;
       -webkit-text-fill-color: transparent;
     }
+  }
 
-    .page-title {
-      font-size: 15px;
-      color: var(--el-text-color-regular);
-    }
+  .page-title {
+    font-size: 15px;
+    color: var(--el-text-color-regular);
   }
 
   .actions-section {
+    // ... (右侧样式保持不变) ...
     display: flex;
     align-items: center;
     gap: 12px;
@@ -146,7 +144,6 @@ const toggleDark = useToggle(isDark)
   }
 }
 
-/* 兼容深色模式的平滑过渡 */
 :deep(.el-button) {
   transition: all 0.3s cubic-bezier(0.645, 0.045, 0.355, 1);
 }

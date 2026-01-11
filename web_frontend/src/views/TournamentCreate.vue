@@ -1,6 +1,6 @@
 <template>
   <div class="create-page-wrapper">
-    <AppHeader :title="$t('tournament.createTitle')" :showCreate="false"/>
+    <AppHeader :showCreate="false"/>
 
     <div class="form-container">
       <el-card class="form-card">

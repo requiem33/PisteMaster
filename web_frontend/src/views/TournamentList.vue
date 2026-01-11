@@ -1,6 +1,13 @@
 <template>
   <div class="tournament-list-page">
-    <AppHeader :title="$t('tournament.listTitle')" :showCreate="true" @create="createNewEvent"/>
+    <AppHeader :showCreate="true" @create="createNewEvent">
+      <template #extra>
+        <el-breadcrumb separator-class="el-icon-arrow-right" class="header-breadcrumb">
+          <el-breadcrumb-item :to="{ path: '/' }">{{ $t('tournament.dashboard.breadcrumb.home') }}</el-breadcrumb-item>
+          <el-breadcrumb-item>{{ $t('tournament.dashboard.breadcrumb.tournamentList') }}</el-breadcrumb-item>
+        </el-breadcrumb>
+      </template>
+    </AppHeader>
 
     <main class="content">
       <div class="filter-bar">
