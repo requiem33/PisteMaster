@@ -1,6 +1,6 @@
 <template>
   <div class="tournament-list-page">
-    <AppHeader :showCreate="true" @create="createNewEvent">
+    <AppHeader :showCreate="true" @create="createNewTournament">
       <template #extra>
         <el-breadcrumb separator-class="el-icon-arrow-right" class="header-breadcrumb">
           <el-breadcrumb-item :to="{ path: '/' }">{{ $t('tournament.dashboard.breadcrumb.home') }}</el-breadcrumb-item>
@@ -32,7 +32,7 @@
               :key="item.id"
               :xs="24" :sm="12" :md="8" :lg="6"
           >
-            <el-card shadow="hover" class="event-card" @click="goToOrchestrator(item.id)">
+            <el-card shadow="hover" class="event-card" @click="goToDashboard(item.id)">
               <div class="card-status">
                 <el-tag :type="item.status === 'completed' ? 'info' : 'success'" size="small">
                   {{ item.status === 'completed' ? $t('common.completed') : $t('common.ongoing') }}
@@ -44,6 +44,7 @@
 
               <h3 class="event-name">{{ item.tournament_name }}</h3>
 
+              <!-- 【关键修复】1. 更新信息展示区域 -->
               <div class="meta-info">
                 <p class="event-meta">
                   <el-icon>
@@ -53,9 +54,15 @@
                 </p>
                 <p class="event-meta">
                   <el-icon>
+                    <Tickets/>
+                  </el-icon> <!-- 换个更合适的图标 -->
+                  项目总数: {{ item.eventCount || 0 }}
+                </p>
+                <p class="event-meta">
+                  <el-icon>
                     <User/>
                   </el-icon>
-                  {{ $t('common.fencerCount') }}: {{ item.fencerCount || 0 }}
+                  选手总数: {{ item.fencerCount || 0 }}
                 </p>
               </div>
 
@@ -72,7 +79,6 @@
             </el-card>
           </el-col>
         </el-row>
-
         <el-empty v-if="!loading && filteredTournaments.length === 0" :description="$t('common.noMatch')"/>
       </div>
     </main>
@@ -82,36 +88,26 @@
 <script setup lang="ts">
 import {ref, computed, onMounted} from 'vue'
 import {useRouter} from 'vue-router'
-import {Search, Calendar, User, ArrowRight} from '@element-plus/icons-vue'
+import {Search, Calendar, User, ArrowRight, Tickets} from '@element-plus/icons-vue' // 引入新图标
 import AppHeader from '@/components/layout/AppHeader.vue'
-// 导入存储服务
 import {DataManager} from '@/services/DataManager';
 
 const router = useRouter()
 const loading = ref(false)
-
-// --- 搜索与过滤 ---
 const searchQuery = ref('')
 const statusFilter = ref('all')
 const tournaments = ref<any[]>([])
 
-// --- 获取数据 ---
+// 【关键修复】2. 更新数据加载函数
 const loadTournaments = async () => {
   loading.value = true;
   try {
-    // 即使 DataManager 报错返回了 undefined，这里也会保证赋值为 []
-    const result = await DataManager.getTournamentList();
+    // 调用我们新创建的、能获取完整信息的方法
+    const result = await DataManager.getTournamentListWithDetails();
     tournaments.value = result ?? [];
-
-    // 排序前加一个判断，增强健壮性
-    if (tournaments.value.length > 0) {
-      tournaments.value.sort((a, b) =>
-          (b.updated_at || 0) - (a.updated_at || 0)
-      );
-    }
   } catch (error) {
-    console.error('Failed to load:', error);
-    tournaments.value = []; // 错误时清空或保持原状
+    console.error('Failed to load tournaments with details:', error);
+    tournaments.value = [];
   } finally {
     loading.value = false;
   }
@@ -130,12 +126,11 @@ const filteredTournaments = computed(() => {
   })
 })
 
-const createNewEvent = () => {
+const createNewTournament = () => {
   router.push('/tournament/create')
 }
 
-const goToOrchestrator = (id: string) => {
-  // 确保跳转路径与路由器配置一致
+const goToDashboard = (id: string) => {
   router.push(`/tournament/${id}`)
 }
 </script>

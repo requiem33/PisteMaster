@@ -584,4 +584,38 @@ export const DataManager = {
         // 调用 IndexedDB 的保存方法，因为 ID 相同，它会自动覆盖旧记录
         return IndexedDBService.saveTournament(tournamentToUpdate);
     },
+
+    /**
+     * 【新增】获取完整的赛事列表，包含每个赛事的项目总数和选手总数
+     */
+    async getTournamentListWithDetails() {
+        // 1. 获取基础赛事列表
+        const tournaments = await this.getTournamentList();
+        if (!tournaments || tournaments.length === 0) {
+            return [];
+        }
+
+        // 2. 使用 Promise.all 并行获取每个赛事的详细信息
+        const detailedTournaments = await Promise.all(
+            tournaments.map(async (tournament) => {
+                // a. 获取该赛事下的所有项目
+                const events = await this.getEventsByTournamentId(tournament.id);
+
+                // b. 计算总选手人数
+                const totalFencers = events.reduce((sum, event) => sum + (event.fencer_count || 0), 0);
+
+                // c. 返回聚合后的新对象
+                return {
+                    ...tournament,
+                    eventCount: events.length, // 项目总数
+                    fencerCount: totalFencers, // 选手总数
+                };
+            })
+        );
+
+        // 3. 按更新时间排序
+        detailedTournaments.sort((a, b) => (b.updated_at || 0) - (a.updated_at || 0));
+
+        return detailedTournaments;
+    },
 };
