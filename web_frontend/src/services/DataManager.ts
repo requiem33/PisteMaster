@@ -568,4 +568,20 @@ export const DataManager = {
             return null;
         }
     },
+
+    /**
+     * 【新增】更新已有的赛事信息
+     */
+    async updateTournament(formData: any) {
+        const tournamentToUpdate = {
+            id: formData.id,
+            tournament_name: formData.tournament_name,
+            location: formData.location,
+            start_date: formData.date_range?.[0] || '',
+            end_date: formData.date_range?.[1] || '',
+            updated_at: Date.now(),
+        };
+        // 调用 IndexedDB 的保存方法，因为 ID 相同，它会自动覆盖旧记录
+        return IndexedDBService.saveTournament(tournamentToUpdate);
+    },
 };

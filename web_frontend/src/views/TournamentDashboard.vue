@@ -49,7 +49,10 @@
             </div>
           </div>
           <div class="header-actions">
-            <el-button icon="Edit">{{ $t('tournament.dashboard.editInfo') }}</el-button>
+            <el-button icon="Edit" @click="editDrawerVisible = true">{{
+                $t('tournament.dashboard.editInfo')
+              }}
+            </el-button>
             <el-button type="primary" icon="Plus" @click="eventDrawerVisible = true">
               {{ $t('tournament.dashboard.addEvent') }}
             </el-button>
@@ -138,6 +141,12 @@
       </section>
     </div>
 
+    <EditTournamentDrawer
+        v-model="editDrawerVisible"
+        :tournamentData="tournamentInfo"
+        @success="handleTournamentUpdated"
+    />
+
     <CreateEventDrawer
         v-model="eventDrawerVisible"
         :tournamentId="tournamentId"
@@ -154,6 +163,7 @@ import AppHeader from '@/components/layout/AppHeader.vue'
 import CreateEventDrawer from '@/components/tournament/CreateEventDrawer.vue'
 import {DataManager} from '@/services/DataManager'
 import {ElMessage} from "element-plus";
+import EditTournamentDrawer from '@/components/tournament/EditTournamentDrawer.vue'
 
 const route = useRoute()
 const router = useRouter()
@@ -161,6 +171,7 @@ const tournamentId = route.params.id as string
 
 const loading = ref(false)
 const eventDrawerVisible = ref(false)
+const editDrawerVisible = ref(false)
 const filterType = ref('all')
 
 // 初始值设为空，等待加载
@@ -217,6 +228,11 @@ const getStatusType = (status: string) => {
 const handleEventCreated = () => {
   loadAllData() // 项目创建成功后刷新列表
   eventDrawerVisible.value = false
+}
+
+const handleTournamentUpdated = () => {
+  loadAllData() // 核心：编辑成功后，重新加载所有数据以刷新页面
+  editDrawerVisible.value = false
 }
 
 const goToOrchestrator = (eventId: string) => router.push(`/event/${eventId}`)
