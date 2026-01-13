@@ -74,7 +74,6 @@
         <el-row :gutter="20" v-else>
           <el-col :md="8" :sm="12" :xs="24" v-for="event in events" :key="event.id">
             <el-card class="event-card" shadow="hover">
-              <!-- 【关键修复】1. 主要内容区域，负责点击跳转 -->
               <div class="card-main-content" @click="goToOrchestrator(event.id)">
                 <div class="event-card-body">
                   <div class="event-type-icon">
@@ -92,7 +91,6 @@
                   </div>
                 </div>
               </div>
-              <!-- 2. 卡片底部，负责独立操作 -->
               <div class="event-card-footer">
                 <div class="fencer-count">
                   <el-icon>
@@ -101,7 +99,15 @@
                   <span>{{ event.fencer_count || 0 }}</span>
                 </div>
                 <div class="footer-actions">
-                  <!-- 3. 【新增】删除按钮，并使用 .stop 阻止事件冒泡 -->
+                  <!-- 【新增】编辑按钮 -->
+                  <el-button
+                      type="primary"
+                      icon="Edit"
+                      circle
+                      plain
+                      size="small"
+                      @click.stop="handleEditEvent(event)"
+                  />
                   <el-button
                       type="danger"
                       icon="Delete"
@@ -124,16 +130,25 @@
       </section>
     </div>
 
-    <!-- 抽屉组件保持不变 -->
-    <EditTournamentDrawer
-        v-model="editDrawerVisible"
-        :tournamentData="tournamentInfo"
-        @success="handleTournamentUpdated"
-    />
+    <!-- 创建项目抽屉 -->
     <CreateEventDrawer
         v-model="eventDrawerVisible"
         :tournamentId="tournamentId"
         @success="handleEventCreated"
+    />
+
+    <!-- 编辑赛事抽屉 -->
+    <EditTournamentDrawer
+        v-model="editTournamentDrawerVisible"
+        :tournamentData="tournamentInfo"
+        @success="handleTournamentUpdated"
+    />
+
+    <!-- 【新增】编辑项目抽屉 -->
+    <EditEventDrawer
+        v-model="editEventDrawerVisible"
+        :eventData="currentEditingEvent"
+        @success="handleEventUpdated"
     />
   </div>
 </template>
@@ -148,6 +163,7 @@ import CreateEventDrawer from '@/components/tournament/CreateEventDrawer.vue'
 import {DataManager} from '@/services/DataManager'
 import {ElMessage, ElMessageBox} from "element-plus";
 import EditTournamentDrawer from '@/components/tournament/EditTournamentDrawer.vue'
+import EditEventDrawer from '@/components/tournament/EditEventDrawer.vue'
 
 const route = useRoute()
 const router = useRouter()
@@ -155,7 +171,10 @@ const tournamentId = route.params.id as string
 
 const loading = ref(false)
 const eventDrawerVisible = ref(false)
+const editTournamentDrawerVisible = ref(false)
 const editDrawerVisible = ref(false)
+const currentEditingEvent = ref<any>(null)
+const editEventDrawerVisible = ref(false)
 const filterType = ref('all')
 
 // 初始值设为空，等待加载
@@ -219,6 +238,16 @@ const handleTournamentUpdated = () => {
   editDrawerVisible.value = false
 }
 
+const handleEditEvent = (event: any) => {
+  currentEditingEvent.value = event;
+  editEventDrawerVisible.value = true;
+}
+
+const handleEventUpdated = () => {
+  loadAllData();
+  editEventDrawerVisible.value = false;
+}
+
 const handleDeleteEvent = async (eventId: string, eventName: string) => {
   try {
     await ElMessageBox.confirm(
@@ -276,6 +305,10 @@ const goToOrchestrator = (eventId: string) => router.push(`/event/${eventId}`)
       display: flex;
       align-items: center;
       gap: 8px;
+    }
+
+    .card-main-content {
+      cursor: pointer;
     }
   }
 }

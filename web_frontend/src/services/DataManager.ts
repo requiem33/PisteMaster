@@ -669,4 +669,33 @@ export const DataManager = {
             throw error;
         }
     },
+
+    /**
+     * 【新增】更新一个已有的比赛项目 (Event)
+     */
+    async updateEvent(eventId: string, eventData: any) {
+        try {
+            // 1. 获取数据库中该项目的旧数据
+            const existingEvent = await IndexedDBService.getEventById(eventId);
+            if (!existingEvent) {
+                throw new Error(`Event with ID ${eventId} not found.`);
+            }
+
+            // 2. 将新数据与旧数据合并，确保 id 和 created_at 不变
+            const updatedEventData = {
+                ...existingEvent,
+                ...JSON.parse(JSON.stringify(eventData)), // 用新数据覆盖旧数据
+                id: eventId, // 强制确保 ID 不被意外修改
+                updated_at: Date.now(), // 更新时间戳
+            };
+
+            // 3. 调用 IndexedDB 的保存方法，因为 ID 相同，它会自动覆盖
+            await IndexedDBService.saveEvent(updatedEventData);
+            return updatedEventData;
+
+        } catch (error) {
+            console.error(`更新项目 ${eventId} 失败:`, error);
+            throw error; // 将错误抛出，以便上层可以捕获
+        }
+    },
 };

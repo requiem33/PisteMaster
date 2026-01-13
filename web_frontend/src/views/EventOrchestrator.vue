@@ -1,43 +1,30 @@
 <template>
   <div class="orchestrator-layout">
     <AppHeader :showCreate="false">
+      <!-- Header 内容保持不变 -->
       <template #extra>
         <el-breadcrumb separator-class="el-icon-arrow-right" class="header-breadcrumb">
-          <el-breadcrumb-item :to="{ path: '/' }">{{ $t('tournament.dashboard.breadcrumb.home') }}</el-breadcrumb-item>
-          <el-breadcrumb-item :to="{ path: '/tournament' }">{{
-              $t('tournament.dashboard.breadcrumb.tournamentList')
+          <el-breadcrumb-item :to="{ path: '/' }">首页</el-breadcrumb-item>
+          <el-breadcrumb-item :to="{ path: '/tournament' }">赛事列表</el-breadcrumb-item>
+          <el-breadcrumb-item :to="{ path: `/tournament/${eventInfo.tournament_id}` }">{{
+              eventInfo.tournament_name
             }}
           </el-breadcrumb-item>
-
-          <!-- 【关键修复】使用从 eventInfo 中获取的真实 tournament_id -->
-          <el-breadcrumb-item :to="{ path: `/tournament/${eventInfo.tournament_id}` }">
-            {{ eventInfo.tournament_name || '当前赛事' }}
-          </el-breadcrumb-item>
-
           <el-breadcrumb-item>{{ eventInfo.event_name }}</el-breadcrumb-item>
         </el-breadcrumb>
-      </template>
-      <template #user>
-        <div class="orchestrator-actions">
-          <el-button type="info" link icon="Printer">打印表单</el-button>
-          <el-divider direction="vertical"/>
-          <el-button type="primary" icon="UploadFilled">同步数据</el-button>
-          <el-divider direction="vertical"/>
-          <el-avatar :size="24" src="https://cube.elemecdn.com/0/88/03b0d39583f48206768a7534e55bcpng.png"/>
-        </div>
       </template>
     </AppHeader>
 
     <div class="main-content">
-      <!-- ... (aside 和 main 区域保持不变) ... -->
       <aside class="steps-aside">
         <div class="event-meta-card">
           <p class="label">当前规则</p>
           <el-tag size="small" type="warning" effect="light">{{ eventInfo.rule_name }}</el-tag>
         </div>
+
         <el-steps direction="vertical" :active="currentStep" finish-status="success">
           <el-step
-              v-for="(step, index) in steps"
+              v-for="(step, index) in computedSteps"
               :key="index"
               :title="step.title"
               @click="handleStepClick(index)"
@@ -45,21 +32,24 @@
           />
         </el-steps>
       </aside>
+
       <main class="work-area">
         <div class="step-card">
           <header class="step-header">
             <div class="title-group">
               <el-button icon="ArrowLeft" circle size="small" @click="prevStep" :disabled="currentStep === 0"/>
-              <h2>{{ steps[currentStep].title }}</h2>
+              <h2>{{ computedSteps[currentStep]?.title }}</h2>
             </div>
-            <p>{{ steps[currentStep].desc }}</p>
+            <p>{{ computedSteps[currentStep]?.desc }}</p>
           </header>
+
           <section class="step-body">
             <transition name="fade-transform" mode="out-in">
+              <!-- 动态组件渲染，并将当前的 stage 配置传入 -->
               <component
-                  :is="steps[currentStep].component"
+                  :is="computedSteps[currentStep]?.component"
                   :event-id="eventId"
-                  @imported="handleImported"
+                  :stage-config="computedSteps[currentStep]?.stageData"
                   @next="nextStep"
               />
             </transition>
@@ -71,13 +61,13 @@
 </template>
 
 <script setup lang="ts">
-import {ref, onMounted, watch} from 'vue'
+import {ref, onMounted, watch, computed} from 'vue'
 import {useRoute, useRouter} from 'vue-router'
 import {DataManager} from '@/services/DataManager'
 import {ElMessage} from 'element-plus'
 import AppHeader from '@/components/layout/AppHeader.vue'
 
-// (组件导入保持不变)
+// 导入所有可能用到的子组件
 import FencerImport from '@/components/tournament/FencerImport.vue'
 import PoolGeneration from '@/components/tournament/PoolGeneration.vue'
 import PoolScoring from '@/components/tournament/PoolScoring.vue'
@@ -86,53 +76,89 @@ import DETree from '@/components/tournament/DETree.vue'
 import FinalRanking from '@/components/tournament/FinalRanking.vue'
 
 const route = useRoute()
-const router = useRouter()
 const eventId = route.params.id as string
 
-// 【关键修复】改造 eventInfo，让它能存储更完整的上下文信息
 const eventInfo = ref<any>({
   event_name: '加载中...',
-  rule_name: '',
-  tournament_id: '', // 父赛事ID
-  tournament_name: '', // 父赛事名称
+  tournament_id: '',
+  tournament_name: '',
+  rules: {stages: []} // 核心规则数据
 })
-
 const currentStep = ref(0)
-const steps = [
-  {title: '选手名单', desc: '导入并确认参赛选手，设置初始种子排名', component: FencerImport},
-  {title: '小组赛分组', desc: '根据排名自动进行蛇形分组', component: PoolGeneration},
-  {title: '小组赛计分', desc: '录入小组赛矩阵比分，实时计算晋级名额', component: PoolScoring},
-  {title: '小组赛排名', desc: '小组赛排名，计算晋级名额', component: PoolRanking},
-  {title: '淘汰赛对阵', desc: '生成并管理 DE 淘汰赛对阵图', component: DETree},
-  {title: '最终排名', desc: '导出最终成绩册与积分', component: FinalRanking}
-]
 
-// 【关键修复】在 onMounted 中获取完整的赛事和项目信息
+// 基础步骤（所有比赛都有）
+const baseSteps = {
+  import: {title: '选手名单', desc: '导入并确认参赛选手，设置初始种子排名', component: FencerImport},
+  final: {title: '最终排名', desc: '导出最终成绩册与积分', component: FinalRanking}
+}
+
+// 核心逻辑：根据 rules.stages 动态生成步骤链
+const computedSteps = computed(() => {
+  const steps: any[] = [];
+
+  // 1. 第一步永远是选手名单
+  steps.push(baseSteps.import);
+
+  // 2. 遍历 stages 数组，动态插入中间步骤
+  const stages = eventInfo.value.rules?.stages || [];
+
+  stages.forEach((stage: any, index: number) => {
+    const stageNum = index + 1;
+
+    if (stage.type === 'pool') {
+      // 小组赛包含三个子步骤
+      steps.push({
+        title: `阶段${stageNum}: 小组分组`,
+        desc: `第${stageNum}阶段小组循环赛 - 自动蛇形分组 (Config: Byes ${stage.config.byes})`,
+        component: PoolGeneration,
+        stageData: stage // 将配置透传给组件
+      });
+      steps.push({
+        title: `阶段${stageNum}: 小组计分`,
+        desc: `第${stageNum}阶段小组循环赛 - 录入比分`,
+        component: PoolScoring,
+        stageData: stage
+      });
+      steps.push({
+        title: `阶段${stageNum}: 小组排名`,
+        desc: `第${stageNum}阶段小组循环赛 - 晋级计算 (Elimination: ${stage.config.elimination_rate}%)`,
+        component: PoolRanking,
+        stageData: stage
+      });
+    } else if (stage.type === 'de') {
+      // 淘汰赛只有一个步骤
+      steps.push({
+        title: `阶段${stageNum}: 淘汰赛表`,
+        desc: `第${stageNum}阶段单败淘汰赛 - (Final: ${stage.config.final_stage})`,
+        component: DETree,
+        stageData: stage
+      });
+    }
+  });
+
+  // 3. 最后一步永远是最终排名
+  steps.push(baseSteps.final);
+
+  return steps;
+});
+
 onMounted(async () => {
   if (eventId) {
     const eventData = await DataManager.getEventById(eventId);
-    if (eventData && eventData.tournament_id) {
-      // 1. 获取项目自身信息
+    if (eventData) {
       eventInfo.value = {...eventInfo.value, ...eventData};
 
-      // 2. 顺藤摸瓜，获取父赛事的信息（主要是名字）
       const tournamentData = await DataManager.getTournamentById(eventData.tournament_id);
       if (tournamentData) {
         eventInfo.value.tournament_name = tournamentData.tournament_name;
       }
-
-      // 3. 恢复步骤
-      if (typeof eventData.current_step === 'number') {
-        currentStep.value = eventData.current_step;
-      }
+      currentStep.value = eventData.current_step || 0;
     } else {
-      ElMessage.error('未找到项目信息或项目关联错误');
-      router.push('/tournament'); // 如果找不到，返回赛事列表页
+      ElMessage.error('未找到项目信息');
     }
   }
 });
 
-// watch 逻辑保持不变
 watch(currentStep, (newStepIndex) => {
   if (eventId) {
     DataManager.saveCurrentStep(eventId, newStepIndex);
@@ -140,20 +166,13 @@ watch(currentStep, (newStepIndex) => {
 });
 
 const nextStep = () => {
-  if (currentStep.value < steps.length - 1) currentStep.value++
+  if (currentStep.value < computedSteps.value.length - 1) currentStep.value++
 }
 const prevStep = () => {
   if (currentStep.value > 0) currentStep.value--
 }
 const handleStepClick = (index: number) => {
   currentStep.value = index
-}
-
-// 处理导入成功后，可能需要刷新 eventInfo 的情况
-const handleImported = async () => {
-  // 可以在这里重新加载 eventData，以更新选手数量等信息
-  // await DataManager.getEventById(eventId);
-  nextStep(); // 导入成功后自动进入下一步
 }
 </script>
 
