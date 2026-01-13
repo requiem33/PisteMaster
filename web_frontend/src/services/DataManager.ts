@@ -618,4 +618,55 @@ export const DataManager = {
 
         return detailedTournaments;
     },
+
+    /**
+     * 【新增】删除一个赛事及其所有下属项目
+     */
+    async deleteTournament(tournamentId: string) {
+        // 1. 找到该赛事下的所有项目
+        const events = await this.getEventsByTournamentId(tournamentId);
+
+        // 2. 删除每一个项目（以及与项目关联的所有数据，如选手、分组、淘汰赛等）
+        for (const event of events) {
+            await this.deleteEvent(event.id);
+        }
+
+        // 3. 最后删除赛事本身
+        await IndexedDBService.deleteTournament(tournamentId);
+        return true;
+    },
+
+    /**
+     * 【新增】删除一个项目及其所有相关数据
+     */
+    async deleteEvent(eventId: string) {
+        const db = await IndexedDBService.getDB();
+        const tx = db.transaction(['events', 'event_fencers', 'pools'], 'readwrite');
+
+        try {
+            // 1. 删除项目本身
+            await tx.objectStore('events').delete(eventId);
+
+            // 2. 删除与该项目关联的 "选手报名记录"
+            let cursor = await tx.objectStore('event_fencers').index('by_event').openCursor(eventId);
+            while (cursor) {
+                await cursor.delete();
+                cursor = await cursor.continue();
+            }
+
+            // 3. 删除与该项目关联的 "小组" 记录
+            cursor = await tx.objectStore('pools').index('by_event').openCursor(eventId);
+            while (cursor) {
+                await cursor.delete();
+                cursor = await cursor.continue();
+            }
+
+            await tx.done;
+            return true;
+        } catch (error) {
+            console.error(`删除项目 ${eventId} 失败:`, error);
+            tx.abort();
+            throw error;
+        }
+    },
 };

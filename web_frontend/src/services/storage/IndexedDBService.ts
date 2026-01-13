@@ -158,4 +158,9 @@ export const IndexedDBService = {
         // 使用我们在版本 6 中创建的 'by_event' 索引
         return db.getAllFromIndex('pools', 'by_event', eventId);
     },
+
+    async deleteTournament(tournamentId: string) {
+        const db = await this.getDB();
+        return db.delete('tournaments', tournamentId);
+    },
 };
