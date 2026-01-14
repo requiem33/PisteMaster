@@ -71,7 +71,7 @@
         已就绪选手: <span class="count">{{ fencers.length }}</span> 名
       </div>
       <el-button type="primary" size="large" icon="Check" :loading="isSubmitting" @click="submitImport">
-        保存名单并进入分组
+        保存名单
       </el-button>
     </footer>
   </div>
