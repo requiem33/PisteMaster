@@ -1,15 +1,14 @@
 <template>
   <div class="pool-scoring-wrapper">
-    <div v-if="poolGroups.length > 0" class="pools-flex-container">
-      <!-- 遍历每个小组 -->
+    <div v-loading="loading" v-if="poolGroups.length > 0" class="pools-flex-container">
       <div v-for="(pool, pIndex) in poolGroups" :key="pIndex" class="pool-card">
 
-        <!-- 小组头部：包含标题和操作按钮 -->
         <div class="pool-header">
-          <div class="pool-title">
-            <span class="pool-tag">第 {{ pIndex + 1 }} 组 (Pool {{ pIndex + 1 }})</span>
+          <div class="left">
+            <span class="pool-tag">第 {{ pIndex + 1 }} 组</span>
             <span class="pool-info">{{ pool.fencers.length }} 选手</span>
           </div>
+          <!-- 【已恢复】小组控制按钮 -->
           <div class="pool-actions">
             <el-button
                 size="small"
@@ -27,13 +26,12 @@
           </div>
         </div>
 
-        <!-- 计分表格核心区 -->
-        <div class="table-container">
+        <div class="table-scroll-wrapper">
           <table class="custom-scoring-table">
             <thead>
             <tr>
               <th class="col-index">#</th>
-              <th class="col-name">选手姓名 (Name)</th>
+              <th class="col-name">Name</th>
               <th v-for="n in pool.fencers.length" :key="n" class="col-score-head">{{ n }}</th>
               <th class="col-stat">V</th>
               <th class="col-stat">TS</th>
@@ -50,14 +48,13 @@
                   <span class="country-tag">{{ fencer.country_code }}</span>
                 </div>
               </td>
-
-              <!-- 循环生成得分输入格 -->
               <td
                   v-for="n in pool.fencers.length"
                   :key="n"
                   class="cell-score"
                   :class="{ 'is-diagonal': rowIndex === n - 1, 'is-locked-cell': isLocked[pIndex] }"
               >
+                <!-- 【已恢复】输入框的锁定状态 -->
                 <input
                     v-if="rowIndex !== n - 1"
                     v-model="results[pIndex][rowIndex][n-1]"
@@ -68,12 +65,10 @@
                     @input="handleScoreChange(pIndex, rowIndex, n-1)"
                 />
               </td>
-
-              <!-- 统计列 -->
-              <td class="cell-stat v-text">{{ stats[pIndex][rowIndex].V }}</td>
-              <td class="cell-stat">{{ stats[pIndex][rowIndex].TS }}</td>
-              <td class="cell-stat">{{ stats[pIndex][rowIndex].TR }}</td>
-              <td class="cell-stat ind-text">{{ stats[pIndex][rowIndex].Ind }}</td>
+              <td class="cell-stat v-text">{{ stats[pIndex]?.[rowIndex]?.V || 0 }}</td>
+              <td class="cell-stat">{{ stats[pIndex]?.[rowIndex]?.TS || 0 }}</td>
+              <td class="cell-stat">{{ stats[pIndex]?.[rowIndex]?.TR || 0 }}</td>
+              <td class="cell-stat ind-text">{{ stats[pIndex]?.[rowIndex]?.Ind || 0 }}</td>
             </tr>
             </tbody>
           </table>
@@ -81,67 +76,88 @@
       </div>
     </div>
 
-    <div v-else class="loading-state">
-      <el-skeleton :rows="10" animated/>
+    <div v-else-if="!loading" class="loading-state">
+      <el-empty description="当前阶段暂无分组信息"/>
     </div>
 
     <footer class="action-footer">
-      <el-button @click="$emit('prev')">返回分组</el-button>
-      <div class="summary-info">比分实时同步中...</div>
-      <el-button type="success" size="large" @click="submitScores">查看总排名</el-button>
+      <el-button @click="$emit('prev')">返回</el-button>
+      <div class="summary-info">所有分数已实时同步至本地数据库</div>
+      <el-button type="success" size="large" @click="proceedToNextStep">进入本阶段排名</el-button>
     </footer>
   </div>
 </template>
 
 <script setup lang="ts">
-/* ... script 逻辑保持不变（包含 handleScoreChange, calculateStats 等） ... */
 import {ref, reactive, onMounted} from 'vue'
-import {ElMessage} from 'element-plus'
+import {ElMessage, ElEmpty} from 'element-plus'
 import {DataManager} from '@/services/DataManager'
 
-const props = defineProps<{ eventId: string }>()
+const props = defineProps<{
+  eventId: string,
+  stageConfig: any
+}>()
 const emit = defineEmits(['next', 'prev'])
 
+const loading = ref(false)
 const poolGroups = ref<any[]>([])
 const results = reactive<any[]>([])
 const stats = reactive<any[]>([])
-const isLocked = ref<boolean[]>([])
+const isLocked = ref<boolean[]>([]) // 【已恢复】锁定状态数组
 
 const loadPoolData = async () => {
-  try {
-    const poolsFromDB = await DataManager.getPoolsByEvent(props.eventId);
-    const detailedPools = [];
-    results.length = 0;
-    stats.length = 0;
-    isLocked.value = [];
+  loading.value = true;
+  results.length = 0;
+  stats.length = 0;
+  isLocked.value = []; // 初始化
+  poolGroups.value = [];
 
+  const stageId = props.stageConfig?.id;
+  if (!stageId) {
+    ElMessage.error('阶段配置错误，无法加载计分表');
+    loading.value = false;
+    return;
+  }
+
+  try {
+    const poolsFromDB = await DataManager.getPoolsByStageId(stageId);
+    if (!poolsFromDB || poolsFromDB.length === 0) return;
+
+    const detailedPools = [];
     for (const p of poolsFromDB) {
-      const fencerPromises = p.fencer_ids.map(id => DataManager.getFencerById(id));
-      const fencerDetails = await Promise.all(fencerPromises);
-      const size = fencerDetails.length;
+      const fencerDetails = await Promise.all(p.fencer_ids.map((id: string) => DataManager.getFencerById(id)));
+      const validFencers = fencerDetails.filter(f => f);
 
       detailedPools.push({
         id: p.id,
         pool_number: p.pool_number,
-        fencers: fencerDetails.filter(f => f !== undefined)
+        fencers: validFencers
       });
 
+      const size = validFencers.length;
       results.push(p.results || Array.from({length: size}, () => Array(size).fill('')));
       stats.push(p.stats || Array.from({length: size}, () => ({V: 0, TS: 0, TR: 0, Ind: 0})));
-      isLocked.value.push(p.is_locked || false);
+      isLocked.value.push(p.is_locked || false); // 【已恢复】从数据库恢复锁定状态
     }
     poolGroups.value = detailedPools;
+
   } catch (e) {
-    console.error('加载计分表失败', e);
+    console.error('加载计分表数据失败', e);
+    ElMessage.error('加载计分数据失败');
+  } finally {
+    loading.value = false;
   }
 };
 
+// 【已恢复】检查小组比分是否全部录入
 const isPoolComplete = (pIdx: number) => {
   const poolResults = results[pIdx];
   if (!poolResults) return false;
   for (let i = 0; i < poolResults.length; i++) {
     for (let j = 0; j < poolResults[i].length; j++) {
-      if (i !== j && (poolResults[i][j] === '' || poolResults[i][j] === null)) return false;
+      if (i !== j && (poolResults[i][j] === '' || poolResults[i][j] === null)) {
+        return false;
+      }
     }
   }
   return true;
@@ -151,13 +167,15 @@ const handleScoreChange = (pIdx: number, row: number, col: number) => {
   let val = results[pIdx][row][col].toUpperCase();
   if (val === '5') val = 'V';
   results[pIdx][row][col] = val;
+
   calculateStats(pIdx);
   persistPoolData(pIdx);
-};
+}
 
 const calculateStats = (pIdx: number) => {
   const size = poolGroups.value[pIdx].fencers.length;
   const currentPoolStats = Array.from({length: size}, () => ({V: 0, TS: 0, TR: 0, Ind: 0}));
+
   for (let i = 0; i < size; i++) {
     for (let j = 0; j < size; j++) {
       if (i === j) continue;
@@ -165,42 +183,54 @@ const calculateStats = (pIdx: number) => {
       const oppScore = parseScore(results[pIdx][j][i]);
       currentPoolStats[i].TS += score;
       currentPoolStats[i].TR += oppScore;
-      if (results[pIdx][i][j] === 'V' || (score > oppScore && results[pIdx][j][i] !== '')) {
+      if (results[pIdx][i][j] === 'V' || (score > oppScore && results[pIdx][j][i] !== '' && results[pIdx][j][i] !== null)) {
         currentPoolStats[i].V += 1;
       }
     }
     currentPoolStats[i].Ind = currentPoolStats[i].TS - currentPoolStats[i].TR;
   }
   stats[pIdx] = currentPoolStats;
-};
+}
 
-const parseScore = (s: string) => s === 'V' ? 5 : (parseInt(s) || 0);
+const parseScore = (s: string) => s === 'V' ? 5 : (parseInt(s) || 0)
 
+// 【已恢复】持久化到数据库（现在包含 isLocked 状态）
 const persistPoolData = async (pIdx: number) => {
   const pool = poolGroups.value[pIdx];
-  await DataManager.updatePoolResults(pool.id, results[pIdx], stats[pIdx], isLocked.value[pIdx]);
+  if (!pool) return;
+  await DataManager.updatePoolResults(
+      pool.id,
+      results[pIdx],
+      stats[pIdx],
+      isLocked.value[pIdx]
+  );
 };
 
+// 【已恢复】确认锁定
 const handleConfirmPool = (pIdx: number) => {
   isLocked.value[pIdx] = true;
   persistPoolData(pIdx);
-  ElMessage.success(`第 ${pIdx + 1} 组已锁定`);
+  ElMessage.success(`第 ${pIdx + 1} 组比分已确认并锁定`);
 };
 
+// 【已恢复】解锁
 const handleUnlockPool = (pIdx: number) => {
   isLocked.value[pIdx] = false;
   persistPoolData(pIdx);
 };
 
-const submitScores = () => {
+// 【已恢复】进入下一步前的检查
+const proceedToNextStep = () => {
   if (isLocked.value.some(locked => !locked)) {
-    ElMessage.warning('请先锁定所有小组的比分');
+    ElMessage.warning('请先点击“确定”按钮，锁定所有小组的比分');
     return;
   }
   emit('next');
 };
 
-onMounted(() => loadPoolData());
+onMounted(() => {
+  loadPoolData();
+});
 </script>
 
 <style scoped lang="scss">

@@ -332,28 +332,27 @@ export const DataManager = {
     },
 
     /**
-     * 获取小组赛汇总排名数据
+     * 【已升级】获取某个【特定阶段】的小组赛汇总排名数据
+     * @param stageId
      */
-    async getEventPoolRanking(eventId: string) {
+    async getEventPoolRanking(stageId: string) {
         try {
-            // 1. 获取该项目下的所有小组记录
-            const pools = await IndexedDBService.getPoolsByEvent(eventId);
+            // 1. 【核心】从 stageId 获取该阶段的所有小组记录
+            const pools = await IndexedDBService.getPoolsByStage(stageId);
             if (!pools || pools.length === 0) return [];
 
             const rankingData = [];
 
-            // 2. 遍历每个小组，提取选手的统计信息
+            // 2. 遍历该阶段的小组，提取选手统计
             for (const pool of pools) {
-                // 确保小组已有计分统计 (stats)
                 if (!pool.stats || !pool.fencer_ids) continue;
 
-                const matchCount = pool.fencer_ids.length - 1; // 每个人在该组应打的场数
+                const matchCount = pool.fencer_ids.length - 1;
 
                 for (let i = 0; i < pool.fencer_ids.length; i++) {
                     const fencerId = pool.fencer_ids[i];
                     const fStats = pool.stats[i];
 
-                    // 获取选手基本信息
                     const fencer = await this.getFencerById(fencerId);
 
                     if (fencer && fStats) {
@@ -371,7 +370,7 @@ export const DataManager = {
             }
             return rankingData;
         } catch (error) {
-            console.error('获取汇总排名失败:', error);
+            console.error('获取阶段汇总排名失败:', error);
             return [];
         }
     },
@@ -722,5 +721,9 @@ export const DataManager = {
         } catch (error) {
             console.error(`更新实时排名失败 for event ${eventId}:`, error);
         }
+    },
+
+    async getPoolsByStageId(stageId: string) {
+        return await IndexedDBService.getPoolsByStage(stageId);
     },
 };
