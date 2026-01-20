@@ -56,6 +56,13 @@ export const IndexedDBService = {
                         poolStore.createIndex('by_event', 'event_id');
                     }
                 }
+
+                if (oldVersion < 6) {
+                    const poolStore = transaction.objectStore('pools');
+                    if (!poolStore.indexNames.contains('by_stage')) {
+                        poolStore.createIndex('by_stage', 'stage_id');
+                    }
+                }
             },
         });
     },
@@ -162,5 +169,13 @@ export const IndexedDBService = {
     async deleteTournament(tournamentId: string) {
         const db = await this.getDB();
         return db.delete('tournaments', tournamentId);
+    },
+
+    /**
+     * 【新增】根据 stageId 高效获取所有分组
+     */
+    async getPoolsByStage(stageId: string) {
+        const db = await this.getDB();
+        return db.getAllFromIndex('pools', 'by_stage', stageId);
     },
 };

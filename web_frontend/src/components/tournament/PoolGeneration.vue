@@ -1,6 +1,6 @@
+<!-- src/components/tournament/PoolGeneration.vue -->
 <template>
   <div class="pool-gen-container">
-    <!-- 1. 顶部配置与统计 -->
     <el-card shadow="never" class="config-section">
       <el-form :inline="true" :model="config">
         <el-form-item label="每组人数">
@@ -11,25 +11,23 @@
         </el-form-item>
         <el-form-item v-if="byeFencers.length > 0">
           <el-tag type="warning" effect="dark">
-            {{ byeFencers.length }} 名选手根据规则已轮空 (Byes)
+            {{ byeFencers.length }} 名选手根据规则已轮空
           </el-tag>
         </el-form-item>
       </el-form>
     </el-card>
 
-    <!-- 2. 轮空选手展示区 (新增) -->
     <el-collapse v-if="byeFencers.length > 0" class="bye-section">
-      <el-collapse-item title="查看已轮空选手 (直接晋级下一轮)" name="1">
+      <el-collapse-item :title="`查看已轮空选手 (${byeFencers.length} 名)`" name="1">
         <div class="bye-list">
           <el-tag v-for="f in byeFencers" :key="f.id" class="bye-fencer">
-            #{{ f.current_ranking }} {{ f.last_name }} {{ f.first_name }}
+            #{{ f.current_rank }} {{ f.last_name }} {{ f.first_name }}
           </el-tag>
         </div>
       </el-collapse-item>
     </el-collapse>
 
-    <!-- 3. 小组展示区 -->
-    <div class="pools-grid">
+    <div v-loading="loading" class="pools-grid">
       <el-row :gutter="20">
         <el-col :md="8" :sm="12" v-for="(pool, pIndex) in pools" :key="pIndex">
           <div class="pool-card">
@@ -43,11 +41,10 @@
                 item-key="id"
                 class="pool-body-draggable"
                 ghost-class="ghost-item"
-                @end="handleDragEnd"
             >
               <template #item="{ element }">
                 <div class="fencer-item draggable-cursor">
-                  <span class="seed">#{{ element.current_ranking }}</span>
+                  <span class="seed">#{{ element.current_rank }}</span>
                   <span class="name">{{ element.last_name }} {{ element.first_name }}</span>
                   <span class="ioc">{{ element.country_code }}</span>
                   <el-icon class="drag-handle">
@@ -64,9 +61,8 @@
     <footer class="footer-actions">
       <el-button @click="$emit('prev')">返回</el-button>
       <div class="right">
-        <el-text type="info" class="mr-20">手动调整后将自动锁定当前布局</el-text>
         <el-button type="success" size="large" @click="confirmPools">
-          确认分组并生成计分表
+          确认分组并进入计分
         </el-button>
       </div>
     </footer>
@@ -80,98 +76,100 @@ import {Rank} from '@element-plus/icons-vue'
 import draggable from 'vuedraggable'
 import {DataManager} from '@/services/DataManager'
 
-// 【关键修改】接收 stageConfig
 const props = defineProps<{
   eventId: string,
-  stageConfig: any // 包含 type, config { byes, hits, elimination_rate }
+  stageConfig: any // 假设它包含一个唯一的ID，如 stageConfig.id
 }>()
-
 const emit = defineEmits(['next', 'prev'])
 
-const config = ref({
-  sizePerPool: 7, // 默认建议值
-  avoidCountry: true
-})
-
-const fencers = ref<any[]>([]) // 原始名单
-const pools = ref<any[][]>([]) // 分组后的嵌套数组
+const config = ref({sizePerPool: 7})
+const fencers = ref<any[]>([])
+const pools = ref<any[][]>([])
 const loading = ref(false)
 
-// 【新增】计算哪些选手应该轮空
 const byeFencers = computed(() => {
   const byeCount = props.stageConfig?.config?.byes || 0;
   return fencers.value.slice(0, byeCount);
 });
 
-// 【新增】计算哪些选手需要参加小组赛
 const activePoolFencers = computed(() => {
   const byeCount = props.stageConfig?.config?.byes || 0;
   return fencers.value.slice(byeCount);
 });
 
-const loadFencers = async () => {
+/**
+ * 【已修复】加载数据时，传入 stageId
+ */
+const loadDataForCurrentStage = async () => {
   loading.value = true
   try {
-    // 1. 获取名单
-    const data = await DataManager.getFencersByEvent(props.eventId)
-    fencers.value = data.sort((a, b) => (a.current_ranking || 999) - (b.current_ranking || 999))
+    const stageId = props.stageConfig?.id; // 👈 获取当前阶段的唯一 ID
+    if (!stageId) {
+      ElMessage.error('阶段配置错误，缺少唯一ID');
+      return;
+    }
 
-    // 2. 尝试从数据库恢复已存分组
-    const savedPools = await DataManager.getPoolsDetailed(props.eventId);
+    fencers.value = await DataManager.getLiveFencers(props.eventId)
+    if (fencers.value.length === 0) {
+      ElMessage.warning('当前阶段没有可供比赛的选手。');
+      return;
+    }
+
+    // 1. 【关键】使用 stageId 来获取本阶段的分组
+    const savedPools = await DataManager.getPoolsDetailed(props.eventId, stageId);
     if (savedPools && savedPools.length > 0) {
       pools.value = savedPools;
     } else {
-      // 3. 首次进入，自动生成
       generatePools()
     }
   } catch (error) {
-    ElMessage.error('无法读取选手名单')
+    ElMessage.error('加载本阶段选手名单失败')
   } finally {
     loading.value = false
   }
 }
 
-// 【关键修改】蛇形分组算法，排除轮空选手
 const generatePools = () => {
   const source = activePoolFencers.value;
-  if (source.length === 0) return
-
-  // 计算组数
+  if (source.length === 0) {
+    pools.value = []; // 如果没有可分组的选手，确保清空
+    return;
+  }
   const poolCount = Math.ceil(source.length / config.value.sizePerPool)
   const result: any[][] = Array.from({length: poolCount}, () => [])
-
-  // 蛇形排列
   source.forEach((fencer, index) => {
     const round = Math.floor(index / poolCount)
-    const isEvenRound = round % 2 === 0
-    let poolIndex = isEvenRound ? (index % poolCount) : (poolCount - 1) - (index % poolCount)
+    let poolIndex = round % 2 === 0 ? (index % poolCount) : (poolCount - 1) - (index % poolCount)
     result[poolIndex].push(fencer)
   })
-
   pools.value = result
 }
 
 const handleReGenerate = () => {
-  ElMessageBox.confirm('重新生成将覆盖手动调整的结果，确定吗？', '提示', {type: 'warning'})
+  ElMessageBox.confirm('重新生成将覆盖手动调整，确定吗？', '提示', {type: 'warning'})
       .then(() => generatePools())
 }
 
-const handleDragEnd = () => {
-  ElMessage({message: '布局已更新', type: 'info', duration: 1000})
-}
-
+/**
+ * 【已修复】保存分组时，传入 stageId
+ */
 const confirmPools = async () => {
   try {
-    // 保存分组
-    await DataManager.savePools(props.eventId, pools.value);
-    ElMessage.success('分组已成功保存');
+    const stageId = props.stageConfig?.id; // 👈 获取当前阶段的唯一 ID
+    if (!stageId) {
+      ElMessage.error('阶段配置错误，缺少唯一ID');
+      return;
+    }
+    // 2. 【关键】使用 stageId 来保存本阶段的分组
+    await DataManager.savePools(props.eventId, stageId, pools.value);
+    ElMessage.success('本阶段分组已保存');
     emit('next');
   } catch (error) {
     ElMessage.error('保存失败');
   }
 }
 
-onMounted(() => loadFencers())
+onMounted(() => loadDataForCurrentStage())
 </script>
 
 <style scoped lang="scss">
@@ -184,7 +182,7 @@ onMounted(() => loadFencers())
     flex-wrap: wrap;
     gap: 10px;
     padding: 10px;
-    background: #fffbe6;
+    background: var(--el-fill-color-light);
     border-radius: 4px;
   }
 

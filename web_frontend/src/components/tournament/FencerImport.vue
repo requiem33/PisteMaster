@@ -1,3 +1,4 @@
+<!-- src/components/tournament/FencerImport.vue -->
 <template>
   <div class="fencer-import-container">
     <div class="action-bar">
@@ -71,7 +72,7 @@
         已就绪选手: <span class="count">{{ fencers.length }}</span> 名
       </div>
       <el-button type="primary" size="large" icon="Check" :loading="isSubmitting" @click="submitImport">
-        保存名单
+        保存名单并进入下一步
       </el-button>
     </footer>
   </div>
@@ -85,7 +86,7 @@ import {DataManager} from '@/services/DataManager'
 const props = defineProps<{
   eventId: string
 }>()
-const emit = defineEmits(['imported'])
+const emit = defineEmits(['next'])
 
 interface FencerRow {
   id?: string;
@@ -104,7 +105,7 @@ const isSubmitting = ref(false)
 const isParsing = ref(false)
 
 const addRow = () => {
-  fencers.value.unshift({ // 新增行放在最上面，方便查看
+  fencers.value.unshift({
     last_name: '',
     first_name: '',
     gender: 'M',
@@ -124,91 +125,84 @@ const clearAll = () => {
       })
 }
 
-/**
- * 核心：智能解析粘贴的数据
- */
 const parseAndImport = () => {
-  if (!rawPasteData.value.trim()) {
-    ElMessage.warning('粘贴内容为空');
-    return;
-  }
+  if (!rawPasteData.value.trim()) return;
   isParsing.value = true;
-
   try {
     const lines = rawPasteData.value.trim().split('\n');
     const newFencers: FencerRow[] = [];
-
     lines.forEach(line => {
       if (!line.trim()) return;
-
-      // 智能分割：优先使用 Tab，否则使用两个或更多空格
       const columns = line.split(/\t| {2,}/).map(col => col.trim());
-
-      // 基础数据清洗和提取
       const lastName = columns[0] || '';
       const firstName = columns[1] || '';
-
-      // 性别解析：查找 'F' 或 '女'
       const genderRaw = (columns.find(c => c.toUpperCase() === 'F' || c === '女') || 'M').toUpperCase();
       const gender = genderRaw.startsWith('F') ? 'F' : 'M';
-
-      // 国家代码解析：查找三位大写字母
       const countryCodeRaw = columns.find(c => /^[A-Z]{3}$/.test(c));
       const country_code = countryCodeRaw || 'CHN';
-
-      // 排名解析：查找纯数字
       let ranking: number | null = 999;
-      const rankingStr = columns.find(c => /^\d+$/.test(c) && c.length < 4); // 避免匹配到年份等
-      if (rankingStr) {
-        ranking = parseInt(rankingStr, 10);
-      }
+      const rankingStr = columns.find(c => /^\d+$/.test(c) && c.length < 4);
+      if (rankingStr) ranking = parseInt(rankingStr, 10);
 
       if (lastName && firstName) {
-        newFencers.push({
-          last_name: lastName,
-          first_name: firstName,
-          gender: gender,
-          country_code: country_code,
-          current_ranking: ranking
-        });
+        newFencers.push({last_name: lastName, first_name: firstName, gender, country_code, current_ranking: ranking});
       }
     });
-
     if (newFencers.length > 0) {
-      // 合并新旧数据（可以选择是覆盖还是追加）
-      // 这里采用追加的方式
       fencers.value = [...fencers.value, ...newFencers];
       ElMessage.success(`成功解析并添加了 ${newFencers.length} 位选手`);
       rawPasteData.value = '';
       showPasteArea.value = false;
     } else {
-      ElMessage.error('解析失败，请检查数据格式是否正确');
+      ElMessage.error('解析失败，请检查数据格式');
     }
-
-  } catch (error) {
-    console.error("解析粘贴数据时出错:", error);
-    ElMessage.error('解析时发生意外错误');
   } finally {
     isParsing.value = false;
   }
 };
 
-
+/**
+ * 【关键修改】提交名单，并创建初始实时排名 (live_ranking)
+ */
 const submitImport = async () => {
-  // 校验逻辑
   const invalidFencer = fencers.value.find(f => !f.last_name || !f.first_name);
   if (invalidFencer) {
-    ElMessage.error('存在姓或名为空的选手，请填写完整后再保存');
+    ElMessage.error('存在姓或名为空的选手，请填写完整');
     return;
   }
 
   isSubmitting.value = true;
   try {
+    // 1. 保存选手基本信息
     const savedFencers = await DataManager.saveFencers(fencers.value);
     const currentIds = savedFencers.map(f => f.id);
+
+    // 2. 同步关联关系
     await DataManager.syncEventFencers(props.eventId, currentIds);
-    ElMessage.success('名单已成功保存！');
-    emit('imported');
+
+    // 3. 【核心新增】创建并持久化初始的 live_ranking
+    //    a. 按照初始排名排序
+    const sortedFencers = savedFencers.sort((a, b) => (a.current_ranking || 999) - (b.current_ranking || 999));
+
+    //    b. 映射为 live_ranking 的标准格式
+    const initialLiveRanking = sortedFencers.map((fencer, index) => ({
+      ...fencer,
+      current_rank: index + 1, // 赋予初始赛事排名
+      is_eliminated: false,    // 初始状态：未淘汰
+      elimination_round: null, // 在哪个阶段被淘汰
+      // 初始化统计数据
+      v_m: 0,
+      ind: 0,
+      ts: 0,
+      tr: 0,
+    }));
+
+    //    c. 调用 DataManager 保存
+    await DataManager.updateLiveRanking(props.eventId, initialLiveRanking);
+
+    ElMessage.success('名单已保存，初始排名已生成！');
+    emit('next'); // 一切完成后，再进入下一步
+
   } catch (error) {
     console.error(error);
     ElMessage.error('保存失败，请稍后重试');
@@ -218,14 +212,13 @@ const submitImport = async () => {
 };
 
 const loadExistingFencers = async () => {
-  // ... (此函数保持不变)
   try {
     const data = await DataManager.getFencersByEvent(props.eventId)
     fencers.value = data.map(f => ({
       id: f.id,
       last_name: f.last_name,
       first_name: f.first_name,
-      gender: f.gender || 'M', // 确保有默认值
+      gender: f.gender || 'M',
       country_code: f.country_code || 'CHN',
       current_ranking: f.current_ranking,
       fencing_id: f.fencing_id

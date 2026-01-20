@@ -1,3 +1,4 @@
+<!-- src/views/EventOrchestrator.vue -->
 <template>
   <div class="orchestrator-layout">
     <AppHeader :showCreate="false">
@@ -25,7 +26,7 @@
         <el-steps direction="vertical" :active="currentStep" finish-status="success">
           <el-step
               v-for="(step, index) in computedSteps"
-              :key="index"
+              :key="step.id"
               :title="step.title"
               @click="handleStepClick(index)"
               class="step-item"
@@ -45,11 +46,12 @@
 
           <section class="step-body">
             <transition name="fade-transform" mode="out-in">
-              <!-- 动态组件渲染，并将当前的 stage 配置传入 -->
+              <!-- 【关键修复】确保 prop 和数据源的 key 一致 -->
               <component
                   :is="computedSteps[currentStep]?.component"
+                  :key="computedSteps[currentStep]?.id"
                   :event-id="eventId"
-                  :stage-config="computedSteps[currentStep]?.stageData"
+                  :stage-config="computedSteps[currentStep]?.stageConfig"
                   @next="nextStep"
               />
             </transition>
@@ -82,72 +84,81 @@ const eventInfo = ref<any>({
   event_name: '加载中...',
   tournament_id: '',
   tournament_name: '',
-  rules: {stages: []} // 核心规则数据
+  rules: {stages: []}
 })
 const currentStep = ref(0)
 
-// 基础步骤（所有比赛都有）
-const baseSteps = {
-  import: {title: '选手名单', desc: '导入并确认参赛选手，设置初始种子排名', component: FencerImport},
-  final: {title: '最终排名', desc: '导出最终成绩册与积分', component: FinalRanking}
-}
-
-// 核心逻辑：根据 rules.stages 动态生成步骤链
 const computedSteps = computed(() => {
   const steps: any[] = [];
 
-  // 1. 第一步永远是选手名单
-  steps.push(baseSteps.import);
+  steps.push({
+    id: 'import',
+    title: '选手名单',
+    desc: '导入并确认参赛选手，设置初始种子排名',
+    component: FencerImport
+  });
 
-  // 2. 遍历 stages 数组，动态插入中间步骤
   const stages = eventInfo.value.rules?.stages || [];
 
   stages.forEach((stage: any, index: number) => {
     const stageNum = index + 1;
+    const stageId = `stage_${index}_${stage.type}`;
+
+    // 【关键修复】将 stageData 对象本身命名为 stageConfig，保持与 prop 一致
+    const stageConfigWithId = {...stage, id: stageId};
 
     if (stage.type === 'pool') {
-      // 小组赛包含三个子步骤
       steps.push({
+        id: `${stageId}_gen`,
         title: `阶段${stageNum}: 小组分组`,
-        desc: `第${stageNum}阶段小组循环赛 - 自动蛇形分组 (Config: Byes ${stage.config.byes})`,
+        desc: `为第 ${stageNum} 阶段进行分组`,
         component: PoolGeneration,
-        stageData: stage // 将配置透传给组件
+        stageConfig: stageConfigWithId // 👈 使用 stageConfig
       });
       steps.push({
+        id: `${stageId}_score`,
         title: `阶段${stageNum}: 小组计分`,
-        desc: `第${stageNum}阶段小组循环赛 - 录入比分`,
+        desc: `录入第 ${stageNum} 阶段小组赛比分`,
         component: PoolScoring,
-        stageData: stage
+        stageConfig: stageConfigWithId // 👈 使用 stageConfig
       });
       steps.push({
+        id: `${stageId}_rank`,
         title: `阶段${stageNum}: 小组排名`,
-        desc: `第${stageNum}阶段小组循环赛 - 晋级计算 (Elimination: ${stage.config.elimination_rate}%)`,
+        desc: `计算第 ${stageNum} 阶段的晋级与淘汰`,
         component: PoolRanking,
-        stageData: stage
+        stageConfig: stageConfigWithId // 👈 使用 stageConfig
       });
     } else if (stage.type === 'de') {
-      // 淘汰赛只有一个步骤
       steps.push({
-        title: `阶段${stageNum}: 淘汰赛表`,
-        desc: `第${stageNum}阶段单败淘汰赛 - (Final: ${stage.config.final_stage})`,
+        id: stageId,
+        title: `阶段${stageNum}: 淘汰赛`,
+        desc: `进行第 ${stageNum} 阶段的单败淘汰赛`,
         component: DETree,
-        stageData: stage
+        stageConfig: stageConfigWithId // 👈 使用 stageConfig
       });
     }
   });
 
-  // 3. 最后一步永远是最终排名
-  steps.push(baseSteps.final);
+  steps.push({
+    id: 'final_rank',
+    title: '最终排名',
+    desc: '查看并导出最终成绩',
+    component: FinalRanking
+  });
 
   return steps;
 });
 
+// onMounted, watch, nextStep 等其他函数保持不变
 onMounted(async () => {
   if (eventId) {
     const eventData = await DataManager.getEventById(eventId);
     if (eventData) {
       eventInfo.value = {...eventInfo.value, ...eventData};
-
+      if (!eventInfo.value.rules || !eventInfo.value.rules.stages) {
+        eventInfo.value.rules = {preset: 'world_cup', stages: [ /* default stages */]};
+      }
       const tournamentData = await DataManager.getTournamentById(eventData.tournament_id);
       if (tournamentData) {
         eventInfo.value.tournament_name = tournamentData.tournament_name;

@@ -208,51 +208,43 @@ export const DataManager = {
     },
 
     /**
-     * 保存分组结果
-     * @param eventId 项目ID
-     * @param poolsData 二维数组 [ [fencer1, fencer2], [fencer3, fencer4] ]
+     * 【已升级】保存分组结果，增加了 stageId
+     * @param eventId
+     * @param stageId - 阶段的唯一标识
+     * @param poolsData
      */
-    async savePools(eventId: string, poolsData: any[][]) {
+    async savePools(eventId: string, stageId: string, poolsData: any[][]) {
         const db = await IndexedDBService.getDB();
-        // 注意：确保事务包含所有要操作的表
         const tx = db.transaction(['pools', 'event_fencers'], 'readwrite');
-
         try {
-            // 1. 删除旧分组
             const poolStore = tx.objectStore('pools');
-            const oldPools = await poolStore.index('by_event').getAllKeys(eventId);
-            for (const key of oldPools) {
-                await poolStore.delete(key);
+
+            // 1. 删除这个 stageId 下的旧分组，而不是整个 eventId 的
+            const oldPoolsCursor = await poolStore.index('by_stage').openCursor(stageId);
+            let cursor = oldPoolsCursor;
+            while (cursor) {
+                await cursor.delete();
+                cursor = await cursor.continue();
             }
 
-            // 2. 写入新分组并更新选手关联
-            const linkStore = tx.objectStore('event_fencers');
-
+            // 2. 写入新分组，并打上 stageId 的标签
             for (let i = 0; i < poolsData.length; i++) {
-                const poolId = `${eventId}_p${i + 1}`;
-
+                const poolId = `${stageId}_p${i + 1}`; // 用 stageId 生成唯一的 poolId
                 await poolStore.put({
                     id: poolId,
                     event_id: eventId,
+                    stage_id: stageId, // 👈【核心】记录阶段 ID
                     pool_number: i + 1,
                     fencer_ids: poolsData[i].map(f => f.id)
                 });
 
-                for (const fencer of poolsData[i]) {
-                    // 使用联合主键获取关联记录
-                    const link = await linkStore.get([eventId, fencer.id]);
-                    if (link) {
-                        link.pool_id = poolId;
-                        await linkStore.put(link);
-                    }
-                }
+                // (可选) 如果需要，可以继续更新 event_fencers 表
             }
-
             await tx.done;
             return true;
         } catch (e) {
             console.error('Save Pools Transaction Failed:', e);
-            // 事务会自动回滚
+            tx.abort();
             throw e;
         }
     },
@@ -283,32 +275,31 @@ export const DataManager = {
         }
     },
 
-    async getPoolsDetailed(eventId: string) {
+    /**
+     * 【已升级】获取某个特定阶段的详细分组信息
+     * @param eventId
+     * @param stageId
+     */
+    async getPoolsDetailed(eventId: string, stageId: string) {
         try {
-            // 1. 从 IndexedDB 获取原始分组定义
-            const poolDefinitions = await IndexedDBService.getPoolsByEvent(eventId);
+            // 1. 根据 stageId 从 IndexedDB 获取原始分组定义
+            const poolDefinitions = await IndexedDBService.getPoolsByStage(stageId);
 
             if (!poolDefinitions || poolDefinitions.length === 0) {
                 return null;
             }
 
-            // 2. 按组号排序，确保顺序正确
+            // 2. 排序并还原选手详情
             poolDefinitions.sort((a: any, b: any) => a.pool_number - b.pool_number);
-
             const detailedPools = [];
-
-            // 3. 遍历每个小组，根据 fencer_ids 还原选手的完整对象
             for (const pool of poolDefinitions) {
                 const fencersInPool = [];
                 for (const fId of pool.fencer_ids) {
                     const detail = await this.getFencerById(fId);
-                    if (detail) {
-                        fencersInPool.push(detail);
-                    }
+                    if (detail) fencersInPool.push(detail);
                 }
                 detailedPools.push(fencersInPool);
             }
-
             return detailedPools;
         } catch (error) {
             console.error('获取详细分组失败:', error);
@@ -696,6 +687,40 @@ export const DataManager = {
         } catch (error) {
             console.error(`更新项目 ${eventId} 失败:`, error);
             throw error; // 将错误抛出，以便上层可以捕获
+        }
+    },
+
+    /**
+     * 【核心修改】获取一个项目的“实时排名列表”中【未被淘汰】的选手
+     * 简化后，它假设 live_ranking 总是存在
+     */
+    async getLiveFencers(eventId: string) {
+        const event = await IndexedDBService.getEventById(eventId);
+
+        // 如果 live_ranking 存在，则从中筛选、排序并返回
+        if (event?.live_ranking && event.live_ranking.length > 0) {
+            return event.live_ranking
+                .filter((f: any) => !f.is_eliminated)
+                .sort((a: any, b: any) => a.current_rank - b.current_rank);
+        }
+
+        // 如果不存在，直接返回空数组，因为正常流程下它应该已经被 FencerImport 创建了
+        console.warn(`Event ${eventId} has no live_ranking yet. Returning empty array.`);
+        return [];
+    },
+
+    /**
+     * 更新一个项目的“实时排名列表”
+     */
+    async updateLiveRanking(eventId: string, rankingList: any[]) {
+        try {
+            const event = await IndexedDBService.getEventById(eventId);
+            if (event) {
+                event.live_ranking = JSON.parse(JSON.stringify(rankingList));
+                await IndexedDBService.saveEvent(event);
+            }
+        } catch (error) {
+            console.error(`更新实时排名失败 for event ${eventId}:`, error);
         }
     },
 };

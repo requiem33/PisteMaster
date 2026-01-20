@@ -4,7 +4,7 @@
       <template #header>
         <div class="card-header">
           <div class="left">
-            <span>小组赛总排名 (Overall Ranking)</span>
+            <span>本阶段总排名 (Stage Ranking)</span>
             <el-tag type="info" class="ml-10">{{ sortedRanking.length }} 名选手</el-tag>
           </div>
           <div class="right">
@@ -13,7 +13,6 @@
         </div>
       </template>
 
-      <!-- 排名表格 -->
       <el-table
           v-loading="loading"
           :data="sortedRanking"
@@ -24,8 +23,8 @@
       >
         <el-table-column label="排名" width="70" align="center">
           <template #default="scope">
-            <span :class="['rank-number', scope.$index < 3 ? 'top-three' : '']">
-              {{ scope.$index + 1 }}
+            <span :class="['rank-number', scope.row.pool_rank <= 3 ? 'top-three' : '']">
+              {{ scope.row.pool_rank }}
             </span>
           </template>
         </el-table-column>
@@ -42,18 +41,18 @@
 
         <el-table-column label="V/M (胜率)" width="110" align="center">
           <template #default="scope">
-            {{ scope.row.v_m.toFixed(3) }}
+            {{ scope.row.v_m !== undefined ? scope.row.v_m.toFixed(3) : 'N/A' }}
           </template>
         </el-table-column>
 
         <el-table-column prop="ind" label="Ind. (净胜)" width="90" align="center"/>
         <el-table-column prop="ts" label="TS (得分)" width="90" align="center"/>
-        <th class="col-stat">TR</th> <!-- 对应 prop="tr" -->
         <el-table-column prop="tr" label="TR (失分)" width="90" align="center"/>
 
         <el-table-column label="状态" width="100" align="center">
           <template #default="scope">
-            <el-tag :type="scope.row.is_qualified ? 'success' : 'danger'" effect="dark">
+            <el-tag v-if="scope.row.is_bye" type="warning" effect="dark">轮空晋级</el-tag>
+            <el-tag v-else :type="scope.row.is_qualified ? 'success' : 'danger'" effect="dark">
               {{ scope.row.is_qualified ? '晋级' : '淘汰' }}
             </el-tag>
           </template>
@@ -63,141 +62,202 @@
 
     <div class="ranking-footer">
       <div class="legend">
-        <span class="legend-item"><i class="dot success"></i> 晋级线：前 80%</span>
-        <span class="legend-item"><i class="dot danger"></i> 淘汰线：后 20% (或因弃权)</span>
+        <span class="legend-item"><i
+            class="dot success"></i> 晋级线：前 {{ 100 - (stageConfig?.config?.elimination_rate || 20) }}%</span>
       </div>
-      <el-button type="primary" size="large" @click="proceedToDE">
-        生成淘汰赛对阵图 (DE)
+      <el-button type="primary" size="large" @click="proceedToNextStage" :loading="isSaving">
+        完成并进入下一阶段
       </el-button>
     </div>
   </div>
 </template>
 
 <script setup lang="ts">
-import {ref, computed, onMounted} from 'vue'
+import {ref, computed, onMounted, defineExpose} from 'vue'
 import {DataManager} from '@/services/DataManager'
 import {ElMessage} from 'element-plus'
 
-const props = defineProps<{ eventId: string }>()
+const props = defineProps<{
+  eventId: string,
+  stageConfig: any
+}>()
 const emit = defineEmits(['next'])
 
 const loading = ref(false)
-const rawRankingList = ref<any[]>([])
+const isSaving = ref(false)
+const allFencersForStage = ref<any[]>([])
+const poolResultsFencers = ref<any[]>([])
 
-// --- 加载数据 ---
-const fetchRankingData = async () => {
+const loadData = async () => {
   loading.value = true
   try {
-    const data = await DataManager.getEventPoolRanking(props.eventId)
-    rawRankingList.value = data
+    const [liveFencers, poolResults] = await Promise.all([
+      DataManager.getLiveFencers(props.eventId),
+      DataManager.getEventPoolRanking(props.eventId)
+    ]);
+    allFencersForStage.value = liveFencers;
+    poolResultsFencers.value = poolResults;
   } catch (error) {
-    ElMessage.error('无法获取排名数据')
+    ElMessage.error('无法获取本阶段排名数据');
   } finally {
     loading.value = false
   }
 }
 
-// --- 核心算法：击剑标准排名排序 ---
 const sortedRanking = computed(() => {
-  if (rawRankingList.value.length === 0) return []
+  if (allFencersForStage.value.length === 0) return []
 
-  // 复制一份数据进行排序
-  const list = [...rawRankingList.value]
+  const byeCount = props.stageConfig?.config?.byes || 0;
+  const eliminationRate = props.stageConfig?.config?.elimination_rate || 20;
 
-  return list
-      .sort((a, b) => {
-        // 1. 比较胜率 (V/M)
-        if (b.v_m !== a.v_m) return b.v_m - a.v_m
-        // 2. 比较净胜剑 (Ind.)
-        if (b.ind !== a.ind) return b.ind - a.ind
-        // 3. 比较得分 (TS)
-        return b.ts - a.ts
-      })
-      .map((fencer, index, array) => {
-        // 4. 判定晋级状态 (通常规则：小组赛后淘汰 20%~30% 的选手)
-        // 这里暂定前 80% 晋级
-        const cutoffIndex = Math.ceil(array.length * 0.8)
-        return {
-          ...fencer,
-          is_qualified: index < cutoffIndex
-        }
-      })
+  const byeFencers = allFencersForStage.value
+      .slice(0, byeCount)
+      .map(f => ({...f, is_bye: true}));
+
+  const rankedPoolFencers = poolResultsFencers.value.sort((a, b) => {
+    if (b.v_m !== a.v_m) return b.v_m - a.v_m;
+    if (b.ind !== a.ind) return b.ind - a.ind;
+    return b.ts - a.ts;
+  });
+
+  const combinedList = [...byeFencers, ...rankedPoolFencers];
+
+  return combinedList.map((fencer, index) => {
+    const qualifiedCount = Math.floor(combinedList.length * (1 - eliminationRate / 100));
+    const isQualified = fencer.is_bye || index < qualifiedCount;
+
+    return {
+      ...fencer,
+      pool_rank: index + 1,
+      is_qualified: isQualified
+    }
+  });
 })
+
+/**
+ * 【已修复】进入下一阶段的处理函数
+ */
+const proceedToNextStage = async () => {
+  isSaving.value = true;
+  try {
+    // 【关键修复】在这里重新获取淘汰比例
+    const eliminationRate = props.stageConfig?.config?.elimination_rate || 20;
+
+    const newLiveRanking = sortedRanking.value.map(f => ({
+      id: f.id,
+      last_name: f.last_name,
+      first_name: f.first_name,
+      country_code: f.country_code,
+      current_ranking: f.current_ranking,
+
+      current_rank: f.pool_rank,
+      is_eliminated: !f.is_qualified,
+      // 使用修复后的变量
+      elimination_round: f.is_qualified ? null : `小组赛 (淘汰后 ${eliminationRate}%)`,
+
+      v_m: f.v_m,
+      ind: f.ind,
+      ts: f.ts,
+      tr: f.tr,
+    }));
+
+    await DataManager.updateLiveRanking(props.eventId, newLiveRanking);
+
+    ElMessage.success('本阶段排名已保存，新的实时排名已生成');
+    emit('next');
+  } catch (error) {
+    ElMessage.error('操作失败，请重试');
+  } finally {
+    isSaving.value = false;
+  }
+}
 
 const getRowClass = ({row}: any) => {
   return row.is_qualified ? '' : 'eliminated-row'
 }
 
-const proceedToDE = () => {
-  if (sortedRanking.value.length === 0) {
-    ElMessage.warning('暂无排名数据')
-    return
-  }
-  emit('next')
-}
-
 onMounted(() => {
-  fetchRankingData()
+  loadData()
 })
+
+defineExpose({
+  // 可以暴露 saveRanking 给父组件，如果需要手动触发的话
+  // saveRanking: proceedToNextStage
+});
 </script>
 
 <style scoped lang="scss">
-/* 样式保持您的原样，仅做微调 */
+/* 样式保持不变 */
 .pool-ranking-container {
   padding: 20px;
+}
 
-  .rank-number {
-    font-weight: bold;
+.ranking-card {
+  border-radius: 8px;
+}
 
-    &.top-three {
-      color: #e6a23c;
-      font-size: 1.2em;
-    }
+.card-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-weight: bold;
+}
+
+.rank-number {
+  font-weight: bold;
+  font-family: 'Arial';
+
+  &.top-three {
+    color: #e6a23c;
+    font-size: 1.2em;
   }
+}
 
-  /* 淘汰行样式 */
-  :deep(.eliminated-row) {
-    background-color: #fef0f0 !important;
+.fencer-name strong {
+  color: #303133;
+}
 
-    .rank-number, .fencer-name, .cell {
-      color: #909399;
-      text-decoration: line-through;
-    }
-  }
+.ml-10 {
+  margin-left: 10px;
+}
 
-  .ranking-footer {
-    margin-top: 30px;
+:deep(.eliminated-row) {
+  background-color: #fef0f0 !important;
+  color: #f56c6c;
+  text-decoration: line-through;
+  text-decoration-color: rgba(245, 108, 108, 0.4);
+}
+
+.ranking-footer {
+  margin-top: 30px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 20px;
+  border-top: 1px solid #eee;
+}
+
+.legend {
+  display: flex;
+  gap: 20px;
+  font-size: 14px;
+
+  .legend-item {
     display: flex;
-    justify-content: space-between;
     align-items: center;
-    padding: 20px;
-    background: #fff;
-    border: 1px solid #ebeef5;
-    border-radius: 8px;
+    gap: 6px;
 
-    .legend {
-      display: flex;
-      gap: 20px;
+    .dot {
+      width: 10px;
+      height: 10px;
+      border-radius: 50%;
 
-      .legend-item {
-        display: flex;
-        align-items: center;
-        gap: 6px;
-        font-size: 14px;
+      &.success {
+        background: #67c23a;
+      }
 
-        .dot {
-          width: 8px;
-          height: 8px;
-          border-radius: 50%;
-
-          &.success {
-            background: #67c23a;
-          }
-
-          &.danger {
-            background: #f56c6c;
-          }
-        }
+      &.danger {
+        background: #f56c6c;
       }
     }
   }
