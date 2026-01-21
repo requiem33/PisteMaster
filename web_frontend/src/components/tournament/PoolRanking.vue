@@ -21,7 +21,7 @@
           style="width: 100%"
           :row-class-name="getRowClass"
       >
-        <el-table-column label="排名" width="70" align="center">
+        <el-table-column label="本阶段排名" width="100" align="center">
           <template #default="scope">
             <span :class="['rank-number', scope.row.pool_rank <= 3 ? 'top-three' : '']">
               {{ scope.row.pool_rank }}
@@ -41,13 +41,21 @@
 
         <el-table-column label="V/M (胜率)" width="110" align="center">
           <template #default="scope">
-            {{ scope.row.v_m !== undefined ? scope.row.v_m.toFixed(3) : 'N/A' }}
+            <!-- 对于轮空选手，显示 'BYE' -->
+            <span v-if="scope.row.is_bye">BYE</span>
+            <span v-else>{{ scope.row.v_m !== undefined ? scope.row.v_m.toFixed(3) : 'N/A' }}</span>
           </template>
         </el-table-column>
 
-        <el-table-column prop="ind" label="Ind. (净胜)" width="90" align="center"/>
-        <el-table-column prop="ts" label="TS (得分)" width="90" align="center"/>
-        <el-table-column prop="tr" label="TR (失分)" width="90" align="center"/>
+        <el-table-column prop="ind" label="Ind. (净胜)" width="90" align="center">
+          <template #default="{ row }">{{ row.is_bye ? '-' : row.ind }}</template>
+        </el-table-column>
+        <el-table-column prop="ts" label="TS (得分)" width="90" align="center">
+          <template #default="{ row }">{{ row.is_bye ? '-' : row.ts }}</template>
+        </el-table-column>
+        <el-table-column prop="tr" label="TR (失分)" width="90" align="center">
+          <template #default="{ row }">{{ row.is_bye ? '-' : row.tr }}</template>
+        </el-table-column>
 
         <el-table-column label="状态" width="100" align="center">
           <template #default="scope">
@@ -73,7 +81,7 @@
 </template>
 
 <script setup lang="ts">
-import {ref, computed, onMounted, defineExpose} from 'vue'
+import {ref, computed, onMounted} from 'vue'
 import {DataManager} from '@/services/DataManager'
 import {ElMessage} from 'element-plus'
 
@@ -91,12 +99,22 @@ const poolResultsFencers = ref<any[]>([])
 const loadData = async () => {
   loading.value = true
   try {
+    const stageId = props.stageConfig?.id;
+    if (!stageId) {
+      ElMessage.error("阶段配置错误，无法加载排名");
+      loading.value = false;
+      return;
+    }
+
+    // 【核心修复】调用 DataManager 时传入 stageId
     const [liveFencers, poolResults] = await Promise.all([
       DataManager.getLiveFencers(props.eventId),
-      DataManager.getEventPoolRanking(props.eventId)
+      DataManager.getEventPoolRanking(stageId)
     ]);
+
     allFencersForStage.value = liveFencers;
     poolResultsFencers.value = poolResults;
+
   } catch (error) {
     ElMessage.error('无法获取本阶段排名数据');
   } finally {
@@ -110,15 +128,22 @@ const sortedRanking = computed(() => {
   const byeCount = props.stageConfig?.config?.byes || 0;
   const eliminationRate = props.stageConfig?.config?.elimination_rate || 20;
 
+  // a. 找出轮空选手，并赋予他们最高优先级
+  const byeFencerIds = allFencersForStage.value.slice(0, byeCount).map(f => f.id);
   const byeFencers = allFencersForStage.value
-      .slice(0, byeCount)
+      .filter(f => byeFencerIds.includes(f.id))
       .map(f => ({...f, is_bye: true}));
 
-  const rankedPoolFencers = poolResultsFencers.value.sort((a, b) => {
-    if (b.v_m !== a.v_m) return b.v_m - a.v_m;
-    if (b.ind !== a.ind) return b.ind - a.ind;
-    return b.ts - a.ts;
-  });
+  // b. 找出并排序参赛选手
+  // 确保只处理在 liveFencers 中也存在的选手，防止旧数据干扰
+  const activeFencerIds = allFencersForStage.value.slice(byeCount).map(f => f.id);
+  const rankedPoolFencers = poolResultsFencers.value
+      .filter(f => activeFencerIds.includes(f.id))
+      .sort((a, b) => {
+        if (b.v_m !== a.v_m) return b.v_m - a.v_m;
+        if (b.ind !== a.ind) return b.ind - a.ind;
+        return b.ts - a.ts;
+      });
 
   const combinedList = [...byeFencers, ...rankedPoolFencers];
 
@@ -134,32 +159,31 @@ const sortedRanking = computed(() => {
   });
 })
 
-/**
- * 【已修复】进入下一阶段的处理函数
- */
 const proceedToNextStage = async () => {
   isSaving.value = true;
   try {
-    // 【关键修复】在这里重新获取淘汰比例
     const eliminationRate = props.stageConfig?.config?.elimination_rate || 20;
 
-    const newLiveRanking = sortedRanking.value.map(f => ({
-      id: f.id,
-      last_name: f.last_name,
-      first_name: f.first_name,
-      country_code: f.country_code,
-      current_ranking: f.current_ranking,
-
-      current_rank: f.pool_rank,
-      is_eliminated: !f.is_qualified,
-      // 使用修复后的变量
-      elimination_round: f.is_qualified ? null : `小组赛 (淘汰后 ${eliminationRate}%)`,
-
-      v_m: f.v_m,
-      ind: f.ind,
-      ts: f.ts,
-      tr: f.tr,
-    }));
+    // 从 allFencersForStage (live_ranking) 开始，确保所有选手都被包含
+    const newLiveRanking = allFencersForStage.value.map(f => {
+      const result = sortedRanking.value.find(sr => sr.id === f.id);
+      if (result) {
+        // 如果选手参与了本轮（或轮空），则更新其状态
+        return {
+          ...f, // 继承旧信息
+          current_rank: result.pool_rank, // 更新排名
+          is_eliminated: !result.is_qualified, // 更新淘汰状态
+          elimination_round: result.is_qualified ? f.elimination_round : `小组赛`,
+          // 更新赛果统计
+          v_m: result.v_m,
+          ind: result.ind,
+          ts: result.ts,
+          tr: result.tr,
+        };
+      }
+      // 如果选手在本轮未出现（例如，未来多轮淘汰赛的场景），则保持原样
+      return f;
+    }).sort((a, b) => a.current_rank - b.current_rank); // 最后按新排名排序
 
     await DataManager.updateLiveRanking(props.eventId, newLiveRanking);
 
@@ -179,11 +203,6 @@ const getRowClass = ({row}: any) => {
 onMounted(() => {
   loadData()
 })
-
-defineExpose({
-  // 可以暴露 saveRanking 给父组件，如果需要手动触发的话
-  // saveRanking: proceedToNextStage
-});
 </script>
 
 <style scoped lang="scss">
