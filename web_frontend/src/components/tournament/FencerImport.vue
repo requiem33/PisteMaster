@@ -173,39 +173,18 @@ const submitImport = async () => {
 
   isSubmitting.value = true;
   try {
-    // 1. 保存选手基本信息
     const savedFencers = await DataManager.saveFencers(fencers.value);
     const currentIds = savedFencers.map(f => f.id);
-
-    // 2. 同步关联关系
     await DataManager.syncEventFencers(props.eventId, currentIds);
 
-    // 3. 【核心新增】创建并持久化初始的 live_ranking
-    //    a. 按照初始排名排序
-    const sortedFencers = savedFencers.sort((a, b) => (a.current_ranking || 999) - (b.current_ranking || 999));
-
-    //    b. 映射为 live_ranking 的标准格式
-    const initialLiveRanking = sortedFencers.map((fencer, index) => ({
-      ...fencer,
-      current_rank: index + 1, // 赋予初始赛事排名
-      is_eliminated: false,    // 初始状态：未淘汰
-      elimination_round: null, // 在哪个阶段被淘汰
-      // 初始化统计数据
-      v_m: 0,
-      ind: 0,
-      ts: 0,
-      tr: 0,
-    }));
-
-    //    c. 调用 DataManager 保存
-    await DataManager.updateLiveRanking(props.eventId, initialLiveRanking);
+    // 【核心修改】调用新方法，创建初始排名快照
+    await DataManager.initializeLiveRanking(props.eventId, savedFencers);
 
     ElMessage.success('名单已保存，初始排名已生成！');
-    emit('next'); // 一切完成后，再进入下一步
-
+    emit('next');
   } catch (error) {
     console.error(error);
-    ElMessage.error('保存失败，请稍后重试');
+    ElMessage.error('保存失败');
   } finally {
     isSubmitting.value = false;
   }

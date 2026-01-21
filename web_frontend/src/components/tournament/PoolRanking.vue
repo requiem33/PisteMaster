@@ -87,7 +87,8 @@ import {ElMessage} from 'element-plus'
 
 const props = defineProps<{
   eventId: string,
-  stageConfig: any
+  stageConfig: any,
+  stageIndex: number
 }>()
 const emit = defineEmits(['next'])
 
@@ -108,13 +109,11 @@ const loadData = async () => {
 
     // 【核心修复】调用 DataManager 时传入 stageId
     const [liveFencers, poolResults] = await Promise.all([
-      DataManager.getLiveFencers(props.eventId),
+      DataManager.getFencersForStage(props.eventId, props.stageIndex),
       DataManager.getEventPoolRanking(stageId)
     ]);
-
     allFencersForStage.value = liveFencers;
     poolResultsFencers.value = poolResults;
-
   } catch (error) {
     ElMessage.error('无法获取本阶段排名数据');
   } finally {
@@ -123,27 +122,19 @@ const loadData = async () => {
 }
 
 const sortedRanking = computed(() => {
-  if (allFencersForStage.value.length === 0) return []
-
+  if (allFencersForStage.value.length === 0) return [];
   const byeCount = props.stageConfig?.config?.byes || 0;
   const eliminationRate = props.stageConfig?.config?.elimination_rate || 20;
 
-  // a. 找出轮空选手，并赋予他们最高优先级
-  const byeFencerIds = allFencersForStage.value.slice(0, byeCount).map(f => f.id);
   const byeFencers = allFencersForStage.value
-      .filter(f => byeFencerIds.includes(f.id))
+      .slice(0, byeCount)
       .map(f => ({...f, is_bye: true}));
 
-  // b. 找出并排序参赛选手
-  // 确保只处理在 liveFencers 中也存在的选手，防止旧数据干扰
-  const activeFencerIds = allFencersForStage.value.slice(byeCount).map(f => f.id);
-  const rankedPoolFencers = poolResultsFencers.value
-      .filter(f => activeFencerIds.includes(f.id))
-      .sort((a, b) => {
-        if (b.v_m !== a.v_m) return b.v_m - a.v_m;
-        if (b.ind !== a.ind) return b.ind - a.ind;
-        return b.ts - a.ts;
-      });
+  const rankedPoolFencers = poolResultsFencers.value.sort((a, b) => {
+    if (b.v_m !== a.v_m) return b.v_m - a.v_m;
+    if (b.ind !== a.ind) return b.ind - a.ind;
+    return b.ts - a.ts;
+  });
 
   const combinedList = [...byeFencers, ...rankedPoolFencers];
 
@@ -151,43 +142,23 @@ const sortedRanking = computed(() => {
     const qualifiedCount = Math.floor(combinedList.length * (1 - eliminationRate / 100));
     const isQualified = fencer.is_bye || index < qualifiedCount;
 
-    return {
-      ...fencer,
-      pool_rank: index + 1,
-      is_qualified: isQualified
-    }
+    return {...fencer, pool_rank: index + 1, is_qualified: isQualified};
   });
-})
+});
 
 const proceedToNextStage = async () => {
   isSaving.value = true;
   try {
-    const eliminationRate = props.stageConfig?.config?.elimination_rate || 20;
+    // 准备要提交的、只包含核心信息的赛果
+    const stageResults = sortedRanking.value.map(f => ({
+      id: f.id,
+      rank: f.pool_rank, // 本阶段的新排名
+      is_eliminated: !f.is_qualified, // 本阶段是否被淘汰
+    }));
 
-    // 从 allFencersForStage (live_ranking) 开始，确保所有选手都被包含
-    const newLiveRanking = allFencersForStage.value.map(f => {
-      const result = sortedRanking.value.find(sr => sr.id === f.id);
-      if (result) {
-        // 如果选手参与了本轮（或轮空），则更新其状态
-        return {
-          ...f, // 继承旧信息
-          current_rank: result.pool_rank, // 更新排名
-          is_eliminated: !result.is_qualified, // 更新淘汰状态
-          elimination_round: result.is_qualified ? f.elimination_round : `小组赛`,
-          // 更新赛果统计
-          v_m: result.v_m,
-          ind: result.ind,
-          ts: result.ts,
-          tr: result.tr,
-        };
-      }
-      // 如果选手在本轮未出现（例如，未来多轮淘汰赛的场景），则保持原样
-      return f;
-    }).sort((a, b) => a.current_rank - b.current_rank); // 最后按新排名排序
+    await DataManager.updateStageRanking(props.eventId, props.stageIndex, stageResults);
 
-    await DataManager.updateLiveRanking(props.eventId, newLiveRanking);
-
-    ElMessage.success('本阶段排名已保存，新的实时排名已生成');
+    ElMessage.success('本阶段排名已保存');
     emit('next');
   } catch (error) {
     ElMessage.error('操作失败，请重试');

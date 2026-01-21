@@ -398,16 +398,17 @@ export const DataManager = {
     },
 
     /**
-     * 保存淘汰赛的完整状态
-     * @param eventId
-     * @param bracketData
+     * 【已升级】保存淘汰赛的完整状态，增加了 stageId
      */
-    async saveDETree(eventId: string, bracketData: any) {
+    async saveDETree(eventId: string, stageId: string, bracketData: any[][]) {
         try {
-            const event = await IndexedDBService.getEventById(eventId);
+            const event = await this.getEventById(eventId);
             if (event) {
-                // 将整个对阵图数据（脱敏后）存入 event 记录中
-                event.de_tree = JSON.parse(JSON.stringify(bracketData));
+                // 在 event 对象中，用一个以 stageId 为 key 的对象来存储不同的对阵图
+                if (!event.de_trees) {
+                    event.de_trees = {};
+                }
+                event.de_trees[stageId] = JSON.parse(JSON.stringify(bracketData));
                 await IndexedDBService.saveEvent(event);
             }
         } catch (error) {
@@ -416,13 +417,12 @@ export const DataManager = {
     },
 
     /**
-     * 获取已保存的淘汰赛状态
-     * @param eventId
+     * 【已升级】获取已保存的特定阶段的淘汰赛状态
      */
-    async getDETree(eventId: string) {
+    async getDETree(eventId: string, stageId: string) {
         try {
-            const event = await IndexedDBService.getEventById(eventId);
-            return event?.de_tree || null;
+            const event = await this.getEventById(eventId);
+            return event?.de_trees?.[stageId] || null;
         } catch (error) {
             console.error('获取 DE 对阵图状态失败:', error);
             return null;
@@ -725,5 +725,92 @@ export const DataManager = {
 
     async getPoolsByStageId(stageId: string) {
         return await IndexedDBService.getPoolsByStage(stageId);
+    },
+
+    /**
+     * 【终极版】在选手名单确定后，创建 live_ranking 的“版本0”快照
+     */
+    async initializeLiveRanking(eventId: string, initialFencers: any[]) {
+        const event = await IndexedDBService.getEventById(eventId);
+        if (event) {
+            const sortedFencers = initialFencers.sort((a, b) => (a.current_ranking || 999) - (b.current_ranking || 999));
+
+            event.live_ranking = sortedFencers.map((fencer, index) => ({
+                ...fencer,
+                ranks: {0: index + 1}, // 版本0：初始排名
+                elimination_status: {0: false}, // 版本0：未淘汰
+            }));
+
+            await IndexedDBService.saveEvent(event);
+        }
+    },
+
+    /**
+     * 【终极版】更新指定阶段的排名，并让后续阶段的状态失效
+     */
+    async updateStageRanking(eventId: string, stageIndex: number, stageResults: {
+        id: string,
+        rank: number,
+        is_eliminated: boolean
+    }[]) {
+        const event = await IndexedDBService.getEventById(eventId);
+        if (event && event.live_ranking) {
+            const resultMap = new Map(stageResults.map(r => [r.id, r]));
+
+            const newLiveRanking = event.live_ranking.map((fencer: any) => {
+                const result = resultMap.get(fencer.id);
+
+                // 1. 创建 ranks 和 elimination_status 的新副本
+                const newRanks = {...fencer.ranks};
+                const newEliminationStatus = {...fencer.elimination_status};
+
+                // 2. 清理所有当前及未来的状态快照
+                Object.keys(newRanks).forEach(key => {
+                    if (parseInt(key) >= stageIndex) {
+                        delete newRanks[key];
+                    }
+                });
+                Object.keys(newEliminationStatus).forEach(key => {
+                    if (parseInt(key) >= stageIndex) {
+                        delete newEliminationStatus[key];
+                    }
+                });
+
+                // 3. 如果该选手参与了本阶段，则写入新快照
+                if (result) {
+                    newRanks[stageIndex] = result.rank;
+                    newEliminationStatus[stageIndex] = result.is_eliminated;
+                }
+
+                // 4. 返回包含全新副本的 fencer 对象
+                return {
+                    ...fencer,
+                    ranks: newRanks,
+                    elimination_status: newEliminationStatus,
+                };
+            });
+
+            event.live_ranking = newLiveRanking;
+            await IndexedDBService.saveEvent(event);
+        }
+    },
+
+    /**
+     * 【终极版】为即将开始的阶段，获取正确的数据源
+     */
+    async getFencersForStage(eventId: string, stageIndex: number) {
+        const event = await IndexedDBService.getEventById(eventId);
+        if (!event?.live_ranking) return [];
+
+        const sourceStageIndex = stageIndex - 1;
+
+        return event.live_ranking
+            // 筛选条件：在上一个阶段还未被淘汰
+            .filter((f: any) => f.elimination_status[sourceStageIndex] === false)
+            .map((f: any) => ({
+                ...f,
+                current_rank: f.ranks[sourceStageIndex], // 附加“当前排名”用于本阶段计算
+            }))
+            .sort((a: any, b: any) => a.current_rank - b.current_rank);
     },
 };

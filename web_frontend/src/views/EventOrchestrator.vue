@@ -52,6 +52,7 @@
                   :key="computedSteps[currentStep]?.id"
                   :event-id="eventId"
                   :stage-config="computedSteps[currentStep]?.stageConfig"
+                  :stage-index="computedSteps[currentStep]?.stageIndex"
                   @next="nextStep"
               />
             </transition>
@@ -95,13 +96,14 @@ const computedSteps = computed(() => {
     id: 'import',
     title: '选手名单',
     desc: '导入并确认参赛选手，设置初始种子排名',
-    component: FencerImport
+    component: FencerImport,
+    stageIndex: 0
   });
 
   const stages = eventInfo.value.rules?.stages || [];
 
   stages.forEach((stage: any, index: number) => {
-    const stageNum = index + 1;
+    const stageIndex = index + 1;
     const stageId = `stage_${index}_${stage.type}`;
 
     // 【关键修复】将 stageData 对象本身命名为 stageConfig，保持与 prop 一致
@@ -110,32 +112,32 @@ const computedSteps = computed(() => {
     if (stage.type === 'pool') {
       steps.push({
         id: `${stageId}_gen`,
-        title: `阶段${stageNum}: 小组分组`,
-        desc: `为第 ${stageNum} 阶段进行分组`,
+        title: `阶段${stageIndex}: 小组分组`,
+        desc: `为第 ${stageIndex} 阶段进行分组`,
         component: PoolGeneration,
-        stageConfig: stageConfigWithId // 👈 使用 stageConfig
+        stageConfig: stageConfigWithId, stageIndex // 👈 使用 stageConfig
       });
       steps.push({
         id: `${stageId}_score`,
-        title: `阶段${stageNum}: 小组计分`,
-        desc: `录入第 ${stageNum} 阶段小组赛比分`,
+        title: `阶段${stageIndex}: 小组计分`,
+        desc: `录入第 ${stageIndex} 阶段小组赛比分`,
         component: PoolScoring,
-        stageConfig: stageConfigWithId // 👈 使用 stageConfig
+        stageConfig: stageConfigWithId, stageIndex // 👈 使用 stageConfig
       });
       steps.push({
         id: `${stageId}_rank`,
-        title: `阶段${stageNum}: 小组排名`,
-        desc: `计算第 ${stageNum} 阶段的晋级与淘汰`,
+        title: `阶段${stageIndex}: 小组排名`,
+        desc: `计算第 ${stageIndex} 阶段的晋级与淘汰`,
         component: PoolRanking,
-        stageConfig: stageConfigWithId // 👈 使用 stageConfig
+        stageConfig: stageConfigWithId, stageIndex // 👈 使用 stageConfig
       });
     } else if (stage.type === 'de') {
       steps.push({
         id: stageId,
-        title: `阶段${stageNum}: 淘汰赛`,
-        desc: `进行第 ${stageNum} 阶段的单败淘汰赛`,
+        title: `阶段${stageIndex}: 淘汰赛`,
+        desc: `进行第 ${stageIndex} 阶段的单败淘汰赛`,
         component: DETree,
-        stageConfig: stageConfigWithId // 👈 使用 stageConfig
+        stageConfig: stageConfigWithId, stageIndex // 👈 使用 stageConfig
       });
     }
   });
@@ -144,7 +146,8 @@ const computedSteps = computed(() => {
     id: 'final_rank',
     title: '最终排名',
     desc: '查看并导出最终成绩',
-    component: FinalRanking
+    component: FinalRanking,
+    stageIndex: stages.length + 1
   });
 
   return steps;

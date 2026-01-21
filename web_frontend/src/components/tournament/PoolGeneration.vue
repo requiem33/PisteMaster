@@ -79,6 +79,7 @@ import {DataManager} from '@/services/DataManager'
 const props = defineProps<{
   eventId: string,
   stageConfig: any // 假设它包含一个唯一的ID，如 stageConfig.id
+  stageIndex: number
 }>()
 const emit = defineEmits(['next', 'prev'])
 
@@ -109,7 +110,7 @@ const loadDataForCurrentStage = async () => {
       return;
     }
 
-    fencers.value = await DataManager.getLiveFencers(props.eventId)
+    fencers.value = await DataManager.getFencersForStage(props.eventId, props.stageIndex);
     if (fencers.value.length === 0) {
       ElMessage.warning('当前阶段没有可供比赛的选手。');
       return;
