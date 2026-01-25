@@ -90,6 +90,7 @@ const props = defineProps<{
   stageConfig: any,
   stageIndex: number
 }>()
+
 const emit = defineEmits(['next'])
 
 const loading = ref(false)
@@ -103,17 +104,17 @@ const loadData = async () => {
     const stageId = props.stageConfig?.id;
     if (!stageId) {
       ElMessage.error("阶段配置错误，无法加载排名");
-      loading.value = false;
       return;
     }
 
-    // 【核心修复】调用 DataManager 时传入 stageId
+    // 数据获取逻辑不变
     const [liveFencers, poolResults] = await Promise.all([
       DataManager.getFencersForStage(props.eventId, props.stageIndex),
       DataManager.getEventPoolRanking(stageId)
     ]);
     allFencersForStage.value = liveFencers;
     poolResultsFencers.value = poolResults;
+
   } catch (error) {
     ElMessage.error('无法获取本阶段排名数据');
   } finally {
@@ -121,46 +122,71 @@ const loadData = async () => {
   }
 }
 
+// 【核心改造】: 重写整个 computed 属性，确保数据完整性
 const sortedRanking = computed(() => {
+  // 1. 如果基础名单为空，则直接返回
   if (allFencersForStage.value.length === 0) return [];
-  const byeCount = props.stageConfig?.config?.byes || 0;
-  const eliminationRate = props.stageConfig?.config?.elimination_rate || 20;
 
-  const byeFencers = allFencersForStage.value
-      .slice(0, byeCount)
-      .map(f => ({...f, is_bye: true}));
+  // 2. 将已有赛果的选手做成一个 Map，方便快速查找
+  const resultsMap = new Map(poolResultsFencers.value.map(f => [f.id, f]));
 
-  const rankedPoolFencers = poolResultsFencers.value.sort((a, b) => {
+  // 3. 遍历【完整的】初始选手名单，为每个人注入成绩数据
+  const enrichedList = allFencersForStage.value.map(fencer => {
+    const result = resultsMap.get(fencer.id);
+    if (result) {
+      // 如果找到了赛果，则合并对象
+      return {...fencer, ...result, is_bye: false};
+    } else {
+      // 如果没找到（轮空或未计分），检查是否为轮空选手
+      const byeCount = props.stageConfig?.config?.byes || 0;
+      if (fencer.current_rank <= byeCount) {
+        return {...fencer, is_bye: true};
+      }
+      // 否则，是未计分的普通选手，给予默认成绩
+      return {...fencer, v: 0, m: 0, ts: 0, tr: 0, ind: 0, v_m: 0, is_bye: false};
+    }
+  });
+
+  // 4. 排序：轮空选手优先，然后按赛果排序
+  const sorted = enrichedList.sort((a, b) => {
+    // 轮空选手排在最前面
+    if (a.is_bye && !b.is_bye) return -1;
+    if (!a.is_bye && b.is_bye) return 1;
+    // 如果都是轮空选手，按原始排名排
+    if (a.is_bye && b.is_bye) return a.current_rank - b.current_rank;
+
+    // 如果都是比赛选手，按比赛规则排
     if (b.v_m !== a.v_m) return b.v_m - a.v_m;
     if (b.ind !== a.ind) return b.ind - a.ind;
     return b.ts - a.ts;
   });
 
-  const combinedList = [...byeFencers, ...rankedPoolFencers];
+  // 5. 最终处理：计算最终排名和晋级状态
+  const eliminationRate = props.stageConfig?.config?.elimination_rate || 20;
+  const qualifiedCount = Math.floor(sorted.length * (1 - eliminationRate / 100));
 
-  return combinedList.map((fencer, index) => {
-    const qualifiedCount = Math.floor(combinedList.length * (1 - eliminationRate / 100));
-    const isQualified = fencer.is_bye || index < qualifiedCount;
-
-    return {...fencer, pool_rank: index + 1, is_qualified: isQualified};
-  });
+  return sorted.map((fencer, index) => ({
+    ...fencer,
+    pool_rank: index + 1, // 赋予最终的阶段排名
+    is_qualified: fencer.is_bye || (index < qualifiedCount) // 轮空自动晋级，或排名在晋级线之上
+  }));
 });
 
 const proceedToNextStage = async () => {
   isSaving.value = true;
   try {
-    // 准备要提交的、只包含核心信息的赛果
     const stageResults = sortedRanking.value.map(f => ({
       id: f.id,
-      rank: f.pool_rank, // 本阶段的新排名
-      is_eliminated: !f.is_qualified, // 本阶段是否被淘汰
+      rank: f.pool_rank,
+      is_eliminated: !f.is_qualified,
     }));
 
     await DataManager.updateStageRanking(props.eventId, props.stageIndex, stageResults);
-
-    ElMessage.success('本阶段排名已保存');
+    ElMessage.success('本阶段排名已保存，数据快照已更新');
     emit('next');
+
   } catch (error) {
+    console.error("保存阶段排名失败:", error);
     ElMessage.error('操作失败，请重试');
   } finally {
     isSaving.value = false;
