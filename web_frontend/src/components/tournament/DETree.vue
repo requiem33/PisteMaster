@@ -43,7 +43,7 @@
                       v-model="match.scoreA"
                       class="score-input"
                       :disabled="!match.fencerB && rIdx > 0"
-                  @change="handleScoreChange(rIdx, mIdx)"
+                      @change="handleScoreChange(rIdx, mIdx)"
                   />
                 </template>
                 <!-- 【核心修改】区分轮空和等待 -->
@@ -66,7 +66,7 @@
                       v-model="match.scoreB"
                       class="score-input"
                       :disabled="!match.fencerA && rIdx > 0"
-                  @change="handleScoreChange(rIdx, mIdx)"
+                      @change="handleScoreChange(rIdx, mIdx)"
                   />
                 </template>
                 <!-- 【核心修改】区分轮空和等待 -->
@@ -80,6 +80,13 @@
         </div>
       </div>
     </div>
+
+    <footer class="footer-actions">
+      <el-button @click="$emit('prev')">返回上一步</el-button>
+      <el-button type="primary" size="large" @click="proceedToNextStage" :loading="isSaving">
+        完成淘汰赛并进入下一阶段
+      </el-button>
+    </footer>
   </div>
 </template>
 
@@ -127,6 +134,9 @@ const props = defineProps({
     required: true
   }
 })
+
+const isSaving = ref(false)
+const emit = defineEmits(['next', 'prev']) // 确保 emit 已经定义
 
 const viewBracket = ref('16')
 const bracketData = ref<Match[][]>([])
@@ -350,6 +360,72 @@ const drawLines = () => {
   connections.value = newConnections;
 };
 
+const proceedToNextStage = async () => {
+  isSaving.value = true;
+  try {
+    const finalRound = bracketData.value[bracketData.value.length - 1];
+    if (!finalRound || finalRound[0].winnerId === null) {
+      ElMessage.warning('比赛尚未决出最终胜者，无法完成此阶段。');
+      isSaving.value = false;
+      return;
+    }
+
+    // 核心：从 bracketData 推导出本阶段的最终排名
+    const stageResults: { id: string, rank: number, is_eliminated: boolean }[] = [];
+    const processedIds = new Set<string>();
+
+    // 倒序遍历每一轮，来确定名次
+    for (let r = bracketData.value.length - 1; r >= 0; r--) {
+      const round = bracketData.value[r];
+      const roundRankBase = Math.pow(2, bracketData.value.length - 1 - r); // 8强, 16强...
+
+      for (const match of round) {
+        if (match.winnerId && !processedIds.has(match.winnerId)) {
+          // 冠军特殊处理
+          if (r === bracketData.value.length - 1) {
+            stageResults.push({id: match.winnerId, rank: 1, is_eliminated: false});
+            processedIds.add(match.winnerId);
+          }
+        }
+
+        const loser = match.winnerId
+            ? (getSafeId(match.fencerA) === match.winnerId ? match.fencerB : match.fencerA)
+            : null;
+
+        if (loser && !processedIds.has(getSafeId(loser)!)) {
+          const loserId = getSafeId(loser)!;
+          // 亚军特殊处理
+          if (r === bracketData.value.length - 1) {
+            stageResults.push({id: loserId, rank: 2, is_eliminated: false});
+          } else {
+            stageResults.push({id: loserId, rank: roundRankBase + 1, is_eliminated: true});
+          }
+          processedIds.add(loserId);
+        }
+      }
+    }
+
+    // 【重要】将所有参与了本阶段但未被处理的选手（通常是轮空的）也加入结果
+    const allStageFencers = bracketData.value[0].flatMap(m => [m.fencerA, m.fencerB]).filter(Boolean);
+    for (const fencer of allStageFencers) {
+      if (fencer && !processedIds.has(getSafeId(fencer)!)) {
+        // 这种情况通常是首轮轮空直接晋级的，他们在本阶段并未被淘汰
+        stageResults.push({id: getSafeId(fencer)!, rank: 1, is_eliminated: false});
+      }
+    }
+
+    await DataManager.updateStageRanking(props.eventId, props.stageIndex, stageResults);
+    ElMessage.success('淘汰赛阶段排名已保存');
+    emit('next');
+
+  } catch (error) {
+    console.error(error);
+    ElMessage.error('操作失败，请重试');
+  } finally {
+    isSaving.value = false;
+  }
+}
+
 // --- 生命周期 ---
 onMounted(() => {
   initRealDE();
@@ -552,4 +628,14 @@ $bg-color: #f8f9fa;
   background: #f0f0f0;
 }
 
+.footer-actions {
+  margin-top: 30px;
+  padding: 20px;
+  border-top: 1px solid #eee;
+  display: flex;
+  justify-content: space-between;
+  background: #fff;
+  position: sticky;
+  bottom: 0;
+}
 </style>
