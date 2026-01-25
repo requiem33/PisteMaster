@@ -44,8 +44,9 @@
 
         <el-table-column label="最后轮次" width="150" align="center">
           <template #default="scope">
-            <el-tag :type="getRoundTagType(scope.row.last_round)">
-              {{ scope.row.last_round }}
+            <!-- 【修改】调用新的辅助函数 -->
+            <el-tag :type="getRoundTagType(scope.row)">
+              {{ getRoundText(scope.row, eventInfo?.rules?.stages || []) }}
             </el-tag>
           </template>
         </el-table-column>
@@ -62,20 +63,76 @@
 </template>
 
 <script setup lang="ts">
-import {ref, onMounted} from 'vue'
+import {ref, onMounted, computed} from 'vue'
 import {DataManager} from '@/services/DataManager'
 import {ElMessage} from 'element-plus'
+import type {Stage} from '@/types'; // 引入类型，如果还没有
 
-const props = defineProps<{ eventId: string }>()
+const props = defineProps<{
+  eventId: string,
+  eventInfo: any // 接收完整的 event 对象
+}>()
 
 const finalResults = ref<any[]>([])
 const loading = ref(false)
 
+/**
+ * 【核心改造】重写数据加载与计算逻辑
+ */
 const loadFinalRanking = async () => {
   loading.value = true;
   try {
-    const results = await DataManager.getFinalRanking(props.eventId);
-    finalResults.value = results;
+    const event = await DataManager.getEventById(props.eventId);
+    if (!event || !event.live_ranking) {
+      ElMessage.warning("没有找到有效的排名记录");
+      return;
+    }
+
+    const stages: Stage[] = event.rules?.stages || [];
+
+    // 1. 获取小组赛阶段的详细赛果，用于最终的 tie-breaker 和数据展示
+    const poolStage = stages.findLast(s => s.type === 'pool');
+    const poolResults = poolStage ? await DataManager.getEventPoolRanking(poolStage.id) : [];
+    const poolResultsMap = new Map(poolResults.map(r => [r.id, r]));
+    const poolStageIndex = poolStage ? stages.indexOf(poolStage) + 1 : 0;
+
+    // 2.【“历史学家”逻辑】遍历 live_ranking，富集每个选手的数据
+    const enrichedFencers = event.live_ranking.map((fencer: any) => {
+      const stageKeys = Object.keys(fencer.ranks).map(Number);
+      const finalStageIndex = Math.max(...stageKeys);
+
+      const finalRankInStage = fencer.ranks[finalStageIndex];
+      const wasEliminated = fencer.elimination_status[finalStageIndex];
+
+      const poolStats = poolResultsMap.get(fencer.id) || {v_m: 0, ind: 0, ts: 0, tr: 0};
+      const poolRank = fencer.ranks[poolStageIndex] || 999; // 小组排名作为 tie-breaker
+
+      return {
+        ...fencer,
+        ...poolStats,
+        finalStageIndex,
+        finalRankInStage,
+        wasEliminated,
+        poolRank,
+      };
+    });
+
+    // 3.【最终排序】
+    enrichedFencers.sort((a: any, b: any) => {
+      // 规则1: 比较最后达到的阶段 (越高越好)
+      if (a.finalStageIndex !== b.finalStageIndex) {
+        return b.finalStageIndex - a.finalStageIndex;
+      }
+      // 规则2: 比较在同一阶段的名次 (越小越好)
+      if (a.finalRankInStage !== b.finalRankInStage) {
+        return a.finalRankInStage - b.finalRankInStage;
+      }
+      // 规则3: 平分决胜局 - 比较小组赛排名 (越小越好)
+      return a.poolRank - b.poolRank;
+    });
+
+    finalResults.value = enrichedFencers;
+
   } catch (error) {
     console.error("加载最终排名失败:", error);
     ElMessage.error("无法生成最终排名");
@@ -84,18 +141,37 @@ const loadFinalRanking = async () => {
   }
 };
 
+/**
+ * 【辅助函数】根据选手的最终状态，生成人类可读的轮次描述
+ */
+const getRoundTagType = (fencer: any) => {
+  // 这里的实现可以更精确，例如判断是否为冠军、亚军等
+  if (fencer.finalRankInStage <= 3 && !fencer.wasEliminated) {
+    if (fencer.finalRankInStage === 1) return 'danger'; // Gold
+    if (fencer.finalRankInStage === 2) return 'primary'; // Silver
+    if (fencer.finalRankInStage === 3) return 'warning'; // Bronze
+  }
+  return 'info';
+}
+
+const getRoundText = (fencer: any, stages: Stage[]) => {
+  const finalStage = stages[fencer.finalStageIndex - 1];
+  if (!finalStage) return "初始排名";
+
+  if (!fencer.wasEliminated) {
+    if (fencer.finalRankInStage === 1) return "冠军";
+    if (fencer.finalRankInStage === 2) return "亚军";
+    if (fencer.finalRankInStage === 3) return "季军";
+  }
+
+  return `止步 ${finalStage.name}`;
+}
+
 const getMedalClass = (rank: number) => {
   if (rank === 1) return 'gold'
   if (rank === 2) return 'silver'
   if (rank === 3) return 'bronze'
   return ''
-}
-
-const getRoundTagType = (round: string) => {
-  if (round.includes('冠军') || round.includes('亚军')) return 'danger'
-  if (round.includes('季军')) return 'warning'
-  if (round.includes('Table of 4')) return 'primary'
-  return 'info'
 }
 
 const exportToExcel = () => {

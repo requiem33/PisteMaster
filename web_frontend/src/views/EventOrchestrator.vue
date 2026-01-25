@@ -51,6 +51,7 @@
                   :is="computedSteps[currentStep]?.component"
                   :key="computedSteps[currentStep]?.id"
                   :event-id="eventId"
+                  :event-info="eventInfo"
                   :stage-config="computedSteps[currentStep]?.stageConfig"
                   :stage-index="computedSteps[currentStep]?.stageIndex"
                   @next="nextStep"
