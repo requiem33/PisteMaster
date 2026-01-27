@@ -735,10 +735,11 @@ export const DataManager = {
         if (event) {
             const sortedFencers = initialFencers.sort((a, b) => (a.current_ranking || 999) - (b.current_ranking || 999));
 
+            // 【核心修改】不再存储完整的 fencer 对象
             event.live_ranking = sortedFencers.map((fencer, index) => ({
-                ...fencer,
-                ranks: {0: index + 1}, // 版本0：初始排名
-                elimination_status: {0: false}, // 版本0：未淘汰
+                id: fencer.id, // <-- 只存储 ID
+                ranks: {0: index + 1},
+                elimination_status: {0: false},
             }));
 
             await IndexedDBService.saveEvent(event);
@@ -757,34 +758,26 @@ export const DataManager = {
         if (event && event.live_ranking) {
             const resultMap = new Map(stageResults.map(r => [r.id, r]));
 
+            // fencer 对象现在是 { id, ranks, elimination_status }
             const newLiveRanking = event.live_ranking.map((fencer: any) => {
                 const result = resultMap.get(fencer.id);
-
-                // 1. 创建 ranks 和 elimination_status 的新副本
                 const newRanks = {...fencer.ranks};
                 const newEliminationStatus = {...fencer.elimination_status};
 
-                // 2. 清理所有当前及未来的状态快照
                 Object.keys(newRanks).forEach(key => {
-                    if (parseInt(key) >= stageIndex) {
-                        delete newRanks[key];
-                    }
+                    if (parseInt(key) >= stageIndex) delete newRanks[key];
                 });
                 Object.keys(newEliminationStatus).forEach(key => {
-                    if (parseInt(key) >= stageIndex) {
-                        delete newEliminationStatus[key];
-                    }
+                    if (parseInt(key) >= stageIndex) delete newEliminationStatus[key];
                 });
 
-                // 3. 如果该选手参与了本阶段，则写入新快照
                 if (result) {
                     newRanks[stageIndex] = result.rank;
                     newEliminationStatus[stageIndex] = result.is_eliminated;
                 }
 
-                // 4. 返回包含全新副本的 fencer 对象
                 return {
-                    ...fencer,
+                    id: fencer.id, // 确保只返回核心属性
                     ranks: newRanks,
                     elimination_status: newEliminationStatus,
                 };
@@ -804,13 +797,25 @@ export const DataManager = {
 
         const sourceStageIndex = stageIndex - 1;
 
-        return event.live_ranking
-            // 筛选条件：在上一个阶段还未被淘汰
-            .filter((f: any) => f.elimination_status[sourceStageIndex] === false)
-            .map((f: any) => ({
-                ...f,
-                current_rank: f.ranks[sourceStageIndex], // 附加“当前排名”用于本阶段计算
-            }))
-            .sort((a: any, b: any) => a.current_rank - b.current_rank);
+        // 1. 筛选出“脱水”的、符合条件的选手状态对象
+        const relevantFencerStates = event.live_ranking
+            .filter((f: any) => f.elimination_status[sourceStageIndex] === false);
+
+        // 2. 【核心：注水】并行地为每个状态对象补充完整的选手详情
+        const hydratedFencers = await Promise.all(
+            relevantFencerStates.map(async (state: any) => {
+                const details = await this.getFencerById(state.id);
+                // 合并详情和状态，并附加 current_rank
+                return {
+                    ...details, // { id, last_name, first_name, ... }
+                    ranks: state.ranks,
+                    elimination_status: state.elimination_status,
+                    current_rank: state.ranks[sourceStageIndex],
+                };
+            })
+        );
+
+        // 3. 排序并返回【完整的】选手对象列表
+        return hydratedFencers.sort((a: any, b: any) => a.current_rank - b.current_rank);
     },
 };

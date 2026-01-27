@@ -36,11 +36,12 @@
 </template>
 
 <script setup lang="ts">
-import {ref, onMounted} from 'vue'
+import {ref, watch} from 'vue' // 引入 watch，不再需要 onMounted
 import {ElMessage} from 'element-plus'
+import {DataManager} from '@/services/DataManager' // 引入 DataManager
 import type {Stage} from '@/types';
 
-// 接收父组件传递的 eventInfo
+// Props 保持不变
 const props = defineProps<{
   eventId: string,
   eventInfo: any
@@ -49,55 +50,51 @@ const props = defineProps<{
 const finalResults = ref<any[]>([])
 const loading = ref(false)
 
-const calculateFinalRanking = () => {
-  if (!props.eventInfo || !props.eventInfo.live_ranking) {
-    ElMessage.warning("没有找到有效的排名记录");
-    return;
-  }
+const calculateFinalRanking = async (eventData: any) => {
   loading.value = true;
-
   try {
-    const stages: Stage[] = props.eventInfo.rules?.stages || [];
-    const liveRanking = props.eventInfo.live_ranking;
+    const stages: Stage[] = eventData.rules?.stages || [];
+    const dehydratedRanking = eventData.live_ranking;
 
-    // 1. 【读取配置】确定季军赛规则
+    // 1. 【注水】
+    const liveRanking = await Promise.all(
+        dehydratedRanking.map(async (state: any) => {
+          const details = await DataManager.getFencerById(state.id);
+          return {...details, ...state};
+        })
+    );
+
+    // 2. 【读取配置】
     const lastStage = stages.length > 0 ? stages[stages.length - 1] : null;
     const hasBronzeMedalMatch = lastStage?.type === 'de' && lastStage.config?.final_stage === 'bronze_medal';
 
-    // 2.【“富集”逻辑】
+    // 3. 【健壮地获取小组赛阶段索引】
+    const poolStageIndex = stages.findIndex(s => s.type === 'pool') + 1;
+    const hasPoolStage = poolStageIndex > 0;
+
+    // 4.【“富集”逻辑】
     const enrichedFencers = liveRanking.map((fencer: any) => {
       const stageKeys = Object.keys(fencer.ranks).map(Number);
       const finalStageIndex = Math.max(...stageKeys, 0);
       const finalRankInStage = fencer.ranks[finalStageIndex] ?? 999;
-      const poolRank = fencer.ranks[stages.findIndex(s => s.type === 'pool') + 1] || 999;
-
-      return {
-        ...fencer,
-        finalStageIndex,
-        finalRankInStage,
-        poolRank,
-      };
+      const poolRank = hasPoolStage ? (fencer.ranks[poolStageIndex] || 999) : 999;
+      return {...fencer, finalStageIndex, finalRankInStage, poolRank};
     });
 
-    // 3.【排序逻辑】(保持不变)
+    // 5.【排序逻辑】
     enrichedFencers.sort((a: any, b: any) => {
       if (a.finalStageIndex !== b.finalStageIndex) return b.finalStageIndex - a.finalStageIndex;
       if (a.finalRankInStage !== b.finalRankInStage) return a.finalRankInStage - b.finalRankInStage;
       return a.poolRank - b.poolRank;
     });
 
-    // 4.【智能排名分配】(核心改造)
+    // 6.【智能排名分配】
     finalResults.value = enrichedFencers.map((fencer, index) => {
       let displayRank = index + 1;
-      // 如果没有季军赛 (即并列第三)，并且当前正在处理第四名 (index === 3)
       if (!hasBronzeMedalMatch && index === 3) {
-        // 强制将其名次设为 3
         displayRank = 3;
       }
-      return {
-        ...fencer,
-        displayRank: displayRank
-      };
+      return {...fencer, displayRank: displayRank};
     });
 
   } catch (e) {
@@ -123,9 +120,16 @@ const publishResult = () => {
   ElMessage.info('发布功能开发中...')
 }
 
-onMounted(() => {
-  calculateFinalRanking();
-})
+watch(() => props.eventInfo, (newEventInfo) => {
+  // 当 eventInfo 变化时，检查它是否包含了我们需要的数据
+  if (newEventInfo && newEventInfo.live_ranking && newEventInfo.live_ranking.length > 0) {
+    // 如果数据有效，则触发计算
+    calculateFinalRanking(newEventInfo);
+  }
+}, {
+  deep: true,      // 深度监视，确保对象内部变化也能被捕获
+  immediate: true  // 立即执行一次，处理数据已经存在的情况
+});
 </script>
 
 <style scoped lang="scss">
