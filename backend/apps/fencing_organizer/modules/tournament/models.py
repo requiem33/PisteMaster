@@ -8,6 +8,14 @@ from backend.apps.fencing_organizer.modules.tournament_status.models import Djan
 class DjangoTournament(models.Model):
     """赛事 Django ORM 模型"""
 
+    class Status(models.TextChoices):
+        PLANNING = 'PLANNING', '计划中'
+        REGISTRATION_OPEN = 'REGISTRATION_OPEN', '报名开放'
+        REGISTRATION_CLOSED = 'REGISTRATION_CLOSED', '报名关闭'
+        ONGOING = 'ONGOING', '进行中'
+        COMPLETED = 'COMPLETED', '已完成'
+        CANCELLED = 'CANCELLED', '已取消'
+
     # PK - UUID
     id = models.UUIDField(primary_key=True, default=uuid4, editable=False)
 
@@ -22,11 +30,10 @@ class DjangoTournament(models.Model):
     end_date = models.DateField(verbose_name="结束日期")
 
     # 外键字段
-    status = models.ForeignKey(
-        DjangoTournamentStatus,
-        on_delete=models.PROTECT,  # 保护模式，防止删除正在使用的状态
-        db_column='status_id',
-        related_name='tournaments',
+    status = models.CharField(
+        max_length=20,
+        choices=Status.choices,
+        default=Status.PLANNING,  # 👈 默认状态为“计划中”
         verbose_name="赛事状态"
     )
 

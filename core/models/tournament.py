@@ -16,7 +16,13 @@ class Tournament:
     tournament_name: str = field(metadata={"max_length": 200, "description": "赛事名称"})
     start_date: date = field(metadata={"description": "开始日期"})
     end_date: date = field(metadata={"description": "结束日期"})
-    status_id: UUID = field(metadata={"foreign_key": "Tournament_Status", "description": "赛事状态"})
+    status: str = field(
+        default='PLANNING',
+        metadata={
+            "choices": ['PLANNING', 'REGISTRATION_OPEN', 'REGISTRATION_CLOSED', 'ONGOING', 'COMPLETED', 'CANCELLED'],
+            "description": "赛事状态"
+        }
+    )
 
     # -----------------------------------------------------------
     # 有默认值的字段 (Optional / Keyword-Only Arguments)

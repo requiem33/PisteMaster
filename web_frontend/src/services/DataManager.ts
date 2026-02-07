@@ -1,35 +1,49 @@
 import {IndexedDBService} from './storage/IndexedDBService';
+import {ElMessage} from 'element-plus';
 import {v4 as uuidv4} from 'uuid'; // npm install uuid
+import type {Tournament} from '@/types/tournament.ts';
+
+const API_BASE_URL = 'http://127.0.0.1:8000/api';
 
 export const DataManager = {
-    async createTournament(formData: any) {
-        const newTournament = {
-            id: uuidv4(),
-            tournament_name: formData.tournament_name,
-            organizer: formData.organizer,
-            location: formData.location,
-            start_date: formData.date_range?.[0] || '',
-            end_date: formData.date_range?.[1] || '',
-            status: 'active',
-            is_synced: false,
-            updated_at: Date.now(),
-        };
-
-        // 1. 强制写入本地 IndexedDB (保证离线可用)
-        await IndexedDBService.saveTournament(newTournament);
-
-        // 2. 尝试在线同步 (此处留出接口，后面接 ApiService)
+    async createTournament(formData: any): Promise<any | null> {
         try {
-            if (navigator.onLine) {
-                // await ApiService.post('/tournaments', newTournament);
-                // newTournament.is_synced = true;
-                // await IndexedDBService.saveTournament(newTournament);
-            }
-        } catch (e) {
-            console.warn('在线同步失败，数据已保存至本地');
-        }
+            // 【核心改造】在这里重塑数据
+            const payload = {
+                tournament_name: formData.tournament_name,
+                organizer: formData.organizer,
+                location: formData.location,
+                start_date: formData.date_range ? formData.date_range[0] : null,
+                end_date: formData.date_range ? formData.date_range[1] : null,
+            };
 
-        return newTournament;
+            const response = await fetch(`${API_BASE_URL}/tournaments/`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                // 发送重塑后的 payload
+                body: JSON.stringify(payload),
+            });
+
+            if (!response.ok) {
+                const errorData = await response.json();
+                // 现在的错误信息会非常具体，比如 "end_date: ['结束日期不能早于开始日期']"
+                const errorMessage = Object.values(errorData).flat().join(' ');
+                ElMessage.error(`创建失败: ${errorMessage}`);
+                console.error("后端验证错误:", errorData);
+                return null;
+            }
+
+            const newTournament = await response.json();
+            ElMessage.success('赛事已成功创建！');
+            return newTournament;
+
+        } catch (error) {
+            console.error('网络或请求错误:', error);
+            ElMessage.error('无法连接到后端服务。');
+            return null;
+        }
     },
 
     async getTournamentList(): Promise<any[]> { // 明确指定返回 Promise<any[]>

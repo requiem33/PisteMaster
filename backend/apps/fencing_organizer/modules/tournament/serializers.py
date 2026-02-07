@@ -10,8 +10,6 @@ class TournamentSerializer(serializers.ModelSerializer):
     # 自定义字段
     status_display = serializers.CharField(source='status.display_name', read_only=True)
     status_code = serializers.CharField(source='status.status_code', read_only=True)
-    duration_days = serializers.IntegerField(read_only=True)
-    is_active = serializers.BooleanField(read_only=True)
 
     class Meta:
         model = DjangoTournament
@@ -22,15 +20,13 @@ class TournamentSerializer(serializers.ModelSerializer):
             'location',
             'start_date',
             'end_date',
-            'status',  # 外键ID
-            'status_display',  # 显示名称
-            'status_code',  # 状态代码
-            'duration_days',
-            'is_active',
+            'status',
+            'status_display',
+            'status_code',
             'created_at',
-            'updated_at'
+            'updated_at',
         ]
-        read_only_fields = ['id', 'created_at', 'updated_at']
+        read_only_fields = ['id', 'created_at', 'updated_at', 'status_display']
 
     def validate_tournament_name(self, value):
         """验证赛事名称"""
@@ -91,31 +87,21 @@ class TournamentSerializer(serializers.ModelSerializer):
         return representation
 
 
-class TournamentCreateSerializer(TournamentSerializer):
-    """赛事创建序列化器（可以有不同的验证规则）"""
+class TournamentCreateSerializer(serializers.ModelSerializer):
+    """赛事创建序列化器"""
 
-    class Meta(TournamentSerializer.Meta):
-        pass
+    # 【核心修改】我们让前端直接传入 status_id
+    class Meta:
+        model = DjangoTournament
+        fields = [
+            'tournament_name',
+            'organizer',
+            'location',
+            'start_date',
+            'end_date',
+        ]
 
-    def validate_status(self, value):
-        """创建时验证状态"""
-        # 创建时只允许特定的初始状态
-        allowed_initial_statuses = ['PLANNING', 'REGISTRATION_OPEN']
-        if value.status_code not in allowed_initial_statuses:
-            raise serializers.ValidationError(
-                f"创建赛事时状态必须是: {', '.join(allowed_initial_statuses)}"
-            )
-        return value
-
-
-class TournamentStatusUpdateSerializer(serializers.Serializer):
-    """赛事状态更新序列化器"""
-    status_id = serializers.UUIDField(required=True)
-
-    def validate_status_id(self, value):
-        """验证状态ID"""
-        try:
-            status = DjangoTournamentStatus.objects.get(pk=value)
-            return value
-        except DjangoTournamentStatus.DoesNotExist:
-            raise serializers.ValidationError("指定的状态不存在")
+    def validate(self, data):
+        if data['end_date'] < data['start_date']:
+            raise serializers.ValidationError({"end_date": "结束日期不能早于开始日期"})
+        return data

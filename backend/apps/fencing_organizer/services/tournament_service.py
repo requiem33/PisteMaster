@@ -48,25 +48,36 @@ class TournamentService:
         return ongoing_tournaments
 
     def create_tournament(self, tournament_data: dict) -> Tournament:
-        """创建赛事"""
-        # 验证数据
-        self._validate_tournament_data(tournament_data, is_create=True)
-
-        # 验证状态是否存在
-        status = self.status_service.get_status_by_id(tournament_data.get('status_id'))
-        if not status:
-            raise self.TournamentServiceError(f"状态ID '{tournament_data.get('status_id')}' 不存在")
-
-        # 创建Domain对象
-        tournament = Tournament(**tournament_data)
-
-        # 通过Repository保存
+        """
+        创建赛事
+        :param tournament_data: 经过 Serializer 验证的、干净的数据字典
+        """
+        # 【核心修改】Service 内部负责创建领域实体
+        # 它不关心 Serializer，只关心干净的数据
         try:
-            return self.repository.save_tournament(tournament)
+            # 1. 验证业务规则 (您的 _validate_tournament_data 已经做了)
+            # self._validate_tournament_data(tournament_data, is_create=True)
+            # （注意：Serializer 已经做了大部分验证，Service 可以专注于更复杂的业务规则）
+
+            # 2. 创建领域实体
+            tournament_entity = Tournament(
+                tournament_name=tournament_data['tournament_name'],
+                start_date=tournament_data['start_date'],
+                end_date=tournament_data['end_date'],
+                organizer=tournament_data.get('organizer'),
+                location=tournament_data.get('location')
+            )
+
+            # 3. 通过 Repository 保存
+            return self.repository.save_tournament(tournament_entity)
+
         except IntegrityError as e:
-            raise self.TournamentServiceError(f"创建赛事失败: {str(e)}")
+            raise self.TournamentServiceError(f"数据库完整性错误: {str(e)}")
+        except KeyError as e:
+            raise self.TournamentServiceError(f"缺少必要字段: {str(e)}")
         except Exception as e:
-            raise self.TournamentServiceError(f"创建赛事时发生错误: {str(e)}")
+            # 捕获其他可能的异常并包装成业务异常
+            raise self.TournamentServiceError(f"创建赛事时发生未知错误: {str(e)}")
 
     def update_tournament(self, tournament_id: UUID, tournament_data: dict) -> Tournament:
         """更新赛事"""

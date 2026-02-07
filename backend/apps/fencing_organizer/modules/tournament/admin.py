@@ -14,9 +14,8 @@ class TournamentAdmin(admin.ModelAdmin):
         'location',
         'start_date',
         'end_date',
-        'status_display',
+        'status',
         'duration_days_display',
-        'is_active_display',
         'created_at'
     )
 
@@ -53,29 +52,11 @@ class TournamentAdmin(admin.ModelAdmin):
 
     readonly_fields = ('id', 'created_at', 'updated_at', 'duration_days_display')
 
-    autocomplete_fields = ['status']
-
-    def status_display(self, obj):
-        """状态显示"""
-        if obj.status:
-            return obj.status.display_name or obj.status.status_code
-        return "-"
-
-    status_display.short_description = "状态"
-
     def duration_days_display(self, obj):
         """持续时间显示"""
         return f"{obj.duration_days} 天"
 
     duration_days_display.short_description = "持续天数"
-
-    def is_active_display(self, obj):
-        """活跃状态显示"""
-        if obj.is_active:
-            return format_html('<span style="color: green;">● 活跃</span>')
-        return format_html('<span style="color: gray;">○ 非活跃</span>')
-
-    is_active_display.short_description = "活跃状态"
 
     def get_readonly_fields(self, request, obj=None):
         """编辑时保护某些字段"""
@@ -87,4 +68,4 @@ class TournamentAdmin(admin.ModelAdmin):
 
     def get_queryset(self, request):
         """优化查询集"""
-        return super().get_queryset(request).select_related('status')
+        return super().get_queryset(request)

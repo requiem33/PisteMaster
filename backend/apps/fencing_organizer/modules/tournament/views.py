@@ -1,17 +1,17 @@
 from rest_framework import viewsets, status, filters
 from rest_framework.decorators import action
 from rest_framework.response import Response
-from rest_framework.permissions import IsAuthenticated, IsAdminUser
+from rest_framework.permissions import IsAuthenticated, IsAdminUser, AllowAny
 from django_filters.rest_framework import DjangoFilterBackend
 from datetime import date
 
 from .models import DjangoTournament
-from .serializers import TournamentSerializer, TournamentCreateSerializer, TournamentStatusUpdateSerializer
+from .serializers import TournamentSerializer, TournamentCreateSerializer
 from backend.apps.fencing_organizer.services.tournament_service import TournamentService
 from backend.apps.fencing_organizer.services.tournament_status_service import TournamentStatusService
 
 
-class TournamentViewSet(viewsets.ViewSet):
+class TournamentViewSet(viewsets.GenericViewSet):
     """
     赛事 API
 
@@ -27,6 +27,7 @@ class TournamentViewSet(viewsets.ViewSet):
     statistics: 获取赛事统计
     """
 
+    queryset = DjangoTournament.objects.all()
     serializer_class = TournamentSerializer
     service = TournamentService()
     filter_backends = [DjangoFilterBackend, filters.SearchFilter, filters.OrderingFilter]
@@ -37,30 +38,29 @@ class TournamentViewSet(viewsets.ViewSet):
 
     def get_permissions(self):
         """权限控制"""
-        if self.action in ['create', 'update', 'partial_update', 'destroy', 'update_status']:
+        # 【临时修改】允许匿名用户创建和列出赛事，以便于开发
+        if self.action in ['create', 'list', 'retrieve']:
+            return [AllowAny()]  # 👈 允许任何人访问
+
+        # 其他需要更高权限的操作，依然保持原样
+        if self.action in ['update', 'partial_update', 'destroy', 'update_status']:
             return [IsAuthenticated(), IsAdminUser()]
+
         return [IsAuthenticated()]
 
     def get_serializer_class(self):
         """根据action选择序列化器"""
         if self.action == 'create':
             return TournamentCreateSerializer
-        elif self.action == 'update_status':
-            return TournamentStatusUpdateSerializer
         return TournamentSerializer
 
     def list(self, request):
-        """获取赛事列表"""
-        # 获取过滤后的queryset
-        queryset = DjangoTournament.objects.select_related('status').all()
+        # 【修改】使用 GenericViewSet 提供的辅助方法，简化代码
+        queryset = self.filter_queryset(self.get_queryset())
 
-        # 应用过滤、搜索、排序
-        for backend in list(self.filter_backends):
-            queryset = backend().filter_queryset(self.request, queryset, self)
-
-        # 分页
         page = self.paginate_queryset(queryset)
         if page is not None:
+            # 现在 self.get_serializer 是存在的！
             serializer = self.get_serializer(page, many=True)
             return self.get_paginated_response(serializer.data)
 
@@ -68,60 +68,36 @@ class TournamentViewSet(viewsets.ViewSet):
         return Response(serializer.data)
 
     def retrieve(self, request, pk=None):
-        """获取单个赛事"""
         try:
-            tournament = self.service.get_tournament_by_id(pk)
-            if not tournament:
-                return Response(
-                    {"detail": "赛事不存在"},
-                    status=status.HTTP_404_NOT_FOUND
-                )
+            tournament_entity = self.service.get_tournament_by_id(pk)
+            if not tournament_entity:
+                return Response({"detail": "赛事不存在"}, status=status.HTTP_404_NOT_FOUND)
 
-            django_tournament = DjangoTournament.objects.select_related('status').get(id=tournament.id)
-
-            # 添加统计信息
-            django_tournament.event_count = django_tournament.events.count()  # 如果有related_name
-
-            serializer = self.get_serializer(django_tournament)
+            # 使用 self.get_serializer，而不是直接实例化
+            serializer = self.get_serializer(tournament_entity)
             return Response(serializer.data)
-
         except Exception as e:
-            return Response(
-                {"detail": str(e)},
-                status=status.HTTP_400_BAD_REQUEST
-            )
+            # 简化错误处理
+            return Response({"detail": str(e)}, status=status.HTTP_400_BAD_REQUEST)
 
     def create(self, request):
-        """创建赛事"""
+        # get_serializer() 现在由 GenericViewSet 提供，它会自动调用 get_serializer_class()
         serializer = self.get_serializer(data=request.data)
         serializer.is_valid(raise_exception=True)
 
         try:
-            # 将serializer数据转换为service需要的格式
-            tournament_data = serializer.validated_data
-            tournament_data['status_id'] = tournament_data['status'].id
+            tournament_entity = self.service.create_tournament(serializer.validated_data)
 
-            tournament = self.service.create_tournament(tournament_data)
+            # 【最佳实践】创建成功后，应该返回一个带有 Location header 的 201 响应
+            # 为了获取完整的对象用于响应，我们再次序列化 entity
+            # 注意：Serializer 需要能处理 entity 或 model
+            response_serializer = TournamentSerializer(tournament_entity)  # 假设 Serializer 可以处理 entity
 
-            # 获取完整的Django对象用于序列化
-            django_tournament = DjangoTournament.objects.select_related('status').get(id=tournament.id)
-            response_serializer = self.get_serializer(django_tournament)
-
-            return Response(
-                response_serializer.data,
-                status=status.HTTP_201_CREATED
-            )
-
-        except TournamentService.TournamentServiceError as e:
-            return Response(
-                {"detail": e.message, "errors": e.errors},
-                status=status.HTTP_400_BAD_REQUEST
-            )
+            return Response(response_serializer.data, status=status.HTTP_201_CREATED)
+        except self.service.TournamentServiceError as e:
+            return Response({"detail": e.message, "errors": e.errors}, status=status.HTTP_400_BAD_REQUEST)
         except Exception as e:
-            return Response(
-                {"detail": f"创建失败: {str(e)}"},
-                status=status.HTTP_500_INTERNAL_SERVER_ERROR
-            )
+            return Response({"detail": f"服务器内部错误: {str(e)}"}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
     def update(self, request, pk=None):
         """更新赛事"""

@@ -13,7 +13,7 @@ class TournamentMapper:
             tournament_name=django_tournament.tournament_name,
             start_date=django_tournament.start_date,
             end_date=django_tournament.end_date,
-            status_id=django_tournament.status.id,
+            status=django_tournament.status,
             organizer=django_tournament.organizer,
             location=django_tournament.location,
             created_at=django_tournament.created_at,
@@ -28,7 +28,7 @@ class TournamentMapper:
             "tournament_name": tournament.tournament_name,
             "start_date": tournament.start_date,
             "end_date": tournament.end_date,
-            "status_id": tournament.status_id,
+            "status": tournament.status,
             "organizer": tournament.organizer,
             "location": tournament.location
             # 注意：created_at和updated_at不包含在这里，让Django自动处理
