@@ -117,3 +117,58 @@ class EventViewSet(viewsets.GenericViewSet):
             return Response(serializer.data)
         except self.service.EventServiceError as e:
             return Response({"detail": e.message}, status=status.HTTP_400_BAD_REQUEST)
+
+    @action(detail=True, methods=['get'], url_path='participants')
+    def get_participants(self, request, pk=None):
+        """获取项目参与者列表"""
+        event = self.get_object()
+        
+        from backend.apps.fencing_organizer.modules.event_participant.serializers import EventParticipantSerializer
+        from backend.apps.fencing_organizer.modules.event_participant.models import DjangoEventParticipant
+
+        # 查询该项目下的所有关联名单，联表查询 fencer 信息
+        django_participants = DjangoEventParticipant.objects.filter(event=event).select_related('fencer')
+        serializer = EventParticipantSerializer(django_participants, many=True)
+
+        return Response({
+            "event_id": str(event.id),
+            "event_name": event.event_name,
+            "participant_count": django_participants.count(),
+            "participants": serializer.data
+        })
+
+    @action(detail=True, methods=['put'], url_path='participants/sync')
+    def sync_participants(self, request, pk=None):
+        """覆盖式同步项目参赛名单"""
+        event = self.get_object()
+        fencer_ids = request.data.get('fencer_ids')
+        
+        if not isinstance(fencer_ids, list):
+            return Response({"detail": "fencer_ids must be a list"}, status=status.HTTP_400_BAD_REQUEST)
+            
+        from backend.apps.fencing_organizer.modules.event_participant.models import DjangoEventParticipant
+        from backend.apps.fencing_organizer.modules.fencer.models import DjangoFencer
+        from django.db import transaction
+        
+        try:
+            with transaction.atomic():
+                # 删除原有所有名单
+                DjangoEventParticipant.objects.filter(event=event).delete()
+                
+                # 过滤出真实存在的运动员
+                valid_fencers = DjangoFencer.objects.filter(id__in=fencer_ids)
+                valid_fencer_ids = [f.id for f in valid_fencers]
+                
+                # 批量创建新名单
+                new_participants = [
+                    DjangoEventParticipant(event=event, fencer_id=f_id)
+                    for f_id in valid_fencer_ids
+                ]
+                DjangoEventParticipant.objects.bulk_create(new_participants)
+                
+            return Response({
+                "message": f"成功同步了 {len(valid_fencer_ids)} 名参赛者",
+                "synced_count": len(valid_fencer_ids)
+            })
+        except Exception as e:
+            return Response({"detail": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)

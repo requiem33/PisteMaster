@@ -68,7 +68,7 @@ class FencerViewSet(viewsets.ModelViewSet):
 
     def get_permissions(self):
         """根据不同动作设置权限"""
-        if self.action in ['list', 'retrieve', 'search']:
+        if self.action in ['list', 'retrieve', 'search', 'bulk_save']:
             return [AllowAny()]  # 允许匿名用户查看
         return super().get_permissions()
 
@@ -131,6 +131,50 @@ class FencerViewSet(viewsets.ModelViewSet):
                 {"detail": e.message, "errors": e.errors},
                 status=status.HTTP_400_BAD_REQUEST
             )
+
+    @action(detail=False, methods=['post'], url_path='bulk-save')
+    def bulk_save(self, request):
+        """批量保存/更新运动员信息"""
+        fencers_data = request.data
+        if not isinstance(fencers_data, list):
+            return Response({"detail": "Expected a list of fencers"}, status=status.HTTP_400_BAD_REQUEST)
+        
+        fencer_service = FencerService()
+        saved_fencers = []
+        errors = []
+
+        # 获取已存在的 fencer_id 列表，以便判断更新或创建
+        for fencer_data in fencers_data:
+            try:
+                # Assuming frontend provides `id` if it already exists in their local DB,
+                # or `fencing_id` as business key.
+                fencer_id = fencer_data.get('id')
+                fencing_id = fencer_data.get('fencing_id')
+
+                existing_fencer = None
+                if fencer_id:
+                    existing_fencer = fencer_service.get_fencer_by_id(fencer_id)
+                elif fencing_id:
+                    # In a real app we might query by fencing_id here
+                    pass
+
+                if existing_fencer:
+                    fencer = fencer_service.update_fencer(existing_fencer.id, fencer_data)
+                else:
+                    fencer = fencer_service.create_fencer(fencer_data)
+                
+                saved_fencers.append(fencer)
+            except Exception as e:
+                errors.append({"data": fencer_data, "error": str(e)})
+
+        django_fencers = DjangoFencer.objects.filter(id__in=[f.id for f in saved_fencers])
+        output_serializer = FencerSerializer(django_fencers, many=True)
+        return Response({
+            "saved_count": len(saved_fencers),
+            "error_count": len(errors),
+            "errors": errors,
+            "results": output_serializer.data
+        })
 
     @action(detail=False, methods=['post'], url_path='search')
     def search(self, request):
