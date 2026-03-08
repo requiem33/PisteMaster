@@ -4,12 +4,16 @@ from uuid import uuid4
 
 from backend.apps.fencing_organizer.modules.tournament.models import DjangoTournament
 from backend.apps.fencing_organizer.modules.rule.models import DjangoRule
-from backend.apps.fencing_organizer.modules.event_type.models import DjangoEventType
-from backend.apps.fencing_organizer.modules.event_status.models import DjangoEventStatus
 
 
 class DjangoEvent(models.Model):
     """比赛项目 Django ORM 模型"""
+
+    class Status(models.TextChoices):
+        REGISTRATION = 'REGISTRATION', '正在报名'
+        ONGOING = 'ONGOING', '进行中'
+        COMPLETED = 'COMPLETED', '已完成'
+        CANCELLED = 'CANCELLED', '已取消'
 
     # PK - UUID
     id = models.UUIDField(primary_key=True, default=uuid4, editable=False)
@@ -28,23 +32,40 @@ class DjangoEvent(models.Model):
         on_delete=models.PROTECT,
         db_column='rule_id',
         related_name='events',
-        verbose_name="赛制规则"
+        verbose_name="赛制规则",
+        null=True,
+        blank=True
     )
 
-    event_type = models.ForeignKey(
-        DjangoEventType,
-        on_delete=models.PROTECT,
-        db_column='event_type_id',
-        related_name='events',
-        verbose_name="项目类型"
+    event_type = models.CharField(
+        max_length=50,
+        verbose_name="项目类型(如MEN_INDIVIDUAL_FOIL)",
+        default="",
+        blank=True
     )
 
-    status = models.ForeignKey(
-        DjangoEventStatus,
-        on_delete=models.PROTECT,
-        db_column='status_id',
-        related_name='events',
+    status = models.CharField(
+        max_length=20,
+        choices=Status.choices,
+        default=Status.REGISTRATION,
         verbose_name="项目状态"
+    )
+
+    current_step = models.IntegerField(
+        default=0,
+        verbose_name="当前编排步骤进度"
+    )
+
+    live_ranking = models.JSONField(
+        default=list,
+        blank=True,
+        verbose_name="实时排名快照(JSON)"
+    )
+
+    de_trees = models.JSONField(
+        default=dict,
+        blank=True,
+        verbose_name="各阶段淘汰赛对阵图(JSON)"
     )
 
     # 必填字段
@@ -78,62 +99,31 @@ class DjangoEvent(models.Model):
         indexes = [
             models.Index(fields=['tournament'], name='idx_event_tournament'),
             models.Index(fields=['status'], name='idx_event_status'),
-            models.Index(fields=['event_type'], name='idx_event_type'),
             models.Index(fields=['start_time'], name='idx_event_start_time'),
-            models.Index(fields=['is_team_event'], name='idx_event_is_team'),
         ]
 
     def __str__(self):
         return f"{self.event_name} ({self.tournament.tournament_name})"
 
-    def save(self, *args, **kwargs):
-        """保存前自动设置是否为团体赛"""
-        if self.event_type:
-            self.is_team_event = self.event_type.is_team
-        super().save(*args, **kwargs)
-
-    @property
-    def weapon_type(self) -> str:
-        """获取剑种"""
-        return self.event_type.weapon_type if self.event_type else None
-
-    @property
-    def gender(self) -> str:
-        """获取性别"""
-        return self.event_type.gender if self.event_type else None
-
-    @property
-    def is_individual(self) -> bool:
-        """是否为个人赛"""
-        return not self.is_team_event
-
     @property
     def is_completed(self) -> bool:
         """是否已完成"""
-        return self.status.status_code == "COMPLETED" if self.status else False
+        return self.status == "COMPLETED"
 
     @property
     def is_active(self) -> bool:
         """是否活跃（未完成）"""
-        return not self.is_completed if self.status else False
+        return not self.is_completed
 
     @property
     def participant_count(self) -> int:
         """参与者数量"""
         return 10
-        # if self.is_team_event:
-        #     from ..team.models import DjangoTeam
-        #     return DjangoTeam.objects.filter(event=self).count()
-        # else:
-        #     from ..event_seed.models import DjangoEventSeed
-        #     return DjangoEventSeed.objects.filter(event=self).count()
+        # 如果需要实际统计，可查询关联表
 
     @property
     def qualified_count(self) -> int:
         """晋级人数（根据规则）"""
-        if self.is_team_event:
-            # 团体赛晋级人数通常是固定数量或根据参赛队伍数量
-            return min(self.participant_count, self.rule.total_qualified_count)
-        else:
-            # 个人赛使用规则中的总晋级人数
+        if self.rule:
             return self.rule.total_qualified_count
+        return 0

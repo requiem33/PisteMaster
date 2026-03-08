@@ -1,37 +1,34 @@
 from dataclasses import dataclass, field
 from uuid import UUID, uuid4
 from datetime import datetime
-from typing import Optional
+from typing import Optional, Dict, Any
 
 
 @dataclass
 class Event:
     """
     1.2. Event（比赛项目）
-    定义了一个赛事中的具体比赛项目（如：男子个人花剑、女子团体佩剑）。
     """
     # -----------------------------------------------------------
-    # 必填字段 (Required / Positional Arguments)
+    # 必填字段
     # -----------------------------------------------------------
-    # FKs - 这些外键在创建项目时通常是必须确定的
     tournament_id: UUID = field(metadata={"foreign_key": "Tournament", "description": "所属赛事"})
-    rule_id: UUID = field(metadata={"foreign_key": "Rule", "description": "赛制规则"})
-    event_type_id: UUID = field(metadata={"foreign_key": "Event_Type", "description": "项目类型"})
-    status_id: UUID = field(metadata={"foreign_key": "Event_Status", "description": "项目状态"})
-
-    # NOT NULL 约束字段
     event_name: str = field(metadata={"max_length": 200, "description": "项目名称（如'男子个人佩剑'）"})
-    is_team_event: bool = field(metadata={"description": "是否为团体赛"})
 
     # -----------------------------------------------------------
-    # 有默认值的字段 (Optional / Keyword-Only Arguments)
+    # 有默认值的字段
     # -----------------------------------------------------------
-    # 主键
     id: UUID = field(default_factory=uuid4, metadata={"description": "主键，全局唯一标识"})
+    
+    rule_id: Optional[UUID] = field(default=None, metadata={"foreign_key": "Rule", "description": "赛制规则"})
+    event_type: str = field(default='', metadata={"description": "项目类型(如 MEN_INDIVIDUAL_FOIL)"})
+    status: str = field(default='REGISTRATION', metadata={"description": "项目状态"})
+    is_team_event: bool = field(default=False, metadata={"description": "是否为团体赛"})
+    current_step: int = field(default=0, metadata={"description": "当前编排步骤进度"})
+    
+    live_ranking: list = field(default_factory=list, metadata={"description": "实时排名快照(JSON)"})
+    de_trees: Dict[str, Any] = field(default_factory=dict, metadata={"description": "各阶段淘汰赛对阵图(JSON)"})
 
-    # 可选/时间戳字段
     start_time: Optional[datetime] = field(default=None, metadata={"description": "项目计划开始时间"})
-    created_at: datetime = field(default_factory=datetime.now,
-                                 metadata={"description": "创建时间", "db_default": "NOW()"})
-    updated_at: datetime = field(default_factory=datetime.now,
-                                 metadata={"description": "更新时间", "db_default": "NOW()"})
+    created_at: datetime = field(default_factory=datetime.now)
+    updated_at: datetime = field(default_factory=datetime.now)

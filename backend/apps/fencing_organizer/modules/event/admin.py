@@ -11,8 +11,8 @@ class EventAdmin(admin.ModelAdmin):
     list_display = (
         'event_name',
         'tournament_link',
-        'event_type_display',
-        'status_display',
+        'event_type',
+        'status',
         'start_time',
         'participant_count_display',
         'is_active_display',
@@ -43,6 +43,9 @@ class EventAdmin(admin.ModelAdmin):
         ('赛制设置', {
             'fields': ('rule', 'status')
         }),
+        ('状态记录', {
+            'fields': ('current_step', 'live_ranking', 'de_trees')
+        }),
         ('时间安排', {
             'fields': ('start_time',)
         }),
@@ -54,7 +57,7 @@ class EventAdmin(admin.ModelAdmin):
 
     readonly_fields = ('id', 'created_at', 'updated_at', 'is_team_event')
 
-    autocomplete_fields = ['tournament', 'rule', 'event_type', 'status']
+    autocomplete_fields = ['tournament', 'rule']
 
     def tournament_link(self, obj):
         """赛事链接"""
@@ -64,22 +67,6 @@ class EventAdmin(admin.ModelAdmin):
         return "-"
 
     tournament_link.short_description = "赛事"
-
-    def event_type_display(self, obj):
-        """项目类型显示"""
-        if obj.event_type:
-            return obj.event_type.display_name
-        return "-"
-
-    event_type_display.short_description = "项目类型"
-
-    def status_display(self, obj):
-        """状态显示"""
-        if obj.status:
-            return obj.status.display_name or obj.status.status_code
-        return "-"
-
-    status_display.short_description = "状态"
 
     def participant_count_display(self, obj):
         """参与者数量显示"""
@@ -98,5 +85,5 @@ class EventAdmin(admin.ModelAdmin):
     def get_queryset(self, request):
         """优化查询集"""
         return super().get_queryset(request).select_related(
-            'tournament', 'rule', 'event_type', 'status'
+            'tournament', 'rule'
         )
