@@ -5,7 +5,6 @@ from django.db import IntegrityError, transaction
 
 from core.models.tournament import Tournament
 from backend.apps.fencing_organizer.repositories.tournament_repo import DjangoTournamentRepository
-from backend.apps.fencing_organizer.services.tournament_status_service import TournamentStatusService
 
 
 class TournamentService:
@@ -13,7 +12,6 @@ class TournamentService:
 
     def __init__(self, repository: Optional[DjangoTournamentRepository] = None):
         self.repository = repository or DjangoTournamentRepository()
-        self.status_service = TournamentStatusService()
 
     def get_tournament_by_id(self, tournament_id: UUID) -> Optional[Tournament]:
         """根据ID获取赛事"""
@@ -38,34 +36,22 @@ class TournamentService:
         tournaments = self.repository.get_tournaments_by_date_range(today, today)
 
         # 进一步过滤状态为ONGOING的赛事
-        ongoing_tournaments = []
-        for tournament in tournaments:
-            # 这里需要检查状态，但由于我们只有status_id，需要获取状态服务
-            status = self.status_service.get_status_by_id(tournament.status_id)
-            if status and status.status_code == "ONGOING":
-                ongoing_tournaments.append(tournament)
-
-        return ongoing_tournaments
+        return [t for t in tournaments if t.status == "ONGOING"]
 
     def create_tournament(self, tournament_data: dict) -> Tournament:
         """
         创建赛事
         :param tournament_data: 经过 Serializer 验证的、干净的数据字典
         """
-        # 【核心修改】Service 内部负责创建领域实体
-        # 它不关心 Serializer，只关心干净的数据
         try:
-            # 1. 验证业务规则 (您的 _validate_tournament_data 已经做了)
-            # self._validate_tournament_data(tournament_data, is_create=True)
-            # （注意：Serializer 已经做了大部分验证，Service 可以专注于更复杂的业务规则）
-
             # 2. 创建领域实体
             tournament_entity = Tournament(
                 tournament_name=tournament_data['tournament_name'],
                 start_date=tournament_data['start_date'],
                 end_date=tournament_data['end_date'],
                 organizer=tournament_data.get('organizer'),
-                location=tournament_data.get('location')
+                location=tournament_data.get('location'),
+                status=tournament_data.get('status', 'PLANNING')
             )
 
             # 3. 通过 Repository 保存
@@ -76,7 +62,6 @@ class TournamentService:
         except KeyError as e:
             raise self.TournamentServiceError(f"缺少必要字段: {str(e)}")
         except Exception as e:
-            # 捕获其他可能的异常并包装成业务异常
             raise self.TournamentServiceError(f"创建赛事时发生未知错误: {str(e)}")
 
     def update_tournament(self, tournament_id: UUID, tournament_data: dict) -> Tournament:
@@ -88,12 +73,6 @@ class TournamentService:
 
         # 验证数据
         self._validate_tournament_data(tournament_data, is_create=False)
-
-        # 如果更新状态，验证新状态是否存在
-        if 'status_id' in tournament_data:
-            status = self.status_service.get_status_by_id(tournament_data['status_id'])
-            if not status:
-                raise self.TournamentServiceError(f"状态ID '{tournament_data['status_id']}' 不存在")
 
         # 更新属性
         for key, value in tournament_data.items():
@@ -113,29 +92,8 @@ class TournamentService:
         if not tournament:
             return False
 
-        # 检查是否有关联的项目（Event）
-        # 这里需要Event服务，暂时跳过检查
-
         # 删除赛事
         return self.repository.delete_tournament(tournament_id)
-
-    def update_tournament_status(self, tournament_id: UUID, status_id: UUID) -> Tournament:
-        """更新赛事状态"""
-        # 检查赛事是否存在
-        tournament = self.repository.get_tournament_by_id(tournament_id)
-        if not tournament:
-            raise self.TournamentServiceError(f"赛事 {tournament_id} 不存在")
-
-        # 检查状态是否存在
-        status = self.status_service.get_status_by_id(status_id)
-        if not status:
-            raise self.TournamentServiceError(f"状态 {status_id} 不存在")
-
-        # 更新状态
-        tournament.status_id = status_id
-
-        # 保存更新
-        return self.repository.save_tournament(tournament)
 
     def search_tournaments(self, **filters) -> List[Tournament]:
         """搜索赛事"""
@@ -147,7 +105,7 @@ class TournamentService:
 
         # 必填字段检查
         if is_create:
-            required_fields = ['tournament_name', 'start_date', 'end_date', 'status_id']
+            required_fields = ['tournament_name', 'start_date', 'end_date']
             for field in required_fields:
                 if not data.get(field):
                     errors[field] = f"{field} 不能为空"

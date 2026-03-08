@@ -38,13 +38,9 @@ class TournamentViewSet(viewsets.GenericViewSet):
 
     def get_permissions(self):
         """权限控制"""
-        # 【临时修改】允许匿名用户创建和列出赛事，以便于开发
-        if self.action in ['create', 'list', 'retrieve']:
-            return [AllowAny()]  # 👈 允许任何人访问
-
-        # 其他需要更高权限的操作，依然保持原样
-        if self.action in ['update', 'partial_update', 'destroy', 'update_status']:
-            return [IsAuthenticated(), IsAdminUser()]
+        # 【临时修改】允许匿名用户进行所有的常规操作，以便于开发 MVP
+        if self.action in ['create', 'list', 'retrieve', 'update', 'partial_update', 'destroy']:
+            return [AllowAny()]
 
         return [IsAuthenticated()]
 
@@ -108,13 +104,11 @@ class TournamentViewSet(viewsets.GenericViewSet):
         try:
             # 将serializer数据转换为service需要的格式
             tournament_data = serializer.validated_data
-            if 'status' in tournament_data:
-                tournament_data['status_id'] = tournament_data['status'].id
 
             tournament = self.service.update_tournament(pk, tournament_data)
 
             # 获取更新后的Django对象
-            django_tournament = DjangoTournament.objects.select_related('status').get(id=tournament.id)
+            django_tournament = DjangoTournament.objects.get(id=tournament.id)
             response_serializer = self.get_serializer(django_tournament)
 
             return Response(response_serializer.data)
@@ -133,12 +127,10 @@ class TournamentViewSet(viewsets.GenericViewSet):
 
         try:
             tournament_data = serializer.validated_data
-            if 'status' in tournament_data:
-                tournament_data['status_id'] = tournament_data['status'].id
 
             tournament = self.service.update_tournament(pk, tournament_data)
 
-            django_tournament = DjangoTournament.objects.select_related('status').get(id=tournament.id)
+            django_tournament = DjangoTournament.objects.get(id=tournament.id)
             response_serializer = self.serializer_class(django_tournament)
 
             return Response(response_serializer.data)
@@ -173,28 +165,6 @@ class TournamentViewSet(viewsets.GenericViewSet):
                 status=status.HTTP_500_INTERNAL_SERVER_ERROR
             )
 
-    @action(detail=True, methods=['patch'])
-    def update_status(self, request, pk=None):
-        """更新赛事状态"""
-        serializer = self.get_serializer(data=request.data)
-        serializer.is_valid(raise_exception=True)
-
-        try:
-            status_id = serializer.validated_data['status_id']
-            tournament = self.service.update_tournament_status(pk, status_id)
-
-            # 获取更新后的Django对象
-            django_tournament = DjangoTournament.objects.select_related('status').get(id=tournament.id)
-            response_serializer = self.serializer_class(django_tournament)
-
-            return Response(response_serializer.data)
-
-        except TournamentService.TournamentServiceError as e:
-            return Response(
-                {"detail": e.message},
-                status=status.HTTP_400_BAD_REQUEST
-            )
-
     @action(detail=False, methods=['get'])
     def upcoming(self, request):
         """获取即将到来的赛事"""
@@ -204,7 +174,7 @@ class TournamentViewSet(viewsets.GenericViewSet):
 
         # 转换为Django模型用于序列化
         tournament_ids = [t.id for t in tournaments]
-        django_tournaments = DjangoTournament.objects.select_related('status').filter(
+        django_tournaments = DjangoTournament.objects.filter(
             id__in=tournament_ids
         )
 
@@ -218,7 +188,7 @@ class TournamentViewSet(viewsets.GenericViewSet):
 
         # 转换为Django模型用于序列化
         tournament_ids = [t.id for t in tournaments]
-        django_tournaments = DjangoTournament.objects.select_related('status').filter(
+        django_tournaments = DjangoTournament.objects.filter(
             id__in=tournament_ids
         )
 
@@ -234,9 +204,7 @@ class TournamentViewSet(viewsets.GenericViewSet):
         total_tournaments = DjangoTournament.objects.count()
 
         # 按状态统计
-        status_stats = DjangoTournament.objects.values(
-            'status__status_code', 'status__display_name'
-        ).annotate(count=Count('id')).order_by('status__status_code')
+        status_stats = DjangoTournament.objects.values('status').annotate(count=Count('id')).order_by('status')
 
         # 时间统计
         today = date.today()
@@ -265,13 +233,13 @@ class TournamentViewSet(viewsets.GenericViewSet):
         # MVP版本可以先返回基本信息
 
         try:
-            tournament = DjangoTournament.objects.select_related('status').get(id=pk)
+            tournament = DjangoTournament.objects.get(id=pk)
 
             return Response({
                 "tournament_id": pk,
                 "current_status": {
-                    "code": tournament.status.status_code,
-                    "display_name": tournament.status.display_name,
+                    "code": tournament.status,
+                    "display_name": tournament.get_status_display(),
                     "since": tournament.updated_at.isoformat()
                 },
                 "created_at": tournament.created_at.isoformat(),
