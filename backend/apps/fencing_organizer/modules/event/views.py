@@ -1,7 +1,8 @@
-from rest_framework import viewsets, status, filters
+from rest_framework import viewsets, filters
 from rest_framework.decorators import action
 from rest_framework.response import Response
 from rest_framework.permissions import IsAuthenticated, IsAdminUser, AllowAny
+from rest_framework import status
 from django_filters.rest_framework import DjangoFilterBackend
 
 from .models import DjangoEvent
@@ -238,3 +239,20 @@ class EventViewSet(viewsets.GenericViewSet):
             event.save(update_fields=['de_trees'])
             
             return Response({"message": "保存成功"})
+
+    @action(detail=False, methods=['get'], url_path='by_tournament')
+    def by_tournament(self, request):
+        """根据赛事ID获取项目列表（兼容旧版前端）"""
+        tournament_id = request.query_params.get('tournament_id')
+        if not tournament_id:
+            return Response({"detail": "tournament_id parameter is required"}, status=status.HTTP_400_BAD_REQUEST)
+        
+        # 使用现有的过滤机制
+        queryset = self.filter_queryset(self.get_queryset().filter(tournament_id=tournament_id))
+        page = self.paginate_queryset(queryset)
+        if page is not None:
+            serializer = self.get_serializer(page, many=True)
+            return self.get_paginated_response(serializer.data)
+        
+        serializer = self.get_serializer(queryset, many=True)
+        return Response(serializer.data)

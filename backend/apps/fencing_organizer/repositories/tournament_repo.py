@@ -15,7 +15,7 @@ class DjangoTournamentRepository(TournamentRepositoryInterface):
     def get_tournament_by_id(self, tournament_id: UUID) -> Optional[Tournament]:
         """通过ID获取赛事"""
         try:
-            django_tournament = DjangoTournament.objects.select_related('status').get(pk=tournament_id)
+            django_tournament = DjangoTournament.objects.get(pk=tournament_id)
             return TournamentMapper.to_domain(django_tournament)
         except DjangoTournament.DoesNotExist:
             return None
@@ -23,7 +23,7 @@ class DjangoTournamentRepository(TournamentRepositoryInterface):
     def get_tournaments_by_date_range(self, start_date: date, end_date: date) -> List[Tournament]:
         """获取指定日期范围内的赛事"""
         # 查找与给定日期范围有重叠的赛事
-        django_tournaments = DjangoTournament.objects.select_related('status').filter(
+        django_tournaments = DjangoTournament.objects.filter(
             Q(start_date__lte=end_date) & Q(end_date__gte=start_date)
         ).order_by('start_date')
 
@@ -31,7 +31,7 @@ class DjangoTournamentRepository(TournamentRepositoryInterface):
 
     def get_tournaments_by_status(self, status_id: UUID) -> List[Tournament]:
         """获取指定状态的赛事"""
-        django_tournaments = DjangoTournament.objects.select_related('status').filter(
+        django_tournaments = DjangoTournament.objects.filter(
             status_id=status_id
         ).order_by('-start_date')
 
@@ -39,7 +39,7 @@ class DjangoTournamentRepository(TournamentRepositoryInterface):
 
     def get_all_tournaments(self) -> List[Tournament]:
         """获取所有赛事"""
-        django_tournaments = DjangoTournament.objects.select_related('status').all().order_by('-start_date')
+        django_tournaments = DjangoTournament.objects.all().order_by('-start_date')
         return [TournamentMapper.to_domain(t) for t in django_tournaments]
 
     def save_tournament(self, tournament: Tournament) -> Tournament:
@@ -63,7 +63,7 @@ class DjangoTournamentRepository(TournamentRepositoryInterface):
 
     def search_tournaments(self, **filters) -> List[Tournament]:
         """搜索赛事"""
-        queryset = DjangoTournament.objects.select_related('status')
+        queryset = DjangoTournament.objects.all()
 
         # 应用过滤器
         if 'name' in filters:
@@ -73,7 +73,7 @@ class DjangoTournamentRepository(TournamentRepositoryInterface):
         if 'location' in filters:
             queryset = queryset.filter(location__icontains=filters['location'])
         if 'status_code' in filters:
-            queryset = queryset.filter(status__status_code=filters['status_code'])
+            queryset = queryset.filter(status=filters['status_code'])
         if 'date_range' in filters:
             start_date, end_date = filters['date_range']
             queryset = queryset.filter(

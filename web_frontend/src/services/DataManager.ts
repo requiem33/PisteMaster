@@ -147,7 +147,7 @@ export const DataManager = {
 
     async getEventsByTournamentId(tournamentId: string): Promise<any[]> {
         try {
-            const response = await fetch(`${API_BASE_URL}/events/by_tournament/?tournament_id=${tournamentId}`);
+            const response = await fetch(`${API_BASE_URL}/events/?tournament=${tournamentId}`);
             if (!response.ok) throw new Error('Failed to fetch events');
             const data = await response.json();
             return data.results || data;
