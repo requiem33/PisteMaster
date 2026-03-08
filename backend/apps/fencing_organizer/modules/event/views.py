@@ -172,3 +172,69 @@ class EventViewSet(viewsets.GenericViewSet):
             })
         except Exception as e:
             return Response({"detail": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+    @action(detail=True, methods=['post', 'get'], url_path='stages/(?P<stage_id>[^/.]+)/pools')
+    def stage_pools(self, request, pk=None, stage_id=None):
+        """批量保存或获取某阶段分组"""
+        event = self.get_object()
+        from backend.apps.fencing_organizer.modules.pool.models import DjangoPool
+        
+        if request.method == 'GET':
+            pools = DjangoPool.objects.filter(event=event, stage_id=stage_id).order_by('pool_number')
+            from backend.apps.fencing_organizer.modules.pool.serializers import PoolSerializer
+            return Response(PoolSerializer(pools, many=True).data)
+            
+        elif request.method == 'POST':
+            pools_data = request.data
+            if not isinstance(pools_data, list):
+                return Response({"detail": "Expected a list of pools"}, status=status.HTTP_400_BAD_REQUEST)
+                
+            from django.db import transaction
+            try:
+                with transaction.atomic():
+                    # 删除该阶段原有的所有小组
+                    DjangoPool.objects.filter(event=event, stage_id=stage_id).delete()
+                    
+                    # 批量创建新小组
+                    new_pools = []
+                    for p_data in pools_data:
+                        new_pools.append(DjangoPool(
+                            event=event,
+                            stage_id=stage_id,
+                            pool_number=p_data.get('pool_number'),
+                            fencer_ids=p_data.get('fencer_ids', [])
+                        ))
+                    
+                    DjangoPool.objects.bulk_create(new_pools)
+                    
+                return Response({"message": f"成功保存 {len(new_pools)} 个小组到阶段 {stage_id}"}, status=status.HTTP_201_CREATED)
+            except Exception as e:
+                return Response({"detail": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+    @action(detail=True, methods=['put', 'get'], url_path='stages/(?P<stage_id>[^/.]+)/detree')
+    def stage_detree(self, request, pk=None, stage_id=None):
+        """保存或获取某阶段淘汰赛对阵图"""
+        event = self.get_object()
+        
+        if request.method == 'GET':
+            tree_data = event.de_trees.get(stage_id)
+            return Response(tree_data if tree_data else [])
+            
+        elif request.method == 'PUT':
+            tree_data = request.data.get('tree_data')
+            if tree_data is None:
+                # 兼容直接传数组的情况
+                if isinstance(request.data, list):
+                    tree_data = request.data
+                else:
+                    return Response({"detail": "tree_data is required"}, status=status.HTTP_400_BAD_REQUEST)
+            
+            # 更新 JSON
+            current_trees = dict(event.de_trees) if event.de_trees else {}
+            current_trees[stage_id] = tree_data
+            
+            # 存库
+            event.de_trees = current_trees
+            event.save(update_fields=['de_trees'])
+            
+            return Response({"message": "保存成功"})
