@@ -2,8 +2,6 @@ from django.db import models
 from django.core.validators import MinLengthValidator
 from uuid import uuid4
 
-from backend.apps.fencing_organizer.modules.tournament_status.models import DjangoTournamentStatus
-
 
 class DjangoTournament(models.Model):
     """赛事 Django ORM 模型"""

@@ -1,468 +1,169 @@
-from typing import List, Optional, Dict, Any, Tuple
+from typing import List, Optional
 from uuid import UUID
-from datetime import datetime, timedelta
-from django.db import IntegrityError, transaction
-from django.core.exceptions import ValidationError
 
-from backend.apps.fencing_organizer.repositories.pool_assignment_repo import DjangoPoolAssignmentRepository
-from backend.apps.fencing_organizer.services.pool_assignment_service import PoolAssignmentService
-from core.models.pool import Pool
-from core.constants.pool import PoolStatus, STATUS_TRANSITIONS, PoolLetter
+from django.db import IntegrityError
+
 from backend.apps.fencing_organizer.repositories.pool_repo import DjangoPoolRepository
 from backend.apps.fencing_organizer.repositories.event_repo import DjangoEventRepository
 from backend.apps.fencing_organizer.repositories.piste_repo import DjangoPisteRepository
-# from backend.apps.fencing_organizer.repositories.event_seed_repo import DjangoEventSeedRepository
-from backend.apps.fencing_organizer.repositories.fencer_repo import DjangoFencerRepository
-from core.models.pool_assignment import PoolAssignment
+from core.models.pool import Pool
+from core.constants.pool import PoolStatus, STATUS_TRANSITIONS
 
 
 class PoolService:
-    """小组业务服务"""
+    """
+    Pool business service.
+
+    Validation is handled by Serializers.
+    This service handles business logic only.
+    """
 
     def __init__(self,
                  pool_repository: Optional[DjangoPoolRepository] = None,
                  event_repository: Optional[DjangoEventRepository] = None,
-                 piste_repository: Optional[DjangoPisteRepository] = None,
-                 # event_seed_repository: Optional[DjangoEventSeedRepository] = None
-                 pool_assignment_repository: Optional[DjangoPoolAssignmentRepository] = None
-                 ):
+                 piste_repository: Optional[DjangoPisteRepository] = None):
 
         self.pool_repository = pool_repository or DjangoPoolRepository()
         self.event_repository = event_repository or DjangoEventRepository()
         self.piste_repository = piste_repository or DjangoPisteRepository()
-        # self.event_seed_repository = event_seed_repository or DjangoEventSeedRepository()
-        self.pool_assignment_repository = pool_assignment_repository or DjangoPoolAssignmentRepository()
 
     def get_pool_by_id(self, pool_id: UUID) -> Optional[Pool]:
-        """根据ID获取小组"""
+        """Get pool by ID."""
         return self.pool_repository.get_pool_by_id(pool_id)
 
+    def get_all_pools(self) -> List[Pool]:
+        """Get all pools."""
+        return self.pool_repository.get_all_pools()
+
     def get_pools_by_event(self, event_id: UUID) -> List[Pool]:
-        """根据项目获取小组"""
+        """Get pools by event."""
         return self.pool_repository.get_pools_by_event(event_id)
 
     def get_active_pools(self) -> List[Pool]:
-        """获取活跃的小组"""
+        """Get active pools."""
         return self.pool_repository.get_active_pools()
 
-    def get_pools_with_stats(self, event_id: UUID) -> List[Dict[str, Any]]:
-        """获取小组及统计信息"""
+    def get_pools_with_stats(self, event_id: UUID) -> List[dict]:
+        """Get pools with stats."""
         return self.pool_repository.get_pools_with_stats(event_id)
 
     def create_pool(self, pool_data: dict) -> Pool:
-        """创建小组"""
-        # 验证数据
-        self._validate_pool_data(pool_data, is_create=True)
+        """
+        Create pool.
 
-        # 验证外键存在性
+        Validation is done by Serializer.
+        This method creates the domain entity and saves it.
+        """
         self._validate_foreign_keys(pool_data)
 
-        # 如果未提供pool_number，自动生成
         if not pool_data.get('pool_number'):
             pool_data['pool_number'] = self.pool_repository.get_next_pool_number(
-                pool_data['event_id']
+                pool_data['event_id'] if 'event_id' in pool_data else pool_data['event'].id
             )
 
-        # 创建Domain对象
-        pool = Pool(**pool_data)
+        event_id = pool_data.get('event_id') or (pool_data.get('event').id if pool_data.get('event') else None)
 
-        # 通过Repository保存
+        pool = Pool(
+            event_id=event_id,
+            stage_id=pool_data.get('stage_id', '1'),
+            pool_number=pool_data['pool_number'],
+            fencer_ids=pool_data.get('fencer_ids', []),
+            results=pool_data.get('results', []),
+            stats=pool_data.get('stats', []),
+            is_locked=pool_data.get('is_locked', False),
+            status=pool_data.get('status', PoolStatus.SCHEDULED.value),
+            is_completed=pool_data.get('is_completed', False)
+        )
+
         try:
             return self.pool_repository.save_pool(pool)
         except IntegrityError as e:
             if 'unique_pool_event_number' in str(e):
-                raise self.PoolServiceError(f"小组编号 '{pool_data.get('pool_number')}' 在该项目中已存在")
-            raise self.PoolServiceError(f"创建小组失败: {str(e)}")
-
-    def create_pools_for_event(self, event_id: UUID, pool_count: int,
-                               piste_id: Optional[UUID] = None) -> List[Pool]:
-        """为项目创建多个小组"""
-        # 验证项目存在
-        event = self.event_repository.get_event_by_id(event_id)
-        if not event:
-            raise self.PoolServiceError(f"项目 {event_id} 不存在")
-
-        # 验证剑道存在（如果提供）
-        if piste_id:
-            piste = self.piste_repository.get_by_id(piste_id)
-            if not piste:
-                raise self.PoolServiceError(f"剑道 {piste_id} 不存在")
-
-        created_pools = []
-        next_pool_number = self.pool_repository.get_next_pool_number(event_id)
-
-        for i in range(pool_count):
-            pool_data = {
-                'event_id': event_id,
-                'pool_number': next_pool_number + i,
-                'pool_letter': self._number_to_letter(next_pool_number + i),
-                'piste_id': piste_id,
-                'status': PoolStatus.SCHEDULED.value
-            }
-
-            try:
-                pool = self.create_pool(pool_data)
-                created_pools.append(pool)
-            except self.PoolServiceError as e:
-                # 忽略单个小组创建失败，继续创建其他小组
-                continue
-
-        return created_pools
-
-    def generate_balanced_pools(self, event_id: UUID, pool_size: int = 7) -> List[Pool]:
-        """生成平衡的小组（随机分组）"""
-        # 获取项目的参与者（这里需要从Event参与者获取）
-        # 在MVP版本中，我们假设可以从Event获取参与者列表
-        # 在实际实现中，需要根据Event的参与者关系获取
-
-        # 方法1: 通过EventService获取参与者
-        # from ...services.event_service import EventService
-        # event_service = EventService()
-        # participants = event_service.get_event_participants(event_id)
-
-        # 方法2: 在MVP中，我们可以暂时返回空的参与者列表
-        # 并创建一个简单的随机分组逻辑框架
-        participants = self._get_event_participants(event_id)
-
-        if not participants:
-            raise self.PoolServiceError("项目没有参与者，无法生成小组")
-
-        # 随机打乱参与者列表
-        import random
-        shuffled_participants = list(participants)
-        random.shuffle(shuffled_participants)
-
-        # 计算需要的小组数量
-        participant_count = len(shuffled_participants)
-        pool_count = (participant_count + pool_size - 1) // pool_size  # 向上取整
-
-        # 创建分组
-        groups = [[] for _ in range(pool_count)]
-
-        # 均匀分配参与者到各小组
-        for i, participant_id in enumerate(shuffled_participants):
-            group_index = i % pool_count
-            groups[group_index].append(participant_id)
-
-        # 创建小组
-        created_pools = []
-        next_pool_number = self.pool_repository.get_next_pool_number(event_id)
-
-        for i, group_members in enumerate(groups):
-            if not group_members:
-                continue
-
-            pool_data = {
-                'event_id': event_id,
-                'pool_number': next_pool_number + i,
-                'pool_letter': self._number_to_letter(next_pool_number + i),
-                'status': PoolStatus.SCHEDULED.value
-            }
-
-            try:
-                pool = self.create_pool(pool_data)
-
-                # 创建小组成员分配（需要PoolAssignment服务）
-                # 这里可以调用一个辅助方法来创建PoolAssignment
-                self._create_pool_assignments(pool.id, group_members)
-
-                created_pools.append(pool)
-            except self.PoolServiceError as e:
-                # 记录错误但继续创建其他小组
-                print(f"创建小组失败: {e}")
-                continue
-
-        return created_pools
-
-    def _get_event_participants(self, event_id: UUID) -> List[UUID]:
-        """获取项目的参与者列表"""
-        # 在MVP版本中，我们使用一个简化的方法获取参与者
-        # 在实际应用中，这应该通过Event的参与者关系获取
-
-        # 方法1: 如果已有Event参与者模型，直接查询
-        # try:
-        #     from ...models.event_participant import DjangoEventParticipant
-        #     participants = DjangoEventParticipant.objects.filter(
-        #         event_id=event_id
-        #     ).values_list('fencer_id', flat=True)
-        #     return list(participants)
-        # except ImportError:
-        #     pass
-
-        # 方法2: 使用EventSeed表（如果有数据）
-        # if self.event_seed_repository:
-        #     try:
-        #         seeds = self.event_seed_repository.get_seeds_by_event(event_id)
-        #         return [seed.fencer_id for seed in seeds]
-        #     except:
-        #         pass
-
-        # 方法3: 返回空列表，让调用者处理
-        return []
-
-    def _create_pool_assignments(self, pool_id: UUID, fencer_ids: List[UUID]) -> None:
-        """创建小组成员分配"""
-        # 这是一个辅助方法，用于创建PoolAssignment记录
-        # 在MVP中，我们可以先实现一个简化的版本
-        # 或者暂不实现，留待后续开发
-
-        # 需要导入PoolAssignment模型和服务
-        # from ...models.pool_assignment import DjangoPoolAssignment
-        # for fencer_id in fencer_ids:
-        #     DjangoPoolAssignment.objects.create(
-        #         pool_id=pool_id,
-        #         fencer_id=fencer_id,
-        #         final_pool_rank=0,  # 初始排名设为0，后续计算
-        #         victories=0,
-        #         touches_scored=0,
-        #         touches_received=0,
-        #         matches_played=0,
-        #         is_qualified=False
-        #     )
-
-        # 在MVP版本中，暂时只打印日志
-        print(f"为小组 {pool_id} 分配了 {len(fencer_ids)} 名参与者")
+                raise self.PoolServiceError(f"Pool number '{pool_data.get('pool_number')}' already exists in this event")
+            raise self.PoolServiceError(f"Create pool failed: {str(e)}")
 
     def update_pool(self, pool_id: UUID, pool_data: dict) -> Pool:
-        """更新小组"""
-        # 检查小组是否存在
+        """
+        Update pool.
+
+        Validation is done by Serializer.
+        This method updates the domain entity and saves it.
+        """
         existing_pool = self.pool_repository.get_pool_by_id(pool_id)
         if not existing_pool:
-            raise self.PoolServiceError(f"小组 {pool_id} 不存在")
+            raise self.PoolServiceError(f"Pool {pool_id} not found")
 
-        # 验证数据
-        self._validate_pool_data(pool_data, is_create=False)
-
-        # 验证状态转移
-        if 'status' in pool_data and 'status' in pool_data:
+        if 'status' in pool_data:
             self._validate_status_transition(existing_pool.status, pool_data['status'])
 
-        # 验证外键存在性
         self._validate_foreign_keys(pool_data)
 
-        # 更新属性
         for key, value in pool_data.items():
             if hasattr(existing_pool, key):
                 setattr(existing_pool, key, value)
 
-        # 通过Repository保存
         try:
             return self.pool_repository.save_pool(existing_pool)
         except IntegrityError as e:
             if 'unique_pool_event_number' in str(e):
-                raise self.PoolServiceError(f"小组编号 '{pool_data.get('pool_number')}' 在该项目中已存在")
-            raise self.PoolServiceError(f"更新小组失败: {str(e)}")
+                raise self.PoolServiceError(f"Pool number '{pool_data.get('pool_number')}' already exists in this event")
+            raise self.PoolServiceError(f"Update pool failed: {str(e)}")
 
-    def update_pool_status(self, pool_id: UUID, status: str) -> Pool:
-        """更新小组状态"""
-        # 检查小组是否存在
+    def delete_pool(self, pool_id: UUID) -> bool:
+        """Delete pool."""
         pool = self.pool_repository.get_pool_by_id(pool_id)
         if not pool:
-            raise self.PoolServiceError(f"小组 {pool_id} 不存在")
+            return False
 
-        # 验证状态转移
+        return self.pool_repository.delete_pool(pool_id)
+
+    def update_pool_status(self, pool_id: UUID, status: str) -> Pool:
+        """Update pool status."""
+        pool = self.pool_repository.get_pool_by_id(pool_id)
+        if not pool:
+            raise self.PoolServiceError(f"Pool {pool_id} not found")
+
         self._validate_status_transition(pool.status, status)
 
-        # 更新状态
         updated_pool = self.pool_repository.update_pool_status(pool_id, status)
         if not updated_pool:
-            raise self.PoolServiceError("更新小组状态失败")
+            raise self.PoolServiceError("Update pool status failed")
 
         return updated_pool
 
-    def assign_piste_to_pools(self, pool_ids: List[UUID], piste_id: UUID) -> List[Pool]:
-        """为多个小组分配剑道"""
-        # 验证剑道存在
-        piste = self.piste_repository.get_by_id(piste_id)
-        if not piste:
-            raise self.PoolServiceError(f"剑道 {piste_id} 不存在")
-
-        # 验证剑道可用
-        if not piste.is_available:
-            raise self.PoolServiceError(f"剑道 {piste_id} 不可用")
-
-        # 分配剑道
-        return self.pool_repository.assign_piste_to_pools(pool_ids, piste_id)
-
-    def schedule_pools(self, pool_ids: List[UUID], start_time: datetime,
-                       interval_minutes: int = 30) -> List[Pool]:
-        """为多个小组安排时间"""
-        scheduled_pools = []
-        current_time = start_time
-
-        for pool_id in pool_ids:
-            try:
-                pool = self.update_pool(pool_id, {
-                    'start_time': current_time,
-                    'status': PoolStatus.SCHEDULED.value
-                })
-                scheduled_pools.append(pool)
-                current_time += timedelta(minutes=interval_minutes)
-            except self.PoolServiceError:
-                continue
-
-        return scheduled_pools
-
-    def _validate_pool_data(self, data: dict, is_create: bool = True) -> None:
-        """验证小组数据"""
-        errors = {}
-
-        # 必填字段检查
-        if is_create and not data.get('event_id'):
-            errors['event_id'] = "event_id 不能为空"
-
-        # 字段验证
-        if data.get('pool_number') is not None and data['pool_number'] < 1:
-            errors['pool_number'] = "小组编号必须大于0"
-
-        if data.get('pool_letter') and len(data['pool_letter']) > 1:
-            errors['pool_letter'] = "小组字母长度不能超过1个字符"
-
-        # 状态验证
-        if data.get('status'):
-            valid_statuses = [status.value for status in PoolStatus]
-            if data['status'] not in valid_statuses:
-                errors['status'] = f"状态必须是: {', '.join(valid_statuses)}"
-
-        if errors:
-            raise self.PoolServiceError("数据验证失败", errors)
-
     def _validate_foreign_keys(self, data: dict) -> None:
-        """验证外键存在性"""
-        if 'event_id' in data:
-            event = self.event_repository.get_event_by_id(data['event_id'])
-            if not event:
-                raise self.PoolServiceError(f"项目 {data['event_id']} 不存在")
+        """Validate foreign key existence."""
+        event_id = None
+        if 'event' in data and hasattr(data['event'], 'id'):
+            event_id = data['event'].id
+        elif 'event_id' in data:
+            event_id = data['event_id']
 
-        if 'piste_id' in data and data['piste_id']:
-            piste = self.piste_repository.get_by_id(data['piste_id'])
+        if event_id:
+            event = self.event_repository.get_event_by_id(event_id)
+            if not event:
+                raise self.PoolServiceError(f"Event {event_id} not found")
+
+        piste_id = data.get('piste_id')
+        if piste_id:
+            piste = self.piste_repository.get_by_id(piste_id)
             if not piste:
-                raise self.PoolServiceError(f"剑道 {data['piste_id']} 不存在")
+                raise self.PoolServiceError(f"Piste {piste_id} not found")
 
     def _validate_status_transition(self, current_status: str, new_status: str) -> None:
-        """验证状态转移是否有效"""
+        """Validate status transition."""
         if current_status == new_status:
             return
 
         valid_transitions = STATUS_TRANSITIONS.get(current_status, [])
         if new_status not in valid_transitions:
             raise self.PoolServiceError(
-                f"无法从状态 '{current_status}' 转移到 '{new_status}'。"
-                f"允许的转移: {', '.join(valid_transitions)}"
+                f"Cannot transition from '{current_status}' to '{new_status}'. "
+                f"Allowed transitions: {', '.join(valid_transitions)}"
             )
 
-    @staticmethod
-    def _number_to_letter(number: int) -> str:
-        """将数字转换为字母"""
-        letters = []
-        while number > 0:
-            number, remainder = divmod(number - 1, 26)
-            letters.append(chr(65 + remainder))
-        return ''.join(reversed(letters)) if letters else "A"
-
-    def assign_fencers_to_pool(self, pool_id: UUID, fencer_ids: List[UUID]) -> List[PoolAssignment]:
-        """将运动员分配到小组"""
-        from backend.apps.fencing_organizer.services.pool_assignment_service import PoolAssignmentService
-
-        assignment_service = PoolAssignmentService()
-        assignments = []
-
-        for fencer_id in fencer_ids:
-            try:
-                assignment = assignment_service.create_assignment(pool_id, fencer_id)
-                assignments.append(assignment)
-            except Exception as e:
-                # 记录错误但继续分配其他运动员
-                print(f"分配运动员 {fencer_id} 到小组 {pool_id} 失败: {e}")
-                continue
-
-        return assignments
-
-    def generate_pools_with_assignments(self, event_id: UUID, pool_size: int = 7,
-                                        group_method: str = 'random') -> Tuple[List[Pool], List[PoolAssignment]]:
-        """生成小组并分配运动员"""
-        # 获取项目的参与者
-        participants = self.event_participant_repository.get_participants_by_event(event_id, confirmed_only=True)
-
-        if not participants:
-            raise self.PoolServiceError(f"项目 {event_id} 没有确认的参与者")
-
-        # 获取参与者ID列表
-        fencer_ids = [p.fencer_id for p in participants]
-
-        # 根据分组方法排序
-        if group_method == 'seeded':
-            # 按种子排名排序
-            sorted_fencer_ids = [
-                p.fencer_id for p in sorted(
-                    participants,
-                    key=lambda x: x.seed_rank or float('inf')
-                )
-            ]
-        elif group_method == 'random':
-            # 随机排序
-            import random
-            sorted_fencer_ids = list(fencer_ids)
-            random.shuffle(sorted_fencer_ids)
-        else:
-            sorted_fencer_ids = fencer_ids
-
-        # 计算小组数量
-        participant_count = len(sorted_fencer_ids)
-        pool_count = (participant_count + pool_size - 1) // pool_size  # 向上取整
-
-        # 创建小组
-        created_pools = []
-        next_pool_number = self.pool_repository.get_next_pool_number(event_id)
-
-        for i in range(pool_count):
-            pool_data = {
-                'event_id': event_id,
-                'pool_number': next_pool_number + i,
-                'pool_letter': self._number_to_letter(next_pool_number + i),
-                'status': PoolStatus.SCHEDULED.value
-            }
-
-            try:
-                pool = self.create_pool(pool_data)
-                created_pools.append(pool)
-            except self.PoolServiceError as e:
-                raise self.PoolServiceError(f"创建小组失败: {e}")
-
-        # 分配运动员到小组（蛇形分组）
-        all_assignments = []
-        pool_index = 0
-        direction = 1  # 1: 正向, -1: 反向
-
-        for i, fencer_id in enumerate(sorted_fencer_ids):
-            current_pool = created_pools[pool_index]
-
-            # 分配运动员到当前小组
-            try:
-                assignment_service = PoolAssignmentService()
-                assignment = assignment_service.create_assignment(current_pool.id, fencer_id)
-                all_assignments.append(assignment)
-            except Exception as e:
-                print(f"分配运动员 {fencer_id} 到小组 {current_pool.id} 失败: {e}")
-
-            # 更新下一个小组索引
-            if (i + 1) % pool_size == 0:
-                # 每分配完一个小组的人数，改变方向
-                direction *= -1
-
-            if direction == 1:
-                pool_index += 1
-                if pool_index >= len(created_pools):
-                    pool_index = len(created_pools) - 1
-            else:
-                pool_index -= 1
-                if pool_index < 0:
-                    pool_index = 0
-
-        return created_pools, all_assignments
-
     class PoolServiceError(Exception):
-        """Service层异常"""
+        """Service layer exception."""
 
         def __init__(self, message: str, errors: dict = None):
             self.message = message

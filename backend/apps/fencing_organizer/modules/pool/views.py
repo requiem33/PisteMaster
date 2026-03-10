@@ -1,108 +1,175 @@
-from rest_framework import viewsets, status, mixins
-from rest_framework.decorators import action
-from rest_framework.response import Response
-from rest_framework.permissions import IsAuthenticated, AllowAny
-from django_filters.rest_framework import DjangoFilterBackend
-from rest_framework import filters
-from django.shortcuts import get_object_or_404
 from uuid import UUID
 
-from .models import DjangoPool
+from django_filters.rest_framework import DjangoFilterBackend
+from rest_framework import filters, status, viewsets
+from rest_framework.decorators import action
+from rest_framework.permissions import AllowAny, IsAuthenticated
+from rest_framework.response import Response
+
+from backend.apps.fencing_organizer.modules.pool.models import DjangoPool
+from backend.apps.fencing_organizer.services.pool_service import PoolService
+from backend.apps.fencing_organizer.utils.pagination import get_paginated_response
 from .serializers import PoolSerializer, PoolCreateSerializer, PoolUpdateSerializer
-from ...services.pool_service import PoolService
 
 
-class PoolViewSet(viewsets.ModelViewSet):
+class PoolViewSet(viewsets.GenericViewSet):
     """
-    Pool API视图集
+    Pool API - Clean Architecture Implementation
+
+    All operations go through Service layer.
+    Service returns Domain models (dataclasses).
+    Serializer handles Domain model serialization via DomainModelSerializer.
     """
+
     queryset = DjangoPool.objects.all().order_by('event', 'stage_id', 'pool_number')
     serializer_class = PoolSerializer
-    permission_classes = [IsAuthenticated]
+    service = PoolService()
     filter_backends = [DjangoFilterBackend, filters.SearchFilter, filters.OrderingFilter]
     filterset_fields = ['event', 'stage_id', 'status', 'is_completed']
     search_fields = ['event__event_name']
-    ordering_fields = ['pool_number', 'start_time', 'created_at']
+    ordering_fields = ['pool_number', 'created_at']
     ordering = ['pool_number']
 
     def get_permissions(self):
-        # MVP: allow anonymous
-        if self.action in ['list', 'retrieve', 'by_event', 'update_results']:
+        if self.action in ['list', 'retrieve', 'by_event', 'update_results', 'create', 'update', 'destroy']:
             return [AllowAny()]
-        return super().get_permissions()
+        return [IsAuthenticated()]
 
     def get_serializer_class(self):
         if self.action == 'create':
             return PoolCreateSerializer
         elif self.action in ['update', 'partial_update']:
             return PoolUpdateSerializer
-        return super().get_serializer_class()
+        return PoolSerializer
 
-    def get_queryset(self):
-        queryset = super().get_queryset()
-        return queryset
+    def list(self, request):
+        pools = self.service.get_all_pools()
 
-    def create(self, request, *args, **kwargs):
+        event_id = request.query_params.get('event')
+        if event_id:
+            try:
+                event_uuid = UUID(event_id)
+                pools = [p for p in pools if p.event_id == event_uuid]
+            except (ValueError, TypeError):
+                pass
+
+        stage_id = request.query_params.get('stage_id')
+        if stage_id:
+            pools = [p for p in pools if p.stage_id == stage_id]
+
+        status_filter = request.query_params.get('status')
+        if status_filter:
+            pools = [p for p in pools if p.status == status_filter]
+
+        ordering = request.query_params.get('ordering', 'pool_number')
+        reverse = ordering.startswith('-')
+        order_field = ordering.lstrip('-')
+        if pools and hasattr(pools[0], order_field):
+            pools = sorted(pools, key=lambda x: getattr(x, order_field) or 0, reverse=reverse)
+
+        return get_paginated_response(
+            self.get_serializer_class(),
+            pools,
+            request
+        )
+
+    def retrieve(self, request, pk=None):
+        try:
+            pool_id = UUID(pk)
+        except (ValueError, TypeError):
+            return Response({"detail": "Invalid pool ID"}, status=status.HTTP_400_BAD_REQUEST)
+
+        pool = self.service.get_pool_by_id(pool_id)
+        if not pool:
+            return Response({"detail": "Pool not found"}, status=status.HTTP_404_NOT_FOUND)
+
+        serializer = self.get_serializer(pool)
+        return Response(serializer.data)
+
+    def create(self, request):
         serializer = self.get_serializer(data=request.data)
         serializer.is_valid(raise_exception=True)
 
         try:
-            pool_service = PoolService()
-            pool = pool_service.create_pool(serializer.validated_data)
-            django_pool = DjangoPool.objects.get(id=pool.id)
-            output_serializer = PoolSerializer(django_pool)
-            return Response(output_serializer.data, status=status.HTTP_201_CREATED)
-        except PoolService.PoolServiceError as e:
-            return Response({"detail": str(e), "errors": e.errors}, status=status.HTTP_400_BAD_REQUEST)
+            pool = self.service.create_pool(serializer.validated_data)
+            response_serializer = PoolSerializer(pool)
+            return Response(response_serializer.data, status=status.HTTP_201_CREATED)
+        except self.service.PoolServiceError as e:
+            return Response({"detail": e.message, "errors": e.errors}, status=status.HTTP_400_BAD_REQUEST)
 
-    def update(self, request, *args, **kwargs):
-        partial = kwargs.pop('partial', False)
-        instance = self.get_object()
-        serializer = self.get_serializer(instance, data=request.data, partial=partial)
+    def update(self, request, pk=None):
+        try:
+            pool_id = UUID(pk)
+        except (ValueError, TypeError):
+            return Response({"detail": "Invalid pool ID"}, status=status.HTTP_400_BAD_REQUEST)
+
+        serializer = self.get_serializer(data=request.data)
         serializer.is_valid(raise_exception=True)
 
         try:
-            pool_service = PoolService()
-            pool = pool_service.update_pool(instance.id, serializer.validated_data)
-            django_pool = DjangoPool.objects.get(id=pool.id)
-            output_serializer = PoolSerializer(django_pool)
-            return Response(output_serializer.data, status=status.HTTP_200_OK)
-        except PoolService.PoolServiceError as e:
-            return Response({"detail": str(e), "errors": e.errors}, status=status.HTTP_400_BAD_REQUEST)
+            pool = self.service.update_pool(pool_id, serializer.validated_data)
+            response_serializer = PoolSerializer(pool)
+            return Response(response_serializer.data)
+        except self.service.PoolServiceError as e:
+            return Response({"detail": e.message, "errors": e.errors}, status=status.HTTP_400_BAD_REQUEST)
+
+    def partial_update(self, request, pk=None):
+        return self.update(request, pk)
+
+    def destroy(self, request, pk=None):
+        try:
+            pool_id = UUID(pk)
+        except (ValueError, TypeError):
+            return Response({"detail": "Invalid pool ID"}, status=status.HTTP_400_BAD_REQUEST)
+
+        try:
+            success = self.service.delete_pool(pool_id)
+            if not success:
+                return Response({"detail": "Pool not found"}, status=status.HTTP_404_NOT_FOUND)
+            return Response(status=status.HTTP_204_NO_CONTENT)
+        except self.service.PoolServiceError as e:
+            return Response({"detail": e.message}, status=status.HTTP_400_BAD_REQUEST)
 
     @action(detail=True, methods=['patch'], url_path='results')
     def update_results(self, request, pk=None):
-        """更新单组比赛结果矩阵与统计"""
-        pool = self.get_object()
-        
+        try:
+            pool_id = UUID(pk)
+        except (ValueError, TypeError):
+            return Response({"detail": "Invalid pool ID"}, status=status.HTTP_400_BAD_REQUEST)
+
         results = request.data.get('results')
         stats = request.data.get('stats')
         is_locked = request.data.get('is_locked')
-        
+
+        update_data = {}
         if results is not None:
-            pool.results = results
+            update_data['results'] = results
         if stats is not None:
-            pool.stats = stats
+            update_data['stats'] = stats
         if is_locked is not None:
-            pool.is_locked = is_locked
-            
-        pool.save(update_fields=['results', 'stats', 'is_locked', 'updated_at'])
-        
-        return Response({
-            "message": "更新成功",
-            "is_locked": pool.is_locked
-        }, status=status.HTTP_200_OK)
+            update_data['is_locked'] = is_locked
+
+        try:
+            pool = self.service.update_pool(pool_id, update_data)
+            return Response({
+                "message": "Updated successfully",
+                "is_locked": pool.is_locked
+            })
+        except self.service.PoolServiceError as e:
+            return Response({"detail": e.message}, status=status.HTTP_400_BAD_REQUEST)
 
     @action(detail=False, methods=['get'], url_path='by-event/(?P<event_id>[^/.]+)')
     def by_event(self, request, event_id=None):
-        """
-        获取指定事件的所有小组
-        """
         try:
             event_uuid = UUID(event_id)
-        except ValueError:
+        except (ValueError, TypeError):
             return Response({"detail": "Invalid event ID format"}, status=status.HTTP_400_BAD_REQUEST)
 
-        pools = DjangoPool.objects.filter(event_id=event_uuid).order_by('stage_id', 'pool_number')
+        pools = self.service.get_pools_by_event(event_uuid)
+
+        stage_id = request.query_params.get('stage_id')
+        if stage_id:
+            pools = [p for p in pools if p.stage_id == stage_id]
+
         serializer = PoolSerializer(pools, many=True)
-        return Response(serializer.data, status=status.HTTP_200_OK)
+        return Response(serializer.data)

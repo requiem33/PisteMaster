@@ -1,15 +1,34 @@
+from datetime import date
+
 from rest_framework import serializers
-from django.core.validators import MinLengthValidator, RegexValidator
+
+from backend.apps.fencing_organizer.serializers.base import DomainModelSerializer
 from .models import DjangoFencer
 
 
-class FencerSerializer(serializers.ModelSerializer):
-    """Fencer API序列化器"""
+class FencerSerializer(DomainModelSerializer):
+    """
+    Fencer serializer - handles both Django ORM models and domain models (dataclasses).
 
-    # 计算字段
-    age = serializers.IntegerField(read_only=True)
-    is_international = serializers.BooleanField(read_only=True)
-    full_name = serializers.CharField(read_only=True)
+    Extends DomainModelSerializer for Clean Architecture compatibility.
+    """
+
+    id = serializers.UUIDField(read_only=True)
+    first_name = serializers.CharField(max_length=100, required=True)
+    last_name = serializers.CharField(max_length=100, required=True)
+    display_name = serializers.CharField(max_length=200, required=False, allow_null=True)
+    gender = serializers.CharField(max_length=10, required=False, allow_null=True)
+    country_code = serializers.CharField(max_length=3, required=False, allow_null=True)
+    birth_date = serializers.DateField(required=False, allow_null=True)
+    fencing_id = serializers.CharField(max_length=50, required=False, allow_null=True)
+    current_ranking = serializers.IntegerField(required=False, allow_null=True)
+    primary_weapon = serializers.CharField(max_length=10, required=False, allow_null=True)
+    created_at = serializers.DateTimeField(read_only=True)
+    updated_at = serializers.DateTimeField(read_only=True)
+
+    age = serializers.SerializerMethodField(read_only=True)
+    is_international = serializers.SerializerMethodField(read_only=True)
+    full_name = serializers.SerializerMethodField(read_only=True)
 
     class Meta:
         model = DjangoFencer
@@ -30,107 +49,168 @@ class FencerSerializer(serializers.ModelSerializer):
             'created_at',
             'updated_at'
         ]
-        read_only_fields = ['id', 'created_at', 'updated_at']
+
+    def get_full_name(self, obj):
+        if hasattr(obj, 'full_name'):
+            return obj.full_name
+        last_name = getattr(obj, 'last_name', '') or ''
+        first_name = getattr(obj, 'first_name', '') or ''
+        return f"{last_name} {first_name}".strip()
+
+    def get_age(self, obj):
+        birth_date = getattr(obj, 'birth_date', None)
+        if not birth_date:
+            return None
+        today = date.today()
+        age = today.year - birth_date.year
+        if (today.month, today.day) < (birth_date.month, birth_date.day):
+            age -= 1
+        return age
+
+    def get_is_international(self, obj):
+        fencing_id = getattr(obj, 'fencing_id', None)
+        return bool(fencing_id)
+
+    def validate_first_name(self, value):
+        if not value or len(value.strip()) == 0:
+            raise serializers.ValidationError("First name cannot be empty")
+        if len(value) > 100:
+            raise serializers.ValidationError("First name cannot exceed 100 characters")
+        return value.strip()
+
+    def validate_last_name(self, value):
+        if not value or len(value.strip()) == 0:
+            raise serializers.ValidationError("Last name cannot be empty")
+        if len(value) > 100:
+            raise serializers.ValidationError("Last name cannot exceed 100 characters")
+        return value.strip()
 
     def validate_country_code(self, value):
-        """验证国家代码"""
         if value:
             value = value.upper().strip()
             if len(value) != 3:
-                raise serializers.ValidationError("国家代码必须是3个字母")
+                raise serializers.ValidationError("Country code must be 3 letters")
             if not value.isalpha():
-                raise serializers.ValidationError("国家代码只能包含字母")
+                raise serializers.ValidationError("Country code can only contain letters")
         return value
 
     def validate_fencing_id(self, value):
-        """验证击剑ID"""
         if value:
             value = value.strip()
             if len(value) > 50:
-                raise serializers.ValidationError("击剑ID长度不能超过50个字符")
+                raise serializers.ValidationError("Fencing ID cannot exceed 50 characters")
         return value
 
     def validate_birth_date(self, value):
-        """验证出生日期"""
         if value:
-            from datetime import date
             if value > date.today():
-                raise serializers.ValidationError("出生日期不能晚于今天")
+                raise serializers.ValidationError("Birth date cannot be in the future")
             if value.year < 1900:
-                raise serializers.ValidationError("出生日期不能早于1900年")
+                raise serializers.ValidationError("Birth date cannot be before 1900")
         return value
 
     def validate_current_ranking(self, value):
-        """验证排名"""
-        if value is not None:
-            if value < 0:
-                raise serializers.ValidationError("排名不能为负数")
+        if value is not None and value < 0:
+            raise serializers.ValidationError("Ranking cannot be negative")
         return value
 
-    def validate(self, data):
-        """整体验证"""
-        errors = {}
-
-        # 验证性别
+    def validate(self, attrs):
         valid_genders = ['MEN', 'WOMEN', 'MIXED', 'OPEN', None]
-        if 'gender' in data and data['gender'] not in valid_genders:
-            errors['gender'] = f"性别必须是: {', '.join([g for g in valid_genders if g])}"
+        if 'gender' in attrs and attrs['gender'] not in valid_genders:
+            raise serializers.ValidationError({"gender": f"Gender must be one of: {', '.join([g for g in valid_genders if g])}"})
 
-        # 验证剑种
         valid_weapons = ['FOIL', 'EPEE', 'SABRE', None]
-        if 'primary_weapon' in data and data['primary_weapon'] not in valid_weapons:
-            errors['primary_weapon'] = f"剑种必须是: {', '.join([w for w in valid_weapons if w])}"
+        if 'primary_weapon' in attrs and attrs['primary_weapon'] not in valid_weapons:
+            raise serializers.ValidationError({"primary_weapon": f"Weapon must be one of: {', '.join([w for w in valid_weapons if w])}"})
 
-        if errors:
-            raise serializers.ValidationError(errors)
-
-        return data
-
-    def create(self, validated_data):
-        """创建Fencer"""
-        # 自动生成display_name
-        if not validated_data.get('display_name'):
-            validated_data['display_name'] = f"{validated_data['last_name']} {validated_data['first_name']}"
-
-        return super().create(validated_data)
-
-    def update(self, instance, validated_data):
-        """更新Fencer"""
-        # 自动更新display_name（如果姓名被修改）
-        if ('first_name' in validated_data or 'last_name' in validated_data) and not validated_data.get('display_name'):
-            first_name = validated_data.get('first_name', instance.first_name)
-            last_name = validated_data.get('last_name', instance.last_name)
-            validated_data['display_name'] = f"{last_name} {first_name}"
-
-        return super().update(instance, validated_data)
+        return attrs
 
 
-class FencerCreateSerializer(FencerSerializer):
-    """创建Fencer序列化器"""
+class FencerCreateSerializer(DomainModelSerializer):
+    """
+    Fencer create serializer - for creating new fencers.
+    """
 
-    class Meta(FencerSerializer.Meta):
-        fields = FencerSerializer.Meta.fields
+    first_name = serializers.CharField(max_length=100, required=True)
+    last_name = serializers.CharField(max_length=100, required=True)
+    display_name = serializers.CharField(max_length=200, required=False, allow_null=True)
+    gender = serializers.CharField(max_length=10, required=False, allow_null=True)
+    country_code = serializers.CharField(max_length=3, required=False, allow_null=True)
+    birth_date = serializers.DateField(required=False, allow_null=True)
+    fencing_id = serializers.CharField(max_length=50, required=False, allow_null=True)
+    current_ranking = serializers.IntegerField(required=False, allow_null=True)
+    primary_weapon = serializers.CharField(max_length=10, required=False, allow_null=True)
+
+    class Meta:
+        model = DjangoFencer
+        fields = [
+            'first_name',
+            'last_name',
+            'display_name',
+            'gender',
+            'country_code',
+            'birth_date',
+            'fencing_id',
+            'current_ranking',
+            'primary_weapon'
+        ]
+
+    def validate_first_name(self, value):
+        if not value or len(value.strip()) == 0:
+            raise serializers.ValidationError("First name cannot be empty")
+        return value.strip()
+
+    def validate_last_name(self, value):
+        if not value or len(value.strip()) == 0:
+            raise serializers.ValidationError("Last name cannot be empty")
+        return value.strip()
 
 
-class FencerUpdateSerializer(FencerSerializer):
-    """更新Fencer序列化器"""
+class FencerUpdateSerializer(DomainModelSerializer):
+    """
+    Fencer update serializer - for updating existing fencers.
+    """
 
-    class Meta(FencerSerializer.Meta):
-        fields = FencerSerializer.Meta.fields
+    first_name = serializers.CharField(max_length=100, required=False)
+    last_name = serializers.CharField(max_length=100, required=False)
+    display_name = serializers.CharField(max_length=200, required=False, allow_null=True)
+    gender = serializers.CharField(max_length=10, required=False, allow_null=True)
+    country_code = serializers.CharField(max_length=3, required=False, allow_null=True)
+    birth_date = serializers.DateField(required=False, allow_null=True)
+    fencing_id = serializers.CharField(max_length=50, required=False, allow_null=True)
+    current_ranking = serializers.IntegerField(required=False, allow_null=True)
+    primary_weapon = serializers.CharField(max_length=10, required=False, allow_null=True)
+
+    class Meta:
+        model = DjangoFencer
+        fields = [
+            'first_name',
+            'last_name',
+            'display_name',
+            'gender',
+            'country_code',
+            'birth_date',
+            'fencing_id',
+            'current_ranking',
+            'primary_weapon'
+        ]
 
 
 class FencerSearchSerializer(serializers.Serializer):
-    """搜索Fencer序列化器"""
+    """
+    Fencer search serializer - for searching fencers.
+    """
+
     query = serializers.CharField(
         required=True,
         min_length=1,
         max_length=100,
-        help_text="搜索词（姓名、击剑ID、国家代码）"
+        help_text="Search query (name, fencing ID, country code)"
     )
     limit = serializers.IntegerField(
         required=False,
         default=50,
         min_value=1,
         max_value=1000,
-        help_text="返回结果数量限制"
+        help_text="Maximum number of results"
     )

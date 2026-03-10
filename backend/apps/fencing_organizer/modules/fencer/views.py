@@ -1,61 +1,39 @@
-from rest_framework import viewsets, status, mixins
-from rest_framework.decorators import action
-from rest_framework.response import Response
-from rest_framework.permissions import IsAuthenticated, AllowAny
-from rest_framework.pagination import PageNumberPagination
-from django_filters.rest_framework import DjangoFilterBackend
-from rest_framework import filters
-from django.shortcuts import get_object_or_404
 from uuid import UUID
 
-from .models import DjangoFencer
+from django_filters.rest_framework import DjangoFilterBackend
+from rest_framework import filters, status, viewsets
+from rest_framework.decorators import action
+from rest_framework.permissions import AllowAny, IsAuthenticated
+from rest_framework.response import Response
+
+from backend.apps.fencing_organizer.modules.fencer.models import DjangoFencer
+from backend.apps.fencing_organizer.services.fencer_service import FencerService
+from backend.apps.fencing_organizer.utils.pagination import get_paginated_response
 from .serializers import (
     FencerSerializer,
     FencerCreateSerializer,
     FencerUpdateSerializer,
     FencerSearchSerializer
 )
-from ...services.fencer_service import FencerService
 
 
-class StandardPagination(PageNumberPagination):
-    """标准分页器"""
-    page_size = 20
-    page_size_query_param = 'page_size'
-    max_page_size = 100
-
-
-class FencerViewSet(viewsets.ModelViewSet):
+class FencerViewSet(viewsets.GenericViewSet):
     """
-    Fencer API视图集
+    Fencer API - Clean Architecture Implementation
 
-    list:
-    获取运动员列表
-
-    create:
-    创建新运动员
-
-    retrieve:
-    获取运动员详情
-
-    update:
-    更新运动员信息
-
-    partial_update:
-    部分更新运动员信息
-
-    destroy:
-    删除运动员
+    All operations go through Service layer.
+    Service returns Domain models (dataclasses).
+    Serializer handles Domain model serialization via DomainModelSerializer.
     """
+
     queryset = DjangoFencer.objects.all().order_by('last_name', 'first_name')
     serializer_class = FencerSerializer
-    permission_classes = [IsAuthenticated]
+    service = FencerService()
     filter_backends = [DjangoFilterBackend, filters.SearchFilter, filters.OrderingFilter]
     filterset_fields = ['gender', 'country_code', 'primary_weapon']
     search_fields = ['first_name', 'last_name', 'display_name', 'fencing_id']
     ordering_fields = ['last_name', 'first_name', 'current_ranking', 'created_at', 'updated_at']
     ordering = ['last_name', 'first_name']
-    pagination_class = StandardPagination
 
     def get_serializer_class(self):
         if self.action == 'create':
@@ -64,230 +42,205 @@ class FencerViewSet(viewsets.ModelViewSet):
             return FencerUpdateSerializer
         elif self.action == 'search':
             return FencerSearchSerializer
-        return super().get_serializer_class()
+        return FencerSerializer
 
     def get_permissions(self):
-        """根据不同动作设置权限"""
-        if self.action in ['list', 'retrieve', 'search', 'bulk_save']:
-            return [AllowAny()]  # 允许匿名用户查看
-        return super().get_permissions()
+        if self.action in ['list', 'retrieve', 'search', 'bulk_save', 'by_country', 'by_weapon', 'stats', 'top_ranked']:
+            return [AllowAny()]
+        return [IsAuthenticated()]
 
-    def create(self, request, *args, **kwargs):
+    def list(self, request):
+        fencers = self.service.get_all_fencers()
+
+        country_code = request.query_params.get('country_code')
+        if country_code:
+            fencers = [f for f in fencers if f.country_code == country_code.upper()]
+
+        gender = request.query_params.get('gender')
+        if gender:
+            fencers = [f for f in fencers if f.gender == gender.upper()]
+
+        weapon = request.query_params.get('primary_weapon')
+        if weapon:
+            fencers = [f for f in fencers if f.primary_weapon == weapon.upper()]
+
+        search = request.query_params.get('search')
+        if search:
+            search_lower = search.lower()
+            fencers = [f for f in fencers if
+                      search_lower in f.first_name.lower() or
+                      search_lower in f.last_name.lower() or
+                      (f.display_name and search_lower in f.display_name.lower()) or
+                      (f.fencing_id and search_lower in f.fencing_id.lower())]
+
+        ordering = request.query_params.get('ordering', 'last_name')
+        reverse = ordering.startswith('-')
+        order_field = ordering.lstrip('-')
+        if fencers and hasattr(fencers[0], order_field):
+            fencers = sorted(fencers, key=lambda x: getattr(x, order_field) or '', reverse=reverse)
+
+        return get_paginated_response(
+            self.get_serializer_class(),
+            fencers,
+            request
+        )
+
+    def retrieve(self, request, pk=None):
+        try:
+            fencer_id = UUID(pk)
+        except (ValueError, TypeError):
+            return Response({"detail": "Invalid fencer ID"}, status=status.HTTP_400_BAD_REQUEST)
+
+        fencer = self.service.get_fencer_by_id(fencer_id)
+        if not fencer:
+            return Response({"detail": "Fencer not found"}, status=status.HTTP_404_NOT_FOUND)
+
+        serializer = self.get_serializer(fencer)
+        return Response(serializer.data)
+
+    def create(self, request):
         serializer = self.get_serializer(data=request.data)
         serializer.is_valid(raise_exception=True)
 
         try:
-            fencer_service = FencerService()
-            fencer = fencer_service.create_fencer(serializer.validated_data)
-            django_fencer = DjangoFencer.objects.get(id=fencer.id)
-            output_serializer = self.get_serializer(django_fencer)
+            fencer = self.service.create_fencer(serializer.validated_data)
+            response_serializer = FencerSerializer(fencer)
+            return Response(response_serializer.data, status=status.HTTP_201_CREATED)
+        except self.service.FencerServiceError as e:
+            return Response({"detail": e.message, "errors": e.errors}, status=status.HTTP_400_BAD_REQUEST)
 
-            headers = self.get_success_headers(output_serializer.data)
-            return Response(
-                output_serializer.data,
-                status=status.HTTP_201_CREATED,
-                headers=headers
-            )
-        except FencerService.FencerServiceError as e:
-            return Response(
-                {"detail": e.message, "errors": e.errors},
-                status=status.HTTP_400_BAD_REQUEST
-            )
+    def update(self, request, pk=None):
+        try:
+            fencer_id = UUID(pk)
+        except (ValueError, TypeError):
+            return Response({"detail": "Invalid fencer ID"}, status=status.HTTP_400_BAD_REQUEST)
 
-    def update(self, request, *args, **kwargs):
-        partial = kwargs.pop('partial', False)
-        instance = self.get_object()
-        serializer = self.get_serializer(instance, data=request.data, partial=partial)
+        serializer = self.get_serializer(data=request.data)
         serializer.is_valid(raise_exception=True)
 
         try:
-            fencer_service = FencerService()
-            fencer = fencer_service.update_fencer(instance.id, serializer.validated_data)
-            django_fencer = DjangoFencer.objects.get(id=fencer.id)
-            output_serializer = self.get_serializer(django_fencer)
-            return Response(output_serializer.data)
-        except FencerService.FencerServiceError as e:
-            return Response(
-                {"detail": e.message, "errors": e.errors},
-                status=status.HTTP_400_BAD_REQUEST
-            )
+            fencer = self.service.update_fencer(fencer_id, serializer.validated_data)
+            response_serializer = FencerSerializer(fencer)
+            return Response(response_serializer.data)
+        except self.service.FencerServiceError as e:
+            return Response({"detail": e.message, "errors": e.errors}, status=status.HTTP_400_BAD_REQUEST)
 
-    def destroy(self, request, *args, **kwargs):
-        instance = self.get_object()
+    def partial_update(self, request, pk=None):
+        return self.update(request, pk)
+
+    def destroy(self, request, pk=None):
+        try:
+            fencer_id = UUID(pk)
+        except (ValueError, TypeError):
+            return Response({"detail": "Invalid fencer ID"}, status=status.HTTP_400_BAD_REQUEST)
 
         try:
-            fencer_service = FencerService()
-            success = fencer_service.delete_fencer(instance.id)
-
+            success = self.service.delete_fencer(fencer_id)
             if success:
                 return Response(status=status.HTTP_204_NO_CONTENT)
             else:
-                return Response(
-                    {"detail": "删除失败"},
-                    status=status.HTTP_500_INTERNAL_SERVER_ERROR
-                )
-        except FencerService.FencerServiceError as e:
-            return Response(
-                {"detail": e.message, "errors": e.errors},
-                status=status.HTTP_400_BAD_REQUEST
-            )
+                return Response({"detail": "Delete failed"}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+        except self.service.FencerServiceError as e:
+            return Response({"detail": e.message, "errors": e.errors}, status=status.HTTP_400_BAD_REQUEST)
 
     @action(detail=False, methods=['post'], url_path='bulk-save')
     def bulk_save(self, request):
-        """批量保存/更新运动员信息"""
         fencers_data = request.data
         if not isinstance(fencers_data, list):
             return Response({"detail": "Expected a list of fencers"}, status=status.HTTP_400_BAD_REQUEST)
-        
-        fencer_service = FencerService()
+
         saved_fencers = []
         errors = []
 
-        # 获取已存在的 fencer_id 列表，以便判断更新或创建
         for fencer_data in fencers_data:
             try:
-                # Assuming frontend provides `id` if it already exists in their local DB,
-                # or `fencing_id` as business key.
                 fencer_id = fencer_data.get('id')
-                fencing_id = fencer_data.get('fencing_id')
-
-                existing_fencer = None
                 if fencer_id:
-                    existing_fencer = fencer_service.get_fencer_by_id(fencer_id)
-                elif fencing_id:
-                    # In a real app we might query by fencing_id here
-                    pass
-
-                if existing_fencer:
-                    fencer = fencer_service.update_fencer(existing_fencer.id, fencer_data)
+                    try:
+                        fencer_uuid = UUID(fencer_id)
+                        existing = self.service.get_fencer_by_id(fencer_uuid)
+                        if existing:
+                            fencer = self.service.update_fencer(existing.id, fencer_data)
+                        else:
+                            fencer = self.service.create_fencer(fencer_data)
+                    except (ValueError, TypeError):
+                        fencer = self.service.create_fencer(fencer_data)
                 else:
-                    fencer = fencer_service.create_fencer(fencer_data)
-                
+                    fencer = self.service.create_fencer(fencer_data)
+
                 saved_fencers.append(fencer)
             except Exception as e:
                 errors.append({"data": fencer_data, "error": str(e)})
 
-        django_fencers = DjangoFencer.objects.filter(id__in=[f.id for f in saved_fencers])
-        output_serializer = FencerSerializer(django_fencers, many=True)
         return Response({
             "saved_count": len(saved_fencers),
             "error_count": len(errors),
             "errors": errors,
-            "results": output_serializer.data
+            "results": [FencerSerializer(f).data for f in saved_fencers]
         })
 
     @action(detail=False, methods=['post'], url_path='search')
     def search(self, request):
-        """
-        搜索运动员
-        """
-        serializer = self.get_serializer(data=request.data)
+        serializer = FencerSearchSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
 
         query = serializer.validated_data['query']
         limit = serializer.validated_data.get('limit', 50)
 
         try:
-            fencer_service = FencerService()
-            fencers = fencer_service.search_fencers(query, limit)
-
-            # 获取对应的Django模型实例
-            fencer_ids = [fencer.id for fencer in fencers]
-            django_fencers = DjangoFencer.objects.filter(id__in=fencer_ids)
-
-            output_serializer = FencerSerializer(django_fencers, many=True)
+            fencers = self.service.search_fencers(query, limit)
             return Response({
                 "query": query,
                 "count": len(fencers),
-                "results": output_serializer.data
+                "results": [FencerSerializer(f).data for f in fencers]
             })
-        except FencerService.FencerServiceError as e:
-            return Response(
-                {"detail": e.message, "errors": e.errors},
-                status=status.HTTP_400_BAD_REQUEST
-            )
+        except self.service.FencerServiceError as e:
+            return Response({"detail": e.message, "errors": e.errors}, status=status.HTTP_400_BAD_REQUEST)
 
     @action(detail=False, methods=['get'], url_path='by-country/(?P<country_code>[^/.]+)')
     def by_country(self, request, country_code=None):
-        """
-        根据国家获取运动员列表
-        """
         try:
-            fencer_service = FencerService()
-            fencers = fencer_service.get_fencers_by_country(country_code)
-
-            fencer_ids = [fencer.id for fencer in fencers]
-            django_fencers = DjangoFencer.objects.filter(id__in=fencer_ids)
-
-            serializer = self.get_serializer(django_fencers, many=True)
+            fencers = self.service.get_fencers_by_country(country_code.upper())
             return Response({
-                "country_code": country_code,
+                "country_code": country_code.upper(),
                 "count": len(fencers),
-                "results": serializer.data
+                "results": [FencerSerializer(f).data for f in fencers]
             })
-        except FencerService.FencerServiceError as e:
-            return Response(
-                {"detail": e.message, "errors": e.errors},
-                status=status.HTTP_400_BAD_REQUEST
-            )
+        except self.service.FencerServiceError as e:
+            return Response({"detail": e.message, "errors": e.errors}, status=status.HTTP_400_BAD_REQUEST)
 
     @action(detail=False, methods=['get'], url_path='by-weapon/(?P<weapon>[^/.]+)')
     def by_weapon(self, request, weapon=None):
-        """
-        根据剑种获取运动员列表
-        """
         try:
-            fencer_service = FencerService()
-            fencers = fencer_service.get_fencers_by_weapon(weapon)
-
-            fencer_ids = [fencer.id for fencer in fencers]
-            django_fencers = DjangoFencer.objects.filter(id__in=fencer_ids)
-
-            serializer = self.get_serializer(django_fencers, many=True)
+            fencers = self.service.get_fencers_by_weapon(weapon.upper())
             return Response({
-                "weapon": weapon,
+                "weapon": weapon.upper(),
                 "count": len(fencers),
-                "results": serializer.data
+                "results": [FencerSerializer(f).data for f in fencers]
             })
-        except FencerService.FencerServiceError as e:
-            return Response(
-                {"detail": e.message, "errors": e.errors},
-                status=status.HTTP_400_BAD_REQUEST
-            )
+        except self.service.FencerServiceError as e:
+            return Response({"detail": e.message, "errors": e.errors}, status=status.HTTP_400_BAD_REQUEST)
 
     @action(detail=False, methods=['get'], url_path='stats')
     def stats(self, request):
-        """
-        获取运动员统计信息
-        """
         try:
-            fencer_service = FencerService()
-            statistics = fencer_service.get_statistics()
+            statistics = self.service.get_statistics()
             return Response(statistics)
-        except FencerService.FencerServiceError as e:
-            return Response(
-                {"detail": e.message, "errors": e.errors},
-                status=status.HTTP_400_BAD_REQUEST
-            )
+        except self.service.FencerServiceError as e:
+            return Response({"detail": e.message, "errors": e.errors}, status=status.HTTP_400_BAD_REQUEST)
 
     @action(detail=False, methods=['get'], url_path='top-ranked')
     def top_ranked(self, request):
-        """
-        获取排名最高的运动员
-        """
         limit = int(request.query_params.get('limit', 100))
         country = request.query_params.get('country')
 
-        fencer_service = FencerService()
-        fencers = fencer_service.repository.get_top_ranked_fencers(limit, country)
-
-        fencer_ids = [fencer.id for fencer in fencers]
-        django_fencers = DjangoFencer.objects.filter(id__in=fencer_ids)
-
-        serializer = self.get_serializer(django_fencers, many=True)
-        return Response({
-            "limit": limit,
-            "country": country,
-            "count": len(fencers),
-            "results": serializer.data
-        })
+        try:
+            fencers = self.service.get_top_ranked_fencers(limit, country)
+            return Response({
+                "limit": limit,
+                "country": country,
+                "count": len(fencers),
+                "results": [FencerSerializer(f).data for f in fencers]
+            })
+        except self.service.FencerServiceError as e:
+            return Response({"detail": e.message, "errors": e.errors}, status=status.HTTP_400_BAD_REQUEST)
