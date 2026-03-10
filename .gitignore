@@ -50,3 +50,5 @@ web_frontend/dist/
 web_frontend/.env.*
 web_frontend/coverage/
 web_frontend/.vitest/
+
+node_modules

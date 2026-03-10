@@ -3,7 +3,10 @@
 ## 🎯 项目概述
 
 PisteMaster 是一款专为击剑赛事设计的编排与计分软件。针对比赛现场**网络波动大、实时性要求高、需物理打印、硬件交互**
-等核心痛点，本架构采用了“离线优先 (Offline-First)”与“仓库模式 (Repository Pattern)”的设计理念。
+等核心痛点，本架构采用了"离线优先 (Offline-First)"与"仓库模式 (Repository Pattern)"的设计理念。
+
+> **Note**: For MVP build and deployment details, see `docs/MVP_BUILD_PLAN.md`.
+> The desktop app will use **Electron** (not PySide6) to reuse the existing Vue frontend.
 
 ---
 
