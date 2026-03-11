@@ -1,4 +1,3 @@
-<!-- src/components/tournament/CreateEventDrawer.vue -->
 <template>
   <el-drawer
       v-model="visible"
@@ -20,7 +19,7 @@
 </template>
 
 <script setup lang="ts">
-import {ref, reactive} from 'vue'
+import {ref} from 'vue'
 import {ElMessage} from 'element-plus'
 import {DataManager} from '@/services/DataManager'
 import EventForm from './EventForm.vue'
@@ -39,9 +38,14 @@ const handleConfirm = async () => {
     try {
       const data = eventFormRef.value!.formData
       await DataManager.createEvent({
-        ...data,
         tournament_id: props.tournamentId,
-        rule_name: getRuleName(data.rules)
+        event_name: data.event_name,
+        event_type: `${data.gender}_${data.weapon}`,
+        is_team_event: data.is_team_event,
+        start_time: data.start_time,
+        rule_mode: data.rule_mode,
+        rule_id: data.rule_id,
+        rules: data.rules
       })
       ElMessage.success('项目创建成功')
       visible.value = false
@@ -54,7 +58,6 @@ const handleConfirm = async () => {
   }
 }
 
-const getRuleName = (r: any) => r.preset === 'world_cup' ? '世界杯' : r.preset === 'olympics' ? '奥运会' : '自定义'
-const resetForm = () => { /* 可以在这里显式调用子组件的重置逻辑 */
+const resetForm = () => {
 }
 </script>

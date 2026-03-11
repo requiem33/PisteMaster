@@ -38,6 +38,14 @@ class DjangoRuleRepository(RuleRepositoryInterface):
 
         return [RuleMapper.to_domain(r) for r in django_rules]
 
+    def get_preset_rules(self) -> List[Rule]:
+        """获取所有预设规则 (is_preset=True)"""
+        django_rules = DjangoRule.objects.select_related(
+            'elimination_type', 'final_ranking_type'
+        ).filter(is_preset=True).order_by('rule_name')
+
+        return [RuleMapper.to_domain(r) for r in django_rules]
+
     def get_rules_by_elimination_type(self, elimination_type_id: UUID) -> List[Rule]:
         """根据淘汰赛类型获取规则"""
         django_rules = DjangoRule.objects.select_related(

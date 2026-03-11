@@ -78,7 +78,25 @@ class DjangoRule(models.Model):
         verbose_name="规则描述"
     )
 
-    # 时间戳字段
+    stages_config = models.JSONField(
+        default=list,
+        blank=True,
+        verbose_name="阶段配置"
+    )
+
+    is_preset = models.BooleanField(
+        default=False,
+        verbose_name="是否为预设规则"
+    )
+
+    preset_code = models.CharField(
+        max_length=50,
+        null=True,
+        blank=True,
+        unique=True,
+        verbose_name="预设代码"
+    )
+
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 

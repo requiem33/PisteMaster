@@ -68,7 +68,12 @@ class DjangoEvent(models.Model):
         verbose_name="各阶段淘汰赛对阵图(JSON)"
     )
 
-    # 必填字段
+    custom_rule_config = models.JSONField(
+        default=dict,
+        blank=True,
+        verbose_name="自定义规则配置"
+    )
+
     event_name = models.CharField(
         max_length=200,
         verbose_name="项目名称",

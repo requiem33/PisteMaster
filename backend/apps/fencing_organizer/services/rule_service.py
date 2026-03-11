@@ -38,6 +38,10 @@ class RuleService:
         """获取所有规则"""
         return self.rule_repository.get_all_rules()
 
+    def get_preset_rules(self) -> List[Rule]:
+        """获取所有预设规则 (is_preset=True)"""
+        return self.rule_repository.get_preset_rules()
+
     def get_rules_by_elimination_type(self, elimination_type_id: UUID) -> List[Rule]:
         """根据淘汰赛类型获取规则"""
         return self.rule_repository.get_rules_by_elimination_type(elimination_type_id)

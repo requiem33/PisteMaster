@@ -1,8 +1,11 @@
-from rest_framework import serializers
 from decimal import Decimal
-from .models import DjangoRule
+
+from rest_framework import serializers
+
+from backend.apps.fencing_organizer.serializers.base import DomainModelSerializer
 from backend.apps.fencing_organizer.modules.elimination_type.models import DjangoEliminationType
 from backend.apps.fencing_organizer.modules.ranking_type.models import DjangoRankingType
+from .models import DjangoRule
 
 
 class EliminationTypeSerializer(serializers.ModelSerializer):
@@ -21,140 +24,161 @@ class RankingTypeSerializer(serializers.ModelSerializer):
         fields = ['id', 'type_code', 'display_name']
 
 
-class RuleSerializer(serializers.ModelSerializer):
-    """赛制规则序列化器"""
+class RuleSerializer(DomainModelSerializer):
+    """
+    Rule serializer - handles both Django ORM models and domain models (dataclasses).
 
-    # 嵌套序列化器
+    Extends DomainModelSerializer for Clean Architecture compatibility.
+    Returns only preset rules (is_preset=True) for the list endpoint.
+    """
+
+    id = serializers.UUIDField(read_only=True)
+    rule_name = serializers.CharField(max_length=100, required=True)
+    stages_config = serializers.JSONField(required=False, default=list)
+    is_preset = serializers.BooleanField(read_only=True)
+    preset_code = serializers.CharField(max_length=50, read_only=True)
+
     elimination_type = EliminationTypeSerializer(read_only=True)
     final_ranking_type = RankingTypeSerializer(read_only=True)
-
-    # 计算字段
     elimination_type_code = serializers.CharField(source='elimination_type.type_code', read_only=True)
     ranking_type_code = serializers.CharField(source='final_ranking_type.type_code', read_only=True)
+
+    pool_size = serializers.IntegerField(required=False, allow_null=True)
+    total_qualified_count = serializers.IntegerField(required=True)
+    match_score_pool = serializers.IntegerField(required=False, allow_null=True)
+    match_score_elimination = serializers.IntegerField(required=False, allow_null=True)
+    match_duration = serializers.IntegerField(required=False, allow_null=True)
+    group_qualification_ratio = serializers.DecimalField(
+        max_digits=5, decimal_places=4, required=False, allow_null=True
+    )
+    description = serializers.CharField(required=False, allow_null=True)
+    created_at = serializers.DateTimeField(read_only=True)
+    updated_at = serializers.DateTimeField(read_only=True)
 
     class Meta:
         model = DjangoRule
         fields = [
             'id',
             'rule_name',
+            'stages_config',
+            'is_preset',
+            'preset_code',
             'elimination_type',
             'final_ranking_type',
             'elimination_type_code',
             'ranking_type_code',
-            'match_format',
             'pool_size',
-            'match_duration',
+            'total_qualified_count',
             'match_score_pool',
             'match_score_elimination',
-            'total_qualified_count',
+            'match_duration',
             'group_qualification_ratio',
             'description',
             'created_at',
             'updated_at'
         ]
-        read_only_fields = ['id', 'created_at', 'updated_at']
+        read_only_fields = ['id', 'is_preset', 'preset_code', 'created_at', 'updated_at']
 
     def validate_rule_name(self, value):
-        """验证规则名称"""
-        if len(value.strip()) == 0:
-            raise serializers.ValidationError("规则名称不能为空")
-
+        if not value or len(value.strip()) == 0:
+            raise serializers.ValidationError("Rule name cannot be empty")
         if len(value) > 100:
-            raise serializers.ValidationError("规则名称长度不能超过100个字符")
-
-        # 检查是否已存在（更新时排除自己）
-        instance = self.instance
-        if instance and instance.rule_name == value:
-            return value
-
-        if DjangoRule.objects.filter(rule_name=value).exists():
-            raise serializers.ValidationError(f"规则名称 '{value}' 已存在")
-
+            raise serializers.ValidationError("Rule name cannot exceed 100 characters")
         return value.strip()
 
     def validate_pool_size(self, value):
-        """验证小组人数"""
         if value is not None and value < 3:
-            raise serializers.ValidationError("小组赛每组人数至少为3人")
+            raise serializers.ValidationError("Pool size must be at least 3")
         return value
 
     def validate_total_qualified_count(self, value):
-        """验证总晋级人数"""
         if value < 1:
-            raise serializers.ValidationError("总晋级人数必须大于0")
+            raise serializers.ValidationError("Total qualified count must be greater than 0")
         return value
 
     def validate_group_qualification_ratio(self, value):
-        """验证晋级比例"""
         if value is not None:
             try:
                 ratio = Decimal(str(value))
                 if ratio < 0 or ratio > 1:
-                    raise serializers.ValidationError("晋级比例必须在0和1之间")
+                    raise serializers.ValidationError("Qualification ratio must be between 0 and 1")
             except (ValueError, TypeError):
-                raise serializers.ValidationError("晋级比例必须是有效的小数")
+                raise serializers.ValidationError("Qualification ratio must be a valid decimal")
         return value
 
-    def validate(self, data):
-        """整体验证"""
-        errors = {}
-
-        # 检查pool_size和group_qualification_ratio的关系
-        if data.get('pool_size') and data.get('group_qualification_ratio'):
-            pool_size = data['pool_size']
-            ratio = data['group_qualification_ratio']
-            qualified_count = int(pool_size * ratio)
-
-            if qualified_count < 1:
-                errors['group_qualification_ratio'] = f"晋级比例过小，至少应有1人晋级"
-
-        # 检查match_score_pool和match_score_elimination
-        if data.get('match_score_pool') and data.get('match_score_elimination'):
-            if data['match_score_pool'] > data['match_score_elimination']:
-                errors['match_score_pool'] = "小组赛目标分数不能大于淘汰赛目标分数"
-
-        if errors:
-            raise serializers.ValidationError(errors)
-
-        return data
-
-    def to_internal_value(self, data):
-        """处理输入数据"""
-        # 将elimination_type_id转换为elimination_type（外键对象）
-        if 'elimination_type_id' in data:
-            try:
-                data['elimination_type'] = DjangoEliminationType.objects.get(
-                    pk=data.pop('elimination_type_id')
-                )
-            except DjangoEliminationType.DoesNotExist:
-                raise serializers.ValidationError({
-                    'elimination_type_id': "指定的淘汰赛类型不存在"
-                })
-
-        # 将final_ranking_type_id转换为final_ranking_type（外键对象）
-        if 'final_ranking_type_id' in data:
-            try:
-                data['final_ranking_type'] = DjangoRankingType.objects.get(
-                    pk=data.pop('final_ranking_type_id')
-                )
-            except DjangoRankingType.DoesNotExist:
-                raise serializers.ValidationError({
-                    'final_ranking_type_id': "指定的排名类型不存在"
-                })
-
-        return super().to_internal_value(data)
+    def validate_stages_config(self, value):
+        if value is None:
+            return []
+        if not isinstance(value, list):
+            raise serializers.ValidationError("stages_config must be a list")
+        for stage in value:
+            if not isinstance(stage, dict):
+                raise serializers.ValidationError("Each stage must be an object")
+            if 'type' not in stage:
+                raise serializers.ValidationError("Each stage must have a 'type' field")
+            if stage['type'] not in ['pool', 'de']:
+                raise serializers.ValidationError("Stage type must be 'pool' or 'de'")
+        return value
 
 
-class RuleCreateSerializer(RuleSerializer):
-    """规则创建序列化器"""
+class RuleCreateSerializer(DomainModelSerializer):
+    """
+    Rule create serializer - for creating new rules.
+    Note: Only admins can create non-preset rules.
+    """
 
-    # 创建时需要提供外键ID
+    rule_name = serializers.CharField(max_length=100, required=True)
     elimination_type_id = serializers.UUIDField(write_only=True, required=True)
     final_ranking_type_id = serializers.UUIDField(write_only=True, required=True)
+    total_qualified_count = serializers.IntegerField(required=True)
+    stages_config = serializers.JSONField(required=False, default=list)
+    pool_size = serializers.IntegerField(required=False, allow_null=True)
+    match_score_pool = serializers.IntegerField(required=False, allow_null=True)
+    match_score_elimination = serializers.IntegerField(required=False, allow_null=True)
+    match_duration = serializers.IntegerField(required=False, allow_null=True)
+    group_qualification_ratio = serializers.DecimalField(
+        max_digits=5, decimal_places=4, required=False, allow_null=True
+    )
+    description = serializers.CharField(required=False, allow_null=True)
 
-    class Meta(RuleSerializer.Meta):
-        fields = RuleSerializer.Meta.fields + ['elimination_type_id', 'final_ranking_type_id']
+    class Meta:
+        model = DjangoRule
+        fields = [
+            'rule_name',
+            'elimination_type_id',
+            'final_ranking_type_id',
+            'total_qualified_count',
+            'stages_config',
+            'pool_size',
+            'match_score_pool',
+            'match_score_elimination',
+            'match_duration',
+            'group_qualification_ratio',
+            'description'
+        ]
 
-    def to_internal_value(self, data):
-        """重写以处理外键ID"""
-        return super(RuleSerializer, self).to_internal_value(data)
+    def validate_rule_name(self, value):
+        if not value or len(value.strip()) == 0:
+            raise serializers.ValidationError("Rule name cannot be empty")
+        return value.strip()
+
+    def validate(self, data):
+        try:
+            data['elimination_type'] = DjangoEliminationType.objects.get(
+                pk=data.pop('elimination_type_id')
+            )
+        except DjangoEliminationType.DoesNotExist:
+            raise serializers.ValidationError({
+                'elimination_type_id': "Elimination type not found"
+            })
+
+        try:
+            data['final_ranking_type'] = DjangoRankingType.objects.get(
+                pk=data.pop('final_ranking_type_id')
+            )
+        except DjangoRankingType.DoesNotExist:
+            raise serializers.ValidationError({
+                'final_ranking_type_id': "Ranking type not found"
+            })
+
+        return data

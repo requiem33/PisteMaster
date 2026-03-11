@@ -118,13 +118,22 @@ export const DataManager = {
 
     async createEvent(eventData: any) {
         try {
-            const payload = {
+            const payload: any = {
                 tournament_id: eventData.tournament_id,
                 event_name: eventData.event_name,
                 event_type: eventData.event_type,
                 is_team_event: eventData.is_team_event || false,
                 status: 'REGISTRATION'
             };
+
+            if (eventData.rule_mode === 'preset' && eventData.rule_id) {
+                payload.rule_id = eventData.rule_id;
+            } else if (eventData.rule_mode === 'custom' && eventData.rules?.stages) {
+                payload.custom_rule_config = {
+                    preset: 'custom',
+                    stages: eventData.rules.stages
+                };
+            }
 
             const response = await fetch(`${API_BASE_URL}/events/`, {
                 method: 'POST',
@@ -142,6 +151,18 @@ export const DataManager = {
         } catch (error) {
             console.error('Create event error:', error);
             throw error;
+        }
+    },
+
+    async fetchRules(): Promise<any[]> {
+        try {
+            const response = await fetch(`${API_BASE_URL}/rules/`);
+            if (!response.ok) throw new Error('Failed to fetch rules');
+            const data = await response.json();
+            return data.results || data;
+        } catch (error) {
+            console.error('Fetch rules error:', error);
+            return [];
         }
     },
 

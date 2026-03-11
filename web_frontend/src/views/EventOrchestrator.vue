@@ -154,14 +154,17 @@ const computedSteps = computed(() => {
   return steps;
 });
 
-// onMounted, watch, nextStep 等其他函数保持不变
 onMounted(async () => {
   if (eventId) {
     const eventData = await DataManager.getEventById(eventId);
     if (eventData) {
       eventInfo.value = {...eventInfo.value, ...eventData};
-      if (!eventInfo.value.rules || !eventInfo.value.rules.stages) {
-        eventInfo.value.rules = {preset: 'world_cup', stages: [ /* default stages */]};
+      if (eventData.rule_info && eventData.rule_info.stages) {
+        eventInfo.value.rules = {
+          preset: eventData.rule_info.preset_code || 'custom',
+          stages: eventData.rule_info.stages
+        };
+        eventInfo.value.rule_name = eventData.rule_info.rule_name;
       }
       const tournamentData = await DataManager.getTournamentById(eventData.tournament_id);
       if (tournamentData) {
