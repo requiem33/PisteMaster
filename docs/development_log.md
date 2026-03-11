@@ -9,6 +9,45 @@
 
 ---
 
+## 🗓️ 2026-03-11
+
+### 已完成事项 (Completed)
+
+* **后端架构重构**: 实现Clean Architecture模式
+  - 创建 `DomainModelSerializer` 基类，支持ORM和dataclass域模型
+  - 创建域模型分页工具 `paginate_domain_models`
+  - 所有ViewSet统一使用 `GenericViewSet`，数据流经过Service层
+  - 所有Serializer继承 `DomainModelSerializer`
+  - 移除Service层重复验证逻辑，验证统一在Serializer
+
+* **规则系统重构**: 实现预设规则与自定义规则
+  - `DjangoRule` 新增 `stages_config`, `is_preset`, `preset_code` 字段
+  - `DjangoEvent` 新增 `custom_rule_config` 字段
+  - 数据迁移：预置 World Cup 和 Olympics 规则
+  - API `/rules/` 仅返回预设规则 (`is_preset=True`)
+  - 自定义规则存储在Event中，不可复用
+
+* **前端规则选择**: 支持预设规则和自定义规则
+  - `EventForm.vue` 新增规则模式选择（预设/自定义）
+  - 从API加载预设规则列表
+  - 预设规则显示阶段预览（只读）
+  - 自定义规则使用 `RuleSettings.vue` 配置
+
+* **Bug修复**: EventOrchestrator阶段显示问题
+  - 修复 `rule_info.stages` 为空的fallback逻辑
+  - API返回完整的 `rule_info` 包含 `stages`
+
+### 技术决策 & 挑战
+
+* 规则存储策略：预设规则存在 `DjangoRule` 表，自定义规则存在 `DjangoEvent.custom_rule_config`
+* 规则解析优先级：`custom_rule_config.stages` > `rule.stages_config` > 默认World Cup
+
+### 发现的问题 (Known Issues)
+
+* 无。
+
+---
+
 ## 🗓️ 2026-01-12
 
 ### 已完成事项 (Completed)
