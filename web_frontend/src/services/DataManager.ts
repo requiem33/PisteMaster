@@ -1,9 +1,21 @@
 import {IndexedDBService} from './storage/IndexedDBService';
 import {ElMessage} from 'element-plus';
-import {v4 as uuidv4} from 'uuid'; // npm install uuid
+import {v4 as uuidv4} from 'uuid';
 import type {Tournament} from '@/types/tournament.ts';
+import {getCsrfToken} from '@/utils/csrf.ts';
 
 const API_BASE_URL = 'http://127.0.0.1:8000/api';
+
+function getHeaders(): Record<string, string> {
+    const headers: Record<string, string> = {
+        'Content-Type': 'application/json',
+    };
+    const csrfToken = getCsrfToken();
+    if (csrfToken) {
+        headers['X-CSRFToken'] = csrfToken;
+    }
+    return headers;
+}
 
 export const DataManager = {
     async createTournament(formData: any): Promise<any | null> {
@@ -19,10 +31,8 @@ export const DataManager = {
 
             const response = await fetch(`${API_BASE_URL}/tournaments/`, {
                 method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                },
-                // 发送重塑后的 payload
+                headers: getHeaders(),
+                credentials: 'include',
                 body: JSON.stringify(payload),
             });
 
@@ -81,7 +91,8 @@ export const DataManager = {
 
             const response = await fetch(`${API_BASE_URL}/tournaments/${formData.id}/`, {
                 method: 'PUT',
-                headers: { 'Content-Type': 'application/json' },
+                headers: getHeaders(),
+                credentials: 'include',
                 body: JSON.stringify(payload),
             });
             if (!response.ok) throw new Error('Failed to update tournament');
@@ -96,6 +107,8 @@ export const DataManager = {
         try {
             const response = await fetch(`${API_BASE_URL}/tournaments/${tournamentId}/`, {
                 method: 'DELETE',
+                headers: getHeaders(),
+                credentials: 'include',
             });
             if (!response.ok) throw new Error('Failed to delete tournament');
             return true;
@@ -137,7 +150,8 @@ export const DataManager = {
 
             const response = await fetch(`${API_BASE_URL}/events/`, {
                 method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
+                headers: getHeaders(),
+                credentials: 'include',
                 body: JSON.stringify(payload),
             });
 
@@ -193,7 +207,8 @@ export const DataManager = {
         try {
             const response = await fetch(`${API_BASE_URL}/events/${eventId}/`, {
                 method: 'PATCH',
-                headers: { 'Content-Type': 'application/json' },
+                headers: getHeaders(),
+                credentials: 'include',
                 body: JSON.stringify(eventData),
             });
             if (!response.ok) throw new Error('Failed to update event');
@@ -208,6 +223,8 @@ export const DataManager = {
         try {
             const response = await fetch(`${API_BASE_URL}/events/${eventId}/`, {
                 method: 'DELETE',
+                headers: getHeaders(),
+                credentials: 'include',
             });
             if (!response.ok) throw new Error('Failed to delete event');
             return true;
@@ -229,7 +246,8 @@ export const DataManager = {
         try {
             const response = await fetch(`${API_BASE_URL}/fencers/bulk_save/`, {
                 method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
+                headers: getHeaders(),
+                credentials: 'include',
                 body: JSON.stringify(fencerList),
             });
 
@@ -249,7 +267,8 @@ export const DataManager = {
         try {
             const response = await fetch(`${API_BASE_URL}/events/${eventId}/participants/sync/`, {
                 method: 'PUT',
-                headers: { 'Content-Type': 'application/json' },
+                headers: getHeaders(),
+                credentials: 'include',
                 body: JSON.stringify({ fencer_ids: currentFencerIds }),
             });
 
@@ -307,7 +326,8 @@ export const DataManager = {
 
             const response = await fetch(`${API_BASE_URL}/events/${eventId}/live-ranking/`, {
                 method: 'PUT',
-                headers: { 'Content-Type': 'application/json' },
+                headers: getHeaders(),
+                credentials: 'include',
                 body: JSON.stringify({ live_ranking: liveRanking }),
             });
 
@@ -434,7 +454,8 @@ export const DataManager = {
 
             const response = await fetch(`${API_BASE_URL}/events/${eventId}/stages/${stageId}/pools/`, {
                 method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
+                headers: getHeaders(),
+                credentials: 'include',
                 body: JSON.stringify(formattedPools),
             });
 
@@ -502,7 +523,8 @@ export const DataManager = {
 
             const response = await fetch(`${API_BASE_URL}/pools/${poolId}/results/`, {
                 method: 'PATCH',
-                headers: { 'Content-Type': 'application/json' },
+                headers: getHeaders(),
+                credentials: 'include',
                 body: JSON.stringify(payload),
             });
 
@@ -583,7 +605,8 @@ export const DataManager = {
         try {
             const response = await fetch(`${API_BASE_URL}/events/${eventId}/stages/${stageId}/detree/`, {
                 method: 'PUT',
-                headers: { 'Content-Type': 'application/json' },
+                headers: getHeaders(),
+                credentials: 'include',
                 body: JSON.stringify({ tree_data: bracketData }),
             });
 
