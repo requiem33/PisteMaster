@@ -166,9 +166,10 @@ onMounted(async () => {
         };
         eventInfo.value.rule_name = eventData.rule_info.rule_name;
       }
-      const tournamentData = await DataManager.getTournamentById(eventData.tournament_id);
-      if (tournamentData) {
-        eventInfo.value.tournament_name = tournamentData.tournament_name;
+      const tournamentId = eventData.tournament_info?.id;
+      if (tournamentId) {
+        eventInfo.value.tournament_id = tournamentId;
+        eventInfo.value.tournament_name = eventData.tournament_info.tournament_name;
       }
       currentStep.value = eventData.current_step || 0;
     } else {
