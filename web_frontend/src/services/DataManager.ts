@@ -245,7 +245,7 @@ export const DataManager = {
 
     async saveFencers(fencerList: any[]) {
         try {
-            const response = await fetch(`${API_BASE_URL}/fencers/bulk_save/`, {
+            const response = await fetch(`${API_BASE_URL}/fencers/bulk-save/`, {
                 method: 'POST',
                 headers: getHeaders(),
                 credentials: 'include',
