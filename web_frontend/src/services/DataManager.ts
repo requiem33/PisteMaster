@@ -291,7 +291,9 @@ export const DataManager = {
             
             // Extract fencer objects from participants
             if (data.participants && Array.isArray(data.participants)) {
-                return data.participants.map((p: any) => p.fencer);
+                return data.participants
+                    .map((p: any) => p.fencer_info)
+                    .filter((f: any) => f != null);
             }
             return [];
         } catch (error) {

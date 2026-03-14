@@ -62,7 +62,10 @@ class EventParticipantSerializer(serializers.ModelSerializer):
                 'last_name': obj.fencer.last_name,
                 'display_name': obj.fencer.display_name,
                 'country_code': obj.fencer.country_code,
-                'primary_weapon': obj.fencer.primary_weapon
+                'primary_weapon': obj.fencer.primary_weapon,
+                'gender': obj.fencer.gender,
+                'current_ranking': obj.fencer.current_ranking,
+                'fencing_id': obj.fencer.fencing_id
             }
         return None
 
