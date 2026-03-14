@@ -206,6 +206,7 @@ class EventCreateSerializer(DomainModelSerializer):
     custom_rule_config = serializers.JSONField(required=False, default=dict)
     is_team_event = serializers.BooleanField(required=False, default=False)
     status = serializers.CharField(max_length=20, required=False, default='REGISTRATION')
+    start_time = serializers.DateTimeField(required=False, allow_null=True)
 
     class Meta:
         model = DjangoEvent
@@ -214,6 +215,7 @@ class EventCreateSerializer(DomainModelSerializer):
             'event_name',
             'event_type',
             'rule_id',
+            'start_time',
             'custom_rule_config',
             'is_team_event',
             'status'

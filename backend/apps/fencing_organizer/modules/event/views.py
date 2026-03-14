@@ -1,3 +1,4 @@
+from datetime import datetime
 from uuid import UUID
 
 from django.db import transaction
@@ -69,7 +70,13 @@ class EventViewSet(viewsets.GenericViewSet):
         reverse = ordering.startswith('-')
         order_field = ordering.lstrip('-')
         if events and hasattr(events[0], order_field):
-            events = sorted(events, key=lambda x: getattr(x, order_field) or '', reverse=reverse)
+
+            def sort_key(x):
+                val = getattr(x, order_field)
+                if val is None:
+                    return datetime.min
+                return val
+            events = sorted(events, key=sort_key, reverse=reverse)
 
         return get_paginated_response(
             self.get_serializer_class(),

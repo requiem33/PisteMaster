@@ -136,7 +136,8 @@ export const DataManager = {
                 event_name: eventData.event_name,
                 event_type: eventData.event_type,
                 is_team_event: eventData.is_team_event || false,
-                status: 'REGISTRATION'
+                status: 'REGISTRATION',
+                start_time: eventData.start_time || null
             };
 
             if (eventData.rule_mode === 'preset' && eventData.rule_id) {
