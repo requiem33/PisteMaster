@@ -9,6 +9,85 @@
 
 ---
 
+## 🗓️ 2026-03-15
+
+### 已完成事项 (Completed)
+
+* **数据同步架构**: 实现IndexedDB与后端数据库的完整同步
+  - 新增 `syncEventToLocal()` 方法，在事件更新后同步到本地缓存
+  - `saveFencers()` → 同步到 IndexedDB
+  - `syncEventFencers()` → 同步选手-项目关联到 IndexedDB
+  - `initializeLiveRanking()` → 同步事件到 IndexedDB
+  - `updateLiveRanking()` → 同步事件到 IndexedDB
+  - `updateEvent()` → 同步事件到 IndexedDB
+  - `savePools()` → 同步分组到 IndexedDB
+  - `updatePoolResults()` → 同新分组结果到 IndexedDB
+  - IndexedDB版本从5升级到6
+  - 新增批量保存方法：`saveFencers()`, `savePools()`, `saveEventFencerLinks()`
+  - 错误处理策略：记录错误但继续执行（后端为事实来源）
+
+* **自定义规则持久化修复**: 修复自定义规则未保存到数据库的问题
+  - `Event` 域模型新增 `custom_rule_config` 字段
+  - `EventMapper` 新增 `custom_rule_config` 映射
+  - `EventService.create_event()` 传递 `custom_rule_config`
+  - Django Admin 显示 `custom_rule_config` 和 `stages_config`
+
+* **PoolScoring渲染修复**: 修复计分表渲染错误
+  - 验证 `results` 和 `stats` 数组维度匹配当前选手数量
+  - 解决 `Cannot read properties of undefined (reading '1')` 错误
+
+### 技术决策 & 挑战
+
+* IndexedDB同步策略：后端更新成功后同步到本地缓存，为未来多客户端架构做准备
+* 数据一致性：后端为事实来源，IndexedDB作为离线缓存
+
+### 发现的问题 (Known Issues)
+
+* 无。
+
+---
+
+## 🗓️ 2026-03-14
+
+### 已完成事项 (Completed)
+
+* **Bug修复**: 多个前后端数据流问题
+  - 修复 `EventOrchestrator` 使用 `tournament_info.id` 代替 `tournament_id`
+  - 修复 `getFencersByEvent` 使用 `fencer_info` 代替 `fencer` 字段
+  - 修复 `bulk-save` API URL 路径（下划线改连字符）
+  - 修复 `start_time` 字段在 `DataManager.ts` 和 `EventCreateSerializer` 中缺失
+
+### 技术决策 & 挑战
+
+* 无。
+
+### 发现的问题 (Known Issues)
+
+* 无。
+
+---
+
+## 🗓️ 2026-03-12
+
+### 已完成事项 (Completed)
+
+* **CSRF Token处理**: 前端API请求添加CSRF token支持
+  - `DataManager.ts` 新增 `getCsrfToken()` 函数
+  - 所有POST/PUT/DELETE请求自动携带 `X-CSRFToken` header
+
+* **SerializerMethodField修复**: 修复dataclass域模型的序列化问题
+  - `DomainModelSerializer.to_representation()` 正确处理 `SerializerMethodField`
+
+### 技术决策 & 挑战
+
+* 无。
+
+### 发现的问题 (Known Issues)
+
+* 无。
+
+---
+
 ## 🗓️ 2026-03-11
 
 ### 已完成事项 (Completed)
