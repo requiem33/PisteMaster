@@ -135,9 +135,20 @@ const loadPoolData = async () => {
       });
 
       const size = validFencers.length;
-      results.push(p.results || Array.from({length: size}, () => Array(size).fill('')));
-      stats.push(p.stats || Array.from({length: size}, () => ({V: 0, TS: 0, TR: 0, Ind: 0})));
-      isLocked.value.push(p.is_locked || false); // 【已恢复】从数据库恢复锁定状态
+      
+      // Validate that saved results have correct dimensions
+      const savedResults = (Array.isArray(p.results) && p.results.length === size && 
+                           p.results.every(row => Array.isArray(row) && row.length === size))
+          ? p.results 
+          : Array.from({length: size}, () => Array(size).fill(''));
+      
+      const savedStats = (Array.isArray(p.stats) && p.stats.length === size)
+          ? p.stats 
+          : Array.from({length: size}, () => ({V: 0, TS: 0, TR: 0, Ind: 0}));
+
+      results.push(savedResults);
+      stats.push(savedStats);
+      isLocked.value.push(p.is_locked || false);
     }
     poolGroups.value = detailedPools;
 
