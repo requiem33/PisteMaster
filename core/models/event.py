@@ -28,6 +28,7 @@ class Event:
     
     live_ranking: list = field(default_factory=list, metadata={"description": "实时排名快照(JSON)"})
     de_trees: Dict[str, Any] = field(default_factory=dict, metadata={"description": "各阶段淘汰赛对阵图(JSON)"})
+    custom_rule_config: Dict[str, Any] = field(default_factory=dict, metadata={"description": "自定义规则配置(JSON)"})
 
     start_time: Optional[datetime] = field(default=None, metadata={"description": "项目计划开始时间"})
     created_at: datetime = field(default_factory=datetime.now)

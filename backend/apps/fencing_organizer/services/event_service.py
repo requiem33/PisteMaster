@@ -71,6 +71,7 @@ class EventService:
             start_time=event_data.get('start_time'),
             live_ranking=event_data.get('live_ranking', []),
             de_trees=event_data.get('de_trees', {}),
+            custom_rule_config=event_data.get('custom_rule_config', {}),
             current_step=event_data.get('current_step', 0)
         )
 

@@ -34,10 +34,13 @@ class RuleAdmin(admin.ModelAdmin):
 
     fieldsets = (
         ('基本信息', {
-            'fields': ('rule_name', 'description')
+            'fields': ('rule_name', 'description', 'is_preset', 'preset_code')
         }),
         ('赛制设置', {
             'fields': ('elimination_type', 'final_ranking_type', 'total_qualified_count')
+        }),
+        ('阶段配置', {
+            'fields': ('stages_config',)
         }),
         ('小组赛设置', {
             'fields': ('pool_size', 'match_score_pool', 'group_qualification_ratio')

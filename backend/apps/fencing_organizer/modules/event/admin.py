@@ -41,7 +41,7 @@ class EventAdmin(admin.ModelAdmin):
             'fields': ('event_name', 'tournament', 'event_type')
         }),
         ('赛制设置', {
-            'fields': ('rule', 'status')
+            'fields': ('rule', 'custom_rule_config', 'status')
         }),
         ('状态记录', {
             'fields': ('current_step', 'live_ranking', 'de_trees')

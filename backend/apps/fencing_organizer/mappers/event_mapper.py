@@ -17,6 +17,7 @@ class EventMapper:
             current_step=django_event.current_step,
             live_ranking=django_event.live_ranking,
             de_trees=django_event.de_trees,
+            custom_rule_config=django_event.custom_rule_config,
             event_name=django_event.event_name,
             is_team_event=django_event.is_team_event,
             start_time=django_event.start_time,
@@ -36,8 +37,8 @@ class EventMapper:
             "current_step": event.current_step,
             "live_ranking": event.live_ranking,
             "de_trees": event.de_trees,
+            "custom_rule_config": event.custom_rule_config,
             "event_name": event.event_name,
             "is_team_event": event.is_team_event,
             "start_time": event.start_time
-            # 注意：created_at和updated_at不包含在这里，让Django自动处理
         }
