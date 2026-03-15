@@ -120,7 +120,7 @@ const loadPoolData = async () => {
   }
 
   try {
-    const poolsFromDB = await DataManager.getPoolsByStageId(stageId);
+    const poolsFromDB = await DataManager.getPoolsByStageId(props.eventId, stageId);
     if (!poolsFromDB || poolsFromDB.length === 0) return;
 
     const detailedPools = [];

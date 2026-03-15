@@ -9,8 +9,7 @@ export const IndexedDBService = {
      * 获取数据库实例，处理版本升级逻辑
      */
     async getDB(): Promise<IDBPDatabase> {
-        // 提升版本号至 2 以触发 upgrade 回调
-        return openDB(DB_NAME, 5, {
+        return openDB(DB_NAME, 6, {
             upgrade(db, oldVersion, newVersion, transaction) {
                 // --- 版本 1 逻辑：创建赛事表 ---
                 if (oldVersion < 1) {
@@ -177,5 +176,60 @@ export const IndexedDBService = {
     async getPoolsByStage(stageId: string) {
         const db = await this.getDB();
         return db.getAllFromIndex('pools', 'by_stage', stageId);
+    },
+
+    /**
+     * 保存单个分组
+     */
+    async savePool(poolData: any) {
+        const db = await this.getDB();
+        const cleanData = JSON.parse(JSON.stringify(poolData));
+        return db.put('pools', cleanData);
+    },
+
+    /**
+     * 批量保存分组
+     */
+    async savePools(poolsData: any[]) {
+        const db = await this.getDB();
+        const tx = db.transaction('pools', 'readwrite');
+        for (const pool of poolsData) {
+            const cleanData = JSON.parse(JSON.stringify(pool));
+            await tx.store.put(cleanData);
+        }
+        return tx.done;
+    },
+
+    /**
+     * 根据 ID 获取单个分组
+     */
+    async getPoolById(poolId: string) {
+        const db = await this.getDB();
+        return db.get('pools', poolId);
+    },
+
+    /**
+     * 批量保存选手
+     */
+    async saveFencers(fencersData: any[]) {
+        const db = await this.getDB();
+        const tx = db.transaction('fencers', 'readwrite');
+        for (const fencer of fencersData) {
+            const cleanData = JSON.parse(JSON.stringify(fencer));
+            await tx.store.put(cleanData);
+        }
+        return tx.done;
+    },
+
+    /**
+     * 批量保存选手-项目关联
+     */
+    async saveEventFencerLinks(links: any[]) {
+        const db = await this.getDB();
+        const tx = db.transaction('event_fencers', 'readwrite');
+        for (const link of links) {
+            await tx.store.put(link);
+        }
+        return tx.done;
     },
 };

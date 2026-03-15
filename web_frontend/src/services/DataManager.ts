@@ -18,6 +18,21 @@ function getHeaders(): Record<string, string> {
 }
 
 export const DataManager = {
+    /**
+     * Sync event from backend to local IndexedDB cache.
+     * Logs errors but continues execution (backend is source of truth).
+     */
+    async syncEventToLocal(eventId: string): Promise<void> {
+        try {
+            const event = await this.getEventById(eventId);
+            if (event) {
+                await IndexedDBService.saveEvent(event);
+            }
+        } catch (error) {
+            console.error(`Failed to sync event ${eventId} to local cache:`, error);
+        }
+    },
+
     async createTournament(formData: any): Promise<any | null> {
         try {
             // 【核心改造】在这里重塑数据
@@ -162,7 +177,9 @@ export const DataManager = {
                 throw new Error('Failed to create event');
             }
 
-            return await response.json();
+            const newEvent = await response.json();
+            await IndexedDBService.saveEvent(newEvent);
+            return newEvent;
         } catch (error) {
             console.error('Create event error:', error);
             throw error;
@@ -213,6 +230,10 @@ export const DataManager = {
                 body: JSON.stringify(eventData),
             });
             if (!response.ok) throw new Error('Failed to update event');
+            
+            // Sync event to IndexedDB
+            await this.syncEventToLocal(eventId);
+            
             return await response.json();
         } catch (error) {
             console.error('Update event error:', error);
@@ -257,7 +278,16 @@ export const DataManager = {
             }
 
             const data = await response.json();
-            return data.results || [];
+            const savedFencers = data.results || [];
+            
+            // Sync to IndexedDB
+            try {
+                await IndexedDBService.saveFencers(savedFencers);
+            } catch (syncError) {
+                console.error('Failed to sync fencers to local cache:', syncError);
+            }
+            
+            return savedFencers;
         } catch (error) {
             console.error('Bulk save fencers error:', error);
             throw error;
@@ -276,6 +306,18 @@ export const DataManager = {
             if (!response.ok) {
                 throw new Error('Failed to sync event fencers');
             }
+            
+            // Sync event-fencer links to IndexedDB
+            try {
+                const links = currentFencerIds.map(fencerId => ({
+                    event_id: eventId,
+                    fencer_id: fencerId
+                }));
+                await IndexedDBService.saveEventFencerLinks(links);
+            } catch (syncError) {
+                console.error('Failed to sync event-fencer links to local cache:', syncError);
+            }
+            
             return true;
         } catch (error) {
             console.error('Sync fencers error:', error);
@@ -335,6 +377,10 @@ export const DataManager = {
             });
 
             if (!response.ok) throw new Error('Failed to initialize live ranking');
+            
+            // Sync event to IndexedDB
+            await this.syncEventToLocal(eventId);
+            
             return await response.json();
         } catch (error) {
             console.error('Initialize live ranking error:', error);
@@ -366,6 +412,10 @@ export const DataManager = {
             });
 
             if (!response.ok) throw new Error('Failed to update live ranking');
+            
+            // Sync event to IndexedDB
+            await this.syncEventToLocal(eventId);
+            
             return await response.json();
         } catch (error) {
             console.error('Update live ranking error:', error);
@@ -463,6 +513,17 @@ export const DataManager = {
             });
 
             if (!response.ok) throw new Error('Failed to save pools');
+            
+            // Fetch created pools and sync to IndexedDB
+            try {
+                const savedPools = await this.getPoolsByStageId(eventId, stageId);
+                if (savedPools && savedPools.length > 0) {
+                    await IndexedDBService.savePools(savedPools);
+                }
+            } catch (syncError) {
+                console.error('Failed to sync pools to local cache:', syncError);
+            }
+            
             return true;
         } catch (error) {
             console.error('Save pools error:', error);
@@ -532,6 +593,20 @@ export const DataManager = {
             });
 
             if (!response.ok) throw new Error('Failed to update pool results');
+            
+            // Sync pool to IndexedDB
+            try {
+                const pool = await IndexedDBService.getPoolById(poolId);
+                if (pool) {
+                    pool.results = results;
+                    pool.stats = stats;
+                    pool.is_locked = isLocked;
+                    await IndexedDBService.savePool(pool);
+                }
+            } catch (syncError) {
+                console.error('Failed to sync pool to local cache:', syncError);
+            }
+            
             return true;
         } catch (error) {
             console.error('Update pool results error:', error);
