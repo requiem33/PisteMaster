@@ -151,10 +151,10 @@ class PoolViewSet(viewsets.GenericViewSet):
 
         try:
             pool = self.service.update_pool(pool_id, update_data)
-            return Response({
-                "message": "Updated successfully",
-                "is_locked": pool.is_locked
-            })
+            response_data = {"message": "Updated successfully"}
+            if is_locked is not None:
+                response_data["is_locked"] = is_locked
+            return Response(response_data)
         except self.service.PoolServiceError as e:
             return Response({"detail": e.message}, status=status.HTTP_400_BAD_REQUEST)
 

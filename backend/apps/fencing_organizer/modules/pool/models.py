@@ -3,6 +3,7 @@ from django.core.validators import MinValueValidator
 from uuid import uuid4
 
 from backend.apps.fencing_organizer.modules.event.models import DjangoEvent
+from backend.apps.fencing_organizer.modules.piste.models import DjangoPiste
 from core.constants.pool import PoolStatus
 
 
@@ -21,6 +22,16 @@ class DjangoPool(models.Model):
         verbose_name="所属项目"
     )
 
+    piste = models.ForeignKey(
+        DjangoPiste,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        db_column='piste_id',
+        related_name='pools',
+        verbose_name="分配剑道"
+    )
+
     stage_id = models.CharField(
         max_length=50,
         default="1",
@@ -31,6 +42,12 @@ class DjangoPool(models.Model):
     pool_number = models.IntegerField(
         verbose_name="小组编号",
         validators=[MinValueValidator(1)]
+    )
+
+    start_time = models.DateTimeField(
+        null=True,
+        blank=True,
+        verbose_name="计划开始时间"
     )
 
     # MVP 新增 JSON 字段
