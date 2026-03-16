@@ -9,6 +9,40 @@
 
 ---
 
+## 🗓️ 2026-03-16
+
+### 已完成事项
+
+* **最终排名显示修复**: 修复FinalRanking组件排名显示错误
+  - **问题1: 过期props数据** - FinalRanking依赖父组件传递的eventInfo，但导航到FinalRanking时父组件未刷新，导致live_ranking为空
+  - **修复**: 添加onMounted钩子，组件挂载时主动从后端获取最新事件数据
+  
+  - **问题2: maxStageIndex计算错误** - 使用stages.length计算maxStageIndex，但stages数组不包含seeding阶段(索引0)，导致所有选手finalStageIndex被错误限制为0或1
+  - **修复**: 从实际排名数据计算maxStageIndex，遍历所有选手找出最大阶段索引
+  
+  - **问题3: ID类型不匹配** - updateStageRanking中Map查找时，stageResults的ID与live_ranking的ID类型不一致导致查找失败
+  - **修复**: 使用String()确保ID类型一致性
+
+* **PoolRanking修复**: 传递eventId到getEventPoolRanking
+  - 修复PoolRanking组件无法获取排名数据的问题
+
+* **Pool域模型同步**: 同步Pool域模型与Django ORM模型
+  - Django模型新增 `fencer_b` 和 `score_b` 字段用于存储对手信息
+  - 域模型 `Pool` 和 `PoolAssignment` 新增对应字段并更新mapper
+  - 支持 `fencer_b` 为null的情况（轮空选手）
+
+### 技术决策 & 挑战
+
+* 组件数据源策略：FinalRanking组件在onMounted时主动获取数据，而非完全依赖props，避免父组件状态未同步的问题
+* 阶段索引计算：排名数据使用0=seeding, 1=pool, 2=DE的索引体系，而stages数组仅包含pool和DE，需从实际数据计算最大索引
+* 域模型与ORM模型分离：Pool域模型设计为独立于Django ORM，通过Mapper层转换，便于未来更换持久层或支持离线模式。Django ORM新增字段时需同步更新域模型和Mapper
+
+### 发现的问题
+
+* 无。
+
+---
+
 ## 🗓️ 2026-03-15
 
 ### 已完成事项 (Completed)
