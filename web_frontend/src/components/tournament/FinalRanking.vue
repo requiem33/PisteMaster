@@ -25,7 +25,7 @@
           </template>
         </el-table-column>
         <el-table-column prop="country_code" label="地区/国籍" width="120" align="center"/>
-        <!-- “小组赛表现”和“最后轮次”列已被移除 -->
+        <!-- "小组赛表现"和"最后轮次"列已被移除 -->
       </el-table>
     </el-card>
 
@@ -36,7 +36,7 @@
 </template>
 
 <script setup lang="ts">
-import {ref, watch} from 'vue'
+import {ref, watch, onMounted} from 'vue'
 import {ElMessage} from 'element-plus'
 import {DataManager} from '@/services/DataManager'
 import type {Stage} from '@/types';
@@ -68,17 +68,33 @@ const calculateFinalRanking = async (eventData: any) => {
     const lastStage = stages.length > 0 ? stages[stages.length - 1] : null;
     const hasBronzeMedalMatch = lastStage?.type === 'de' && lastStage.config?.final_stage === 'bronze_medal';
 
-    // 3.【“富集”逻辑】(不变)
+    // 3.【"富集"逻辑】- detect fencers without final stage rank
+    // Calculate maxStageIndex from actual ranking data, not from stages array
+    // Stage 0 = seeding, Stage 1 = pool, Stage 2 = DE, etc.
+    // The stages array only contains pool/DE stages, not seeding, so its length doesn't match the stage indices
+    let maxStageIndex = 0;
+    liveRanking.forEach((fencer: any) => {
+      const stageKeys = Object.keys(fencer.ranks).map(Number);
+      const fencerMaxStage = Math.max(...stageKeys, 0);
+      if (fencerMaxStage > maxStageIndex) {
+        maxStageIndex = fencerMaxStage;
+      }
+    });
+    
     const enrichedFencers = liveRanking.map((fencer: any) => {
       const stageKeys = Object.keys(fencer.ranks).map(Number);
-      const finalStageIndex = Math.max(...stageKeys, 0);
-      const finalRankInStage = fencer.ranks[finalStageIndex] ?? 999;
-      return {...fencer, finalStageIndex, finalRankInStage};
+      const computedFinalStageIndex = Math.max(...stageKeys, 0);
+      const finalRankInStage = fencer.ranks[computedFinalStageIndex] ?? 999;
+      return {...fencer, finalStageIndex: computedFinalStageIndex, finalRankInStage};
     });
+    const fencersWithoutFinalRank = enrichedFencers.filter(f => f.finalRankInStage === 999 && f.finalStageIndex === maxStageIndex);
+    if (fencersWithoutFinalRank.length > 0) {
+      console.warn('Fencers missing final stage rank:', fencersWithoutFinalRank.map(f => ({ id: f.id, name: f.display_name, ranks: f.ranks })));
+    }
 
     // 4.【核心改造：实现级联比较排序】
     // 4.1. 比较 finalStageIndex: 检查选手 A 和 B 到达的最后一个阶段。如果 A 止步于淘汰赛（stage 2），B 止步于小组赛（stage 1），那么 A 的排名一定高于 B。排序结束。
-    // 4.2. 进入“级联比较”: 如果 A 和 B 都止步于淘汰赛（finalStageIndex 相同），则进入 for 循环：
+    // 4.2. 进入"级联比较": 如果 A 和 B 都止步于淘汰赛（finalStageIndex 相同），则进入 for 循环：
     // i = 2 (淘汰赛阶段): 比较 a.ranks[2] 和 b.ranks[2]。如果他们被淘汰的名次不同（例如，一个第9，一个第11），则排序结束，第9名的选手胜出。
     // i = 1 (小组赛阶段): 如果他们在淘汰赛阶段的名次也相同（例如，都是第9名），循环继续。现在比较 a.ranks[1] 和 b.ranks[1]，也就是他们的小组赛排名。如果 A 的小组排名是第3，B 是第5，则 A 胜出，排序结束。
     // i = 0 (初始排名阶段): 如果他们连小组赛排名都完全一样，循环继续。比较 a.ranks[0] 和 b.ranks[0]，即他们的初始种子排名。
@@ -139,12 +155,28 @@ const publishResult = () => {
 watch(() => props.eventInfo, (newEventInfo) => {
   // 当 eventInfo 变化时，检查它是否包含了我们需要的数据
   if (newEventInfo && newEventInfo.live_ranking && newEventInfo.live_ranking.length > 0) {
-    // 如果数据有效，则触发计算
     calculateFinalRanking(newEventInfo);
   }
 }, {
-  deep: true,      // 深度监视，确保对象内部变化也能被捕获
-  immediate: true  // 立即执行一次，处理数据已经存在的情况
+  deep: true,
+  immediate: true
+});
+
+onMounted(async () => {
+  // 组件挂载时主动获取最新数据，避免依赖可能过期的 props
+  if (props.eventId) {
+    try {
+      loading.value = true;
+      const eventData = await DataManager.getEventById(props.eventId);
+      if (eventData && eventData.live_ranking && eventData.live_ranking.length > 0) {
+        calculateFinalRanking(eventData);
+      }
+    } catch (error) {
+      console.error('Failed to fetch event data for final ranking:', error);
+    } finally {
+      loading.value = false;
+    }
+  }
 });
 </script>
 

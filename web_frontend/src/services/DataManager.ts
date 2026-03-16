@@ -428,10 +428,11 @@ export const DataManager = {
             const event = await this.getEventById(eventId);
             if (!event || !event.live_ranking) return;
 
-            const resultMap = new Map(stageResults.map(r => [r.id, r]));
+            const resultMap = new Map(stageResults.map(r => [String(r.id), r]));
 
             const newLiveRanking = event.live_ranking.map((fencer: any) => {
-                const result = resultMap.get(fencer.id);
+                const fencerIdStr = String(fencer.id);
+                const result = resultMap.get(fencerIdStr);
                 const newRanks = {...fencer.ranks};
                 const newEliminationStatus = {...fencer.elimination_status};
 
@@ -445,6 +446,8 @@ export const DataManager = {
                 if (result) {
                     newRanks[stageIndex] = result.rank;
                     newEliminationStatus[stageIndex] = result.is_eliminated;
+                } else {
+                    console.warn(`No stage result found for fencer ${fencerIdStr} at stage ${stageIndex}`);
                 }
 
                 return {
