@@ -110,7 +110,7 @@ const loadData = async () => {
     // 数据获取逻辑不变
     const [liveFencers, poolResults] = await Promise.all([
       DataManager.getFencersForStage(props.eventId, props.stageIndex),
-      DataManager.getEventPoolRanking(stageId)
+      DataManager.getEventPoolRanking(props.eventId, stageId)
     ]);
     allFencersForStage.value = liveFencers;
     poolResultsFencers.value = poolResults;
