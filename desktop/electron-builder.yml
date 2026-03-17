@@ -30,10 +30,10 @@ nsis:
 
 # Include Python backend
 extraResources:
-  - from: "../backend/dist/pistemaster-backend.exe"
-    to: "python/pistemaster-backend.exe"
-  - from: "../backend/dist/_internal"
-    to: "python/_internal"
+  - from: "../backend/dist/pistemaster-backend"
+    to: "python"
+    filter:
+      - "**/*"
 
 # Auto-update configuration
 publish:
