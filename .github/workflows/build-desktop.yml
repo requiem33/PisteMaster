@@ -1,0 +1,153 @@
+name: Build Desktop Application
+
+on:
+  push:
+    branches: [main, develop]
+    paths:
+      - 'web_frontend/**'
+      - 'backend/**'
+      - 'core/**'
+      - 'desktop/**'
+      - '.github/workflows/build-desktop.yml'
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+    inputs:
+      configuration:
+        description: 'Build configuration'
+        required: true
+        default: 'Release'
+        type: choice
+        options:
+          - Debug
+          - Release
+
+env:
+  NODE_VERSION: '20'
+  PYTHON_VERSION: '3.11'
+
+jobs:
+  build-python:
+    runs-on: windows-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+          cache: 'pip'
+
+      - name: Install dependencies
+        working-directory: ./backend
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+          pip install pyinstaller
+
+      - name: Build backend executable
+        working-directory: ./backend
+        run: pyinstaller PisteMaster.spec --noconfirm --clean
+
+      - name: Upload backend artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: backend-windows
+          path: backend/dist/pistemaster-backend/
+          retention-days: 7
+
+  build-frontend:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+          cache-dependency-path: 'web_frontend/package-lock.json'
+
+      - name: Install dependencies
+        working-directory: ./web_frontend
+        run: npm ci
+
+      - name: Build Vue app
+        working-directory: ./web_frontend
+        run: npm run build
+
+      - name: Upload frontend artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: frontend-build
+          path: web_frontend/dist/
+          retention-days: 7
+
+  build-electron:
+    needs: [build-python, build-frontend]
+    runs-on: windows-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+          cache-dependency-path: 'desktop/package-lock.json'
+
+      - name: Download backend artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: backend-windows
+          path: backend/dist/pistemaster-backend/
+
+      - name: Download frontend artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: frontend-build
+          path: web_frontend/dist/
+
+      - name: Install desktop dependencies
+        working-directory: ./desktop
+        run: npm ci
+
+      - name: Build Electron app
+        working-directory: ./desktop
+        run: npm run build:win
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Upload installer artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: pistemaster-installer
+          path: desktop/release/*.exe
+          retention-days: 30
+
+  test-electron:
+    needs: build-electron
+    runs-on: windows-latest
+    steps:
+      - name: Download installer artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: pistemaster-installer
+          path: ./installer/
+
+      - name: List installer files
+        run: Get-ChildItem -Path ./installer -Recurse
+        shell: pwsh
+
+      - name: Verify installer exists
+        run: |
+          $installer = Get-ChildItem -Path ./installer -Filter *.exe | Select-Object -First 1
+          if (-not $installer) {
+            Write-Error "No installer found"
+            exit 1
+          }
+          Write-Host "Found installer: $($installer.FullName)"
+        shell: pwsh
