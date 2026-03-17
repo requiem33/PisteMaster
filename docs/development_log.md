@@ -2,10 +2,75 @@
 
 本项目是一个基于 Django 和 Vue 的击剑编排软件。
 
-## 📋 维护信息
+##📋 维护信息
 
 * **当前版本**: v0.1.0-beta
 * **状态**: 开发中 (In Progress)
+
+---
+
+## 🗓️ 2026-03-17
+
+### 已完成事项
+
+* **Electron桌面应用架构搭建**: 创建完整的Electron桌面项目结构
+  - 创建`desktop/`目录，删除旧的`desktop_app/`
+  - 配置electron-vite构建系统
+  - 配置electron-builder打包配置
+  - 添加Vue依赖到desktop/package.json
+  - 配置.npmrc支持中国镜像下载Electron
+
+* **Django设置分离**: 重构Django settings为模块化结构
+  - `settings/base.py` - 通用配置
+  - `settings/development.py` - 开发环境(SQLite)
+  - `settings/production.py` - 生产环境(PostgreSQL)
+  - `settings/desktop.py` - 桌面版(SQLite in%APPDATA%)
+  - 入口`settings.py`通过环境变量`DJANGO_SETTINGS_MODULE`选择配置
+
+* **PyInstaller配置优化**: 修复Python后端打包问题
+  - 添加所有hidden imports到PisteMaster.spec
+  - 修复`runserver --noreload`参数(原`--nothreading`不够)
+  - 创建`run_desktop.py`作为打包入口
+  - 验证`pistemaster-backend.exe`可独立运行
+
+* **GitHub Actions CI/CD**: 添加自动化构建流水线
+  - `.github/workflows/build-desktop.yml` - 桌面版构建
+  - `.github/workflows/build-web.yml` - Web版构建
+  - `.github/workflows/release.yml` - 发布流程
+  - `scripts/build-python.ps1/sh` - Python打包脚本
+
+* **Electron桌面应用修复**: 修复模块加载和路由问题
+  - **问题1: electron-updater模块加载失败** - 打包后的应用启动时报"Cannot find module"错误
+  - **修复**: 将`electron-updater`从静态import改为动态`await import()`，延迟加载避免模块初始化时序问题
+  
+  - **问题2: Vue前端空白页** - Electron加载file://协议时Vue Router的createWebHistory不工作
+  - **修复**: 改用createWebHashHistory()，兼容file://协议和http://协议
+  
+  - **问题3: 图标文件损坏** - 原icon.png文件损坏导致electron-builder报错
+  - **修复**: 创建256x256有效PNG图标，移动到resources/目录
+
+* **Python后端打包验证**: 确认PyInstaller打包正常工作
+  - `pistemaster-backend.exe` 启动成功
+  - Django migrations正常执行
+  - 服务器在http://127.0.0.1:8000运行
+
+* **文档更新**: 完善构建文档
+  - 更新`docs/MVP_BUILD_PLAN.md`添加monorepo迁移计划
+  - 更新`desktop/README.md`添加Electron镜像配置说明
+  - 更新`.gitignore`忽略构建产物
+
+### 技术决策 & 挑战
+
+* **Python 3.14兼容性**: 系统Python 3.14移除了`pkgutil.find_loader`，改用现有venv(Python 3.12)
+* **PyInstaller --noreload**: Django开发服务器在frozen executable中需要`--noreload`参数
+* **Electron镜像**: 中国网络环境需要配置`ELECTRON_MIRROR="https://npmmirror.com/mirrors/electron/"`
+* **动态模块加载**: electron-updater依赖链复杂，在ASAR包中静态import会失败。使用动态import()在app.whenReady()后加载，确保Electron环境初始化完成
+* **Vue Router模式**: createWebHistory需要服务器端路由支持，file://协议无法使用。createWebHashHistory使用#锚点路由，兼容所有协议
+* **electron-vite配置**: externalizeDepsPlugin()正确打包主进程依赖，但需要处理运行时动态加载的模块
+
+### 发现的问题
+
+* electron-updater的依赖debug模块在ASAR中路径解析可能仍有问题，但已通过try-catch处理为非致命错误
 
 ---
 
