@@ -8,12 +8,10 @@ directories:
 
 # Windows configuration
 win:
-  icon: resources/icons/icon.ico
   target:
     - target: nsis
       arch:
         - x64
-        - ia32
   artifactName: ${productName}-Setup-${version}.${ext}
 
 # NSIS installer configuration
@@ -21,9 +19,6 @@ nsis:
   oneClick: false
   allowToChangeInstallationDirectory: true
   perMachine: false
-  installerIcon: resources/icons/icon.ico
-  uninstallerIcon: resources/icons/icon.ico
-  installerHeaderIcon: resources/icons/icon.ico
   createDesktopShortcut: true
   createStartMenuShortcut: true
   shortcutName: ${productName}
@@ -49,6 +44,3 @@ files:
   - "!**/src/*"
   - "out/**/*"
   - "package.json"
-
-# Before build hook
-beforeBuild: "./scripts/prebuild.js"
