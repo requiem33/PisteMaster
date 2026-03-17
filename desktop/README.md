@@ -1,17 +1,46 @@
-# Pistemaster Desktop Application
+# PisteMaster Desktop Application
 
 Electron-based desktop application for PisteMaster fencing tournament management system.
 
+## Prerequisites
+
+- Node.js 20+
+- Python 3.11+ (for development mode)
+- PyInstaller (for bundling Python backend)
+
 ## Development
 
+### First-time Setup (China / Slow GitHub Access)
+
+If you experience timeout downloading Electron, set the mirror environment variable:
+
+**PowerShell:**
+```powershell
+$env:ELECTRON_MIRROR="https://npmmirror.com/mirrors/electron/"
+npm install
+```
+
+**CMD:**
+```cmd
+set ELECTRON_MIRROR=https://npmmirror.com/mirrors/electron/
+npm install
+```
+
+**Bash/Git Bash:**
 ```bash
-# Install dependencies
+ELECTRON_MIRROR="https://npmmirror.com/mirrors/electron/" npm install
+```
+
+### Development Commands
+
+```bash
+# Install dependencies (use ELECTRON_MIRROR if needed)
 npm install
 
-# Run in development mode (requires backend running)
+# Run in development mode (requires backend running on port 8000)
 npm run dev
 
-# Build without packaging
+# Build without packaging (for testing)
 npm run build:unpack
 
 # Build Windows installer
