@@ -1,0 +1,54 @@
+appId: com.pistemaster.app
+productName: PisteMaster
+copyright: Copyright © 2026 PisteMaster Team
+
+directories:
+  buildResources: resources
+  output: release
+
+# Windows configuration
+win:
+  icon: resources/icons/icon.ico
+  target:
+    - target: nsis
+      arch:
+        - x64
+        - ia32
+  artifactName: ${productName}-Setup-${version}.${ext}
+
+# NSIS installer configuration
+nsis:
+  oneClick: false
+  allowToChangeInstallationDirectory: true
+  perMachine: false
+  installerIcon: resources/icons/icon.ico
+  uninstallerIcon: resources/icons/icon.ico
+  installerHeaderIcon: resources/icons/icon.ico
+  createDesktopShortcut: true
+  createStartMenuShortcut: true
+  shortcutName: ${productName}
+
+# Include Python backend
+extraResources:
+  - from: "../backend/dist/pistemaster-backend.exe"
+    to: "python/pistemaster-backend.exe"
+  - from: "../backend/dist/_internal"
+    to: "python/_internal"
+
+# Auto-update configuration
+publish:
+  provider: github
+  owner: pistemaster
+  repo: pistemaster
+  releaseType: release
+
+# Files to include
+files:
+  - "!**/.vscode/*"
+  - "!**/node_modules/.cache/*"
+  - "!**/src/*"
+  - "out/**/*"
+  - "package.json"
+
+# Before build hook
+beforeBuild: "./scripts/prebuild.js"
