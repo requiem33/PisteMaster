@@ -52,3 +52,9 @@ web_frontend/coverage/
 web_frontend/.vitest/
 
 node_modules
+desktop/out/
+desktop/release/
+backend/dist/
+backend/build/
+*.spec
+backend/venv_build/
