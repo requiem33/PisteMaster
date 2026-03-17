@@ -1,7 +1,7 @@
 import { ipcMain, dialog, app, IpcMain } from 'electron'
 import { join } from 'path'
 import { existsSync } from 'fs'
-import { readdir, unlink, mkdir } from 'fs/promises'
+import { readdir, unlink } from 'fs/promises'
 
 export function setupIpcHandlers(_ipcMain: IpcMain): void {
   ipcMain.handle('get-app-version', () => {
@@ -81,14 +81,18 @@ export function setupIpcHandlers(_ipcMain: IpcMain): void {
     }
   })
 
-  ipcMain.on('quit-and-install', () => {
-    const { autoUpdater } = require('electron-updater')
-    autoUpdater.quitAndInstall()
+  ipcMain.on('quit-and-install', async () => {
+    try {
+      const { autoUpdater } = await import('electron-updater')
+      autoUpdater.quitAndInstall()
+    } catch (err) {
+      console.error('Failed to quit and install:', err)
+    }
   })
 
   ipcMain.handle('check-for-updates', async () => {
-    const { autoUpdater } = require('electron-updater')
     try {
+      const { autoUpdater } = await import('electron-updater')
       const result = await autoUpdater.checkForUpdates()
       return {
         available: result?.updateInfo?.version !== app.getVersion(),

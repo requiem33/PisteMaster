@@ -53,6 +53,28 @@ async function createWindow(): Promise<BrowserWindow> {
   return win
 }
 
+async function setupAutoUpdater(): Promise<void> {
+  try {
+    const { autoUpdater } = await import('electron-updater')
+    
+    autoUpdater.on('update-available', () => {
+      console.log('Update available')
+    })
+
+    autoUpdater.on('update-downloaded', () => {
+      mainWindow?.webContents.send('update-available')
+    })
+
+    setTimeout(() => {
+      autoUpdater.checkForUpdatesAndNotify().catch((err) => {
+        console.log('Update check failed:', err.message)
+      })
+    }, 3000)
+  } catch (err) {
+    console.log('Failed to setup auto-updater:', err)
+  }
+}
+
 app.whenReady().then(async () => {
   electronApp.setAppUserModelId('com.pistemaster.app')
 
@@ -64,6 +86,7 @@ app.whenReady().then(async () => {
 
   if (!is.dev) {
     pythonProcess = await setupPythonServer(false)
+    await setupAutoUpdater()
   }
 
   mainWindow = await createWindow()
@@ -83,18 +106,4 @@ app.on('window-all-closed', () => {
   if (process.platform !== 'darwin') {
     app.quit()
   }
-})
-
-import { autoUpdater } from 'electron-updater'
-
-setTimeout(() => {
-  autoUpdater.checkForUpdatesAndNotify()
-}, 3000)
-
-autoUpdater.on('update-available', () => {
-  console.log('Update available')
-})
-
-autoUpdater.on('update-downloaded', () => {
-  mainWindow?.webContents.send('update-available')
 })
