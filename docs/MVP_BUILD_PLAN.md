@@ -1647,14 +1647,28 @@ cd desktop && npm run build:linux
 
 ## Post-MVP Roadmap
 
-1. **Code Signing** - Purchase certificate, add to CI/CD
-2. **macOS Support** - Add macOS build target, notarize app
-3. **Linux Support** - Add AppImage/deb build targets
-4. **Team Events** - Team brackets, relay matches
-5. **Authentication** - JWT-based user system
-6. **Piste/Referee Management** - Assignment and scheduling
-7. **Live Scoreboard** - WebSocket real-time updates
-8. **Distributed Mode** - Multi-client coordination
+### Priority 1: Architecture Improvements
+
+1. **Monorepo Setup (HIGH PRIORITY)** - Migrate to proper monorepo structure
+   - Current state: `desktop/` duplicates some Vue dependencies from `web_frontend/`
+   - Target state: Shared dependencies via npm workspaces or pnpm workspaces
+   - Benefits: Smaller bundle size, easier maintenance, shared build config
+   - See [Appendix C: Monorepo Migration Plan](#appendix-c-monorepo-migration-plan) for details
+
+2. **Code Signing** - Purchase certificate, add to CI/CD
+
+### Priority 2: Platform Support
+
+3. **macOS Support** - Add macOS build target, notarize app
+4. **Linux Support** - Add AppImage/deb build targets
+
+### Priority 3: Feature Enhancements
+
+5. **Team Events** - Team brackets, relay matches
+6. **Authentication** - JWT-based user system
+7. **Piste/Referee Management** - Assignment and scheduling
+8. **Live Scoreboard** - WebSocket real-time updates
+9. **Distributed Mode** - Multi-client coordination
 
 ---
 
@@ -1686,6 +1700,168 @@ All notable changes to this project will be documented in this file.
 - Final ranking calculation
 - Offline support for tournament venues
 ```
+
+---
+
+## Appendix C: Monorepo Migration Plan
+
+### Current Architecture Issues
+
+1. **Dependency Duplication**
+   - `desktop/package.json` duplicates Vue dependencies from `web_frontend/package.json`
+   - Two separate `node_modules` directories increase disk usage
+   - Version mismatches can cause bugs
+
+2. **Build Complexity**
+   - Separate build commands for each package
+   - No shared build configuration
+   - Difficult to ensure consistent versions across projects
+
+3. **Development Workflow**
+   - Need to run `npm install` in multiple directories
+   - No single source of truth for dependency versions
+
+### Target Monorepo Structure
+
+```
+PisteMaster/
+├── packages/
+│   ├── web/                    # Vue web application (renamed from web_frontend)
+│   │   ├── src/
+│   │   ├── package.json
+│   │   └── vite.config.ts
+│   │
+│   ├── desktop/                # Electron desktop application
+│   │   ├── src/
+│   │   │   ├── main/           # Electron main process
+│   │   │   └── preload/        # Preload scripts
+│   │   ├── package.json
+│   │   └── electron.vite.config.ts
+│   │
+│   └── shared/                 # Shared utilities and types
+│       ├── src/
+│       │   ├── types/          # TypeScript interfaces
+│       │   ├── utils/          # Utility functions
+│       │   └── constants/      # Shared constants
+│       └── package.json
+│
+├── backend/                    # Django backend (unchanged)
+├── core/                      # Python domain models (unchanged)
+│
+├── package.json                # Root package.json (workspace config)
+├── pnpm-workspace.yaml         # pnpm workspace config (optional)
+└── turbo.json                 # Turborepo config (optional)
+```
+
+### Migration Steps
+
+| Step | Description | Effort |
+|------|-------------|--------|
+| 1 | Create root `pnpm-workspace.yaml` or npm workspaces in root `package.json` | 1 day |
+| 2 | Move `web_frontend/` to `packages/web/` | 1 day |
+| 3 | Move `desktop/` to `packages/desktop/` | 1 day |
+| 4 | Create `packages/shared/` with common types | 2 days |
+| 5 | Extract common dependencies to root `package.json` | 1 day |
+| 6 | Update all import paths and build configs | 2 days |
+| 7 | Update CI/CD workflows for monorepo | 1 day |
+| 8 | Test all packages and fix issues | 2 days |
+
+**Total Estimated Effort: 10-12 days**
+
+### Benefits of Monorepo
+
+| Benefit | Description |
+|---------|-------------|
+| Shared dependencies | Vue, TypeScript, ESLint installed once |
+| Type sharing | `packages/shared/` exports types used by both web and desktop |
+| Unified builds | Single `npm run build` builds all packages |
+| Consistent versions | No version mismatches between packages |
+| Easier refactoring | Changes propagate across all packages |
+| Better DX | Single `npm install` at root |
+
+### Monorepo Tools Comparison
+
+| Tool | Pros | Cons |
+|------|------|------|
+| **npm workspaces** | Built into npm, no extra tool | Limited features, slower than pnpm |
+| **pnpm workspaces** | Fast, efficient disk usage, strict dependencies | Need to learn pnpm |
+| **Turborepo** | Parallel builds, caching, great DX | Additional learning curve |
+| **Nx** | Full-featured, great for large monorepos | Complex setup, overkill for small teams |
+
+### Recommended Stack
+
+For PisteMaster, we recommend:
+
+1. **pnpm workspaces** - Fast, efficient, handles dependencies well
+2. **Turborepo** (optional) - Add later if build times become an issue
+
+### Migration Commands
+
+```bash
+# Step 1: Install pnpm globally
+npm install -g pnpm
+
+# Step 2: Create workspace config
+cat > pnpm-workspace.yaml << EOF
+packages:
+  - 'packages/*'
+EOF
+
+# Step 3: Create root package.json with workspace references
+cat > package.json << EOF
+{
+  "name": "pistemaster-monorepo",
+  "private": true,
+  "scripts": {
+    "dev": "pnpm --filter \"./packages/*\" dev",
+    "build": "pnpm --filter \"./packages/*\" build",
+    "lint": "pnpm --filter \"./packages/*\" lint"
+  },
+  "devDependencies": {
+    "typescript": "^5.3.0",
+    "vite": "^5.0.0",
+    "vue": "^3.4.0"
+  }
+}
+EOF
+
+# Step 4: Move packages
+mkdir -p packages
+mv web_frontend packages/web
+mv desktop packages/desktop
+
+# Step 5: Install dependencies
+pnpm install
+
+# Step 6: Verify
+pnpm run build
+```
+
+### Shared Package Example
+
+```typescript
+// packages/shared/src/types/tournament.ts
+export interface Tournament {
+  id: string
+  tournament_name: string
+  status: 'draft' | 'active' | 'completed'
+  start_date: string
+  end_date: string
+}
+
+// packages/web/src/views/TournamentList.vue
+import type { Tournament } from '@pistemaster/shared/types/tournament'
+
+// packages/desktop/src/main/ipc-handlers.ts
+import type { Tournament } from '@pistemaster/shared/types/tournament'
+```
+
+### Rollback Plan
+
+If migration fails:
+1. Revert to separate package structure
+2. Each package maintains its own `node_modules`
+3. No shared code between web and desktop
 
 ---
 
