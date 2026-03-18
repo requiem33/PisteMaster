@@ -15,13 +15,16 @@ from pathlib import Path
 block_cipher = None
 
 backend_dir = Path('.').resolve()
+project_root = backend_dir.parent
 
 a = Analysis(
     ['run_desktop.py'],
-    pathex=[str(backend_dir)],
+    pathex=[str(backend_dir), str(project_root)],
     binaries=[],
     datas=[
         ('PisteMaster/settings', 'PisteMaster/settings'),
+        (str(project_root / 'core'), 'core'),
+        ('apps', 'backend/apps'),
     ],
     hiddenimports=[
         'django',
