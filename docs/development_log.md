@@ -2,10 +2,56 @@
 
 本项目是一个基于 Django 和 Vue 的击剑编排软件。
 
-##📋 维护信息
+## 📋 维护信息
 
 * **当前版本**: v0.1.0-beta
 * **状态**: 开发中 (In Progress)
+
+---
+
+## 🗓️ 2026-03-19
+
+### 已完成事项
+
+* **Electron桌面版构建与测试**: 完成Windows桌面版打包和测试
+  - 构建`PisteMaster-Setup-0.1.0.exe`安装程序
+  - 构建`win-unpacked/`便携版
+  - 验证应用启动、创建比赛、卸载数据持久化
+  - **重要发现**: Windows需要开启开发者模式才能运行electron-builder（symlink权限问题）
+  - 用户数据存储在`%APPDATA%/PisteMaster/data/`，卸载后保留
+  - 更新缓存存储在`%APPDATA%/pistemaster-desktop-updater/`
+
+* **Web版Docker部署**: 完成Docker容器化部署架构
+  - 创建`docker-compose.yml`编排PostgreSQL + Django + nginx
+  - 创建`backend/Dockerfile`构建Django镜像
+  - 创建`backend/requirements-docker.txt`定义Docker依赖（psycopg2-binary）
+  - 创建`nginx.conf`配置反向代理和静态文件服务
+  - 创建`.env.docker`环境变量模板
+
+* **跨域API修复**: 解决前后端分离部署的CORS和CSRF问题
+  - 创建`CsrfExemptSessionAuthentication`认证类，免除API端点的CSRF检查
+  - 配置`CORS_ALLOW_ALL_ORIGINS`支持动态IP访问
+  - 配置`CSRF_TRUSTED_ORIGINS`包含WSL和localhost地址
+  - 修复`DataManager.ts`使用动态API_BASE_URL环境变量
+
+* **构建文档**: 创建`docs/BUILD.md`
+  - 桌面版构建完整流程（开发者模式、依赖安装、打包命令）
+  - Web版Docker部署流程（容器启动、数据库初始化、WSL网络配置）
+  - 开发模式运行指南
+  - 常见问题排查（symlink权限、CORS、CSRF、端口冲突）
+  - 架构图示和快速命令参考
+
+### 技术决策 & 挑战
+
+* **开发者模式要求**: electron-builder下载的winCodeSign包含macOS符号链接，Windows创建symlink需要开发者模式或管理员权限
+* **Docker网络**: WSL2与Windows浏览器网络隔离，需通过WSL IP地址访问容器
+* **CSRF策略**: API-only后端使用跨域请求，传统SessionAuthentication的CSRF cookie机制不适用，创建CSRF-exempt认证类
+* **nginx代理**: 前端访问`/api/*`由nginx代理到Django后端，避免浏览器直接访问后端端口
+
+### 发现的问题
+
+* electron-updater缓存(~97MB)在用户数据目录保留，可考虑在卸载时清理
+* 生产环境应使用正式SECRET_KEY和HTTPS
 
 ---
 
