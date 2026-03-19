@@ -39,9 +39,12 @@ SESSION_COOKIE_SECURE = True
 CSRF_COOKIE_SECURE = True
 
 CORS_ALLOWED_ORIGINS_STR = os.environ.get("CORS_ALLOWED_ORIGINS", "")
-CORS_ALLOWED_ORIGINS = [
-    origin.strip() for origin in CORS_ALLOWED_ORIGINS_STR.split(",") if origin.strip()
-]
+if CORS_ALLOWED_ORIGINS_STR == "*":
+    CORS_ALLOW_ALL_ORIGINS = True
+else:
+    CORS_ALLOWED_ORIGINS = [
+        origin.strip() for origin in CORS_ALLOWED_ORIGINS_STR.split(",") if origin.strip()
+    ]
 
 CSRF_TRUSTED_ORIGINS_STR = os.environ.get("CSRF_TRUSTED_ORIGINS", "")
 CSRF_TRUSTED_ORIGINS = [

@@ -83,7 +83,7 @@ REST_FRAMEWORK = {
         "rest_framework.permissions.IsAuthenticatedOrReadOnly",
     ],
     "DEFAULT_AUTHENTICATION_CLASSES": [
-        "rest_framework.authentication.SessionAuthentication",
+        "backend.apps.fencing_organizer.authentication.CsrfExemptSessionAuthentication",
         "rest_framework.authentication.BasicAuthentication",
     ],
     "DEFAULT_FILTER_BACKENDS": [
@@ -110,3 +110,7 @@ REST_FRAMEWORK = {
 }
 
 CORS_ALLOW_CREDENTIALS = True
+
+CSRF_COOKIE_SAMESITE = 'Lax'
+CSRF_COOKIE_HTTPONLY = False
+SESSION_COOKIE_SAMESITE = 'Lax'

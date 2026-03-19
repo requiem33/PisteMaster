@@ -4,7 +4,7 @@ import {v4 as uuidv4} from 'uuid';
 import type {Tournament} from '@/types/tournament.ts';
 import {getCsrfToken} from '@/utils/csrf.ts';
 
-const API_BASE_URL = 'http://127.0.0.1:8000/api';
+const API_BASE_URL = (import.meta.env.VITE_API_BASE_URL as string) || '/api';
 
 function getHeaders(): Record<string, string> {
     const headers: Record<string, string> = {
