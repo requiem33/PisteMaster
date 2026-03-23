@@ -47,7 +47,8 @@ backend/static/
 # 前端忽略文件
 web_frontend/node_modules/
 web_frontend/dist/
-web_frontend/.env.*
+web_frontend/.env.local
+web_frontend/.env.development
 web_frontend/coverage/
 web_frontend/.vitest/
 
