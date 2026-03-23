@@ -11,16 +11,7 @@ on:
       - '.github/workflows/build-desktop.yml'
   pull_request:
     branches: [main]
-  workflow_dispatch:
-    inputs:
-      configuration:
-        description: 'Build configuration'
-        required: true
-        default: 'Release'
-        type: choice
-        options:
-          - Debug
-          - Release
+  workflow_call:
 
 env:
   NODE_VERSION: '20'
