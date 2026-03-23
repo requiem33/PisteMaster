@@ -102,6 +102,8 @@ a = Analysis(
         'backend.apps.fencing_organizer.services.pool_service',
         'backend.apps.fencing_organizer.mappers',
         'backend.apps.fencing_organizer.mappers.pool_mapper',
+        'backend.apps.fencing_organizer.utils',
+        'backend.apps.fencing_organizer.utils.pagination',
         'core',
         'core.models',
         'core.models.tournament',

@@ -50,7 +50,7 @@ export function setupPythonServer(dev: boolean): Promise<ChildProcess> {
     process_.stdout?.on('data', (data) => {
       const output = data.toString()
       console.log(`[Python] ${output}`)
-      if (output.includes('Starting development server') || output.includes('Quit the server')) {
+      if (output.includes('Starting PisteMaster') || output.includes('Server: http')) {
         clearTimeout(startupTimer)
         resolve(process_)
       }
@@ -69,7 +69,9 @@ export function setupPythonServer(dev: boolean): Promise<ChildProcess> {
     process_.on('exit', (code) => {
       clearTimeout(startupTimer)
       if (code !== 0 && code !== null) {
-        console.error(`Python server exited with code ${code}`)
+        const error = `Python server exited with code ${code}`
+        console.error(error)
+        reject(new Error(error))
       }
     })
   })

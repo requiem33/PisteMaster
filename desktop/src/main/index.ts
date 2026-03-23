@@ -1,4 +1,4 @@
-import { app, BrowserWindow, shell, ipcMain } from 'electron'
+import { app, BrowserWindow, shell, ipcMain, dialog } from 'electron'
 import { join } from 'path'
 import { electronApp, optimizer, is } from '@electron-toolkit/utils'
 import { setupPythonServer, shutdownPythonServer } from './python-server'
@@ -85,12 +85,22 @@ app.whenReady().then(async () => {
 
   setupIpcHandlers(ipcMain)
 
-  if (!is.dev) {
-    pythonProcess = await setupPythonServer(false)
-    await setupAutoUpdater()
-  }
-
   mainWindow = await createWindow()
+
+  if (!is.dev) {
+    setupPythonServer(false)
+      .then((proc) => {
+        pythonProcess = proc
+        setupAutoUpdater()
+      })
+      .catch((err) => {
+        console.error('Failed to start Python server:', err)
+        dialog.showErrorBox(
+          'Backend Error',
+          'Failed to start the backend server. The application may not function correctly.'
+        )
+      })
+  }
 
   app.on('activate', () => {
     if (BrowserWindow.getAllWindows().length === 0) {
