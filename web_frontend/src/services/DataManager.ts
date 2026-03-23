@@ -74,7 +74,7 @@ export const DataManager = {
     async getTournamentList(): Promise<any[]> {
         try {
             const response = await fetch(`${API_BASE_URL}/tournaments/`);
-            if (!response.ok) throw new Error('Failed to fetch tournaments');
+            if (!response.ok) {throw new Error('Failed to fetch tournaments');}
             const data = await response.json();
             return data.results || data;
         } catch (error) {
@@ -86,7 +86,7 @@ export const DataManager = {
     async getTournamentById(id: string): Promise<any | null> {
         try {
             const response = await fetch(`${API_BASE_URL}/tournaments/${id}/`);
-            if (!response.ok) throw new Error('Failed to fetch tournament');
+            if (!response.ok) {throw new Error('Failed to fetch tournament');}
             return await response.json();
         } catch (error) {
             console.error('Failed to get tournament detail:', error);
@@ -110,7 +110,7 @@ export const DataManager = {
                 credentials: 'include',
                 body: JSON.stringify(payload),
             });
-            if (!response.ok) throw new Error('Failed to update tournament');
+            if (!response.ok) {throw new Error('Failed to update tournament');}
             return await response.json();
         } catch (error) {
             console.error('Update tournament error:', error);
@@ -125,7 +125,7 @@ export const DataManager = {
                 headers: getHeaders(),
                 credentials: 'include',
             });
-            if (!response.ok) throw new Error('Failed to delete tournament');
+            if (!response.ok) {throw new Error('Failed to delete tournament');}
             return true;
         } catch (error) {
             console.error('Delete tournament error:', error);
@@ -189,7 +189,7 @@ export const DataManager = {
     async fetchRules(): Promise<any[]> {
         try {
             const response = await fetch(`${API_BASE_URL}/rules/`);
-            if (!response.ok) throw new Error('Failed to fetch rules');
+            if (!response.ok) {throw new Error('Failed to fetch rules');}
             const data = await response.json();
             return data.results || data;
         } catch (error) {
@@ -201,7 +201,7 @@ export const DataManager = {
     async getEventsByTournamentId(tournamentId: string): Promise<any[]> {
         try {
             const response = await fetch(`${API_BASE_URL}/events/?tournament=${tournamentId}`);
-            if (!response.ok) throw new Error('Failed to fetch events');
+            if (!response.ok) {throw new Error('Failed to fetch events');}
             const data = await response.json();
             return data.results || data;
         } catch (error) {
@@ -213,7 +213,7 @@ export const DataManager = {
     async getEventById(eventId: string) {
         try {
             const response = await fetch(`${API_BASE_URL}/events/${eventId}/`);
-            if (!response.ok) throw new Error('Failed to fetch event');
+            if (!response.ok) {throw new Error('Failed to fetch event');}
             return await response.json();
         } catch (error) {
             console.error('Fetch event detail error:', error);
@@ -229,7 +229,7 @@ export const DataManager = {
                 credentials: 'include',
                 body: JSON.stringify(eventData),
             });
-            if (!response.ok) throw new Error('Failed to update event');
+            if (!response.ok) {throw new Error('Failed to update event');}
             
             // Sync event to IndexedDB
             await this.syncEventToLocal(eventId);
@@ -248,7 +248,7 @@ export const DataManager = {
                 headers: getHeaders(),
                 credentials: 'include',
             });
-            if (!response.ok) throw new Error('Failed to delete event');
+            if (!response.ok) {throw new Error('Failed to delete event');}
             return true;
         } catch (error) {
             console.error('Delete event error:', error);
@@ -328,7 +328,7 @@ export const DataManager = {
     async getFencersByEvent(eventId: string) {
         try {
             const response = await fetch(`${API_BASE_URL}/events/${eventId}/participants/`);
-            if (!response.ok) throw new Error('Failed to fetch event participants');
+            if (!response.ok) {throw new Error('Failed to fetch event participants');}
             const data = await response.json();
             
             // Extract fencer objects from participants
@@ -347,7 +347,7 @@ export const DataManager = {
     async getFencerById(fencerId: string) {
         try {
             const response = await fetch(`${API_BASE_URL}/fencers/${fencerId}/`);
-            if (!response.ok) throw new Error('Failed to fetch fencer');
+            if (!response.ok) {throw new Error('Failed to fetch fencer');}
             return await response.json();
         } catch (error) {
             console.error('Fetch fencer detail error:', error);
@@ -376,7 +376,7 @@ export const DataManager = {
                 body: JSON.stringify({ live_ranking: liveRanking }),
             });
 
-            if (!response.ok) throw new Error('Failed to initialize live ranking');
+            if (!response.ok) {throw new Error('Failed to initialize live ranking');}
             
             // Sync event to IndexedDB
             await this.syncEventToLocal(eventId);
@@ -411,7 +411,7 @@ export const DataManager = {
                 body: JSON.stringify({ live_ranking: rankingList }),
             });
 
-            if (!response.ok) throw new Error('Failed to update live ranking');
+            if (!response.ok) {throw new Error('Failed to update live ranking');}
             
             // Sync event to IndexedDB
             await this.syncEventToLocal(eventId);
@@ -426,7 +426,7 @@ export const DataManager = {
     async updateStageRanking(eventId: string, stageIndex: number, stageResults: {id: string, rank: number, is_eliminated: boolean}[]) {
         try {
             const event = await this.getEventById(eventId);
-            if (!event || !event.live_ranking) return;
+            if (!event || !event.live_ranking) {return;}
 
             const resultMap = new Map(stageResults.map(r => [String(r.id), r]));
 
@@ -437,10 +437,10 @@ export const DataManager = {
                 const newEliminationStatus = {...fencer.elimination_status};
 
                 Object.keys(newRanks).forEach(key => {
-                    if (parseInt(key) >= stageIndex) delete newRanks[key];
+                    if (parseInt(key) >= stageIndex) {delete newRanks[key];}
                 });
                 Object.keys(newEliminationStatus).forEach(key => {
-                    if (parseInt(key) >= stageIndex) delete newEliminationStatus[key];
+                    if (parseInt(key) >= stageIndex) {delete newEliminationStatus[key];}
                 });
 
                 if (result) {
@@ -467,7 +467,7 @@ export const DataManager = {
     async getFencersForStage(eventId: string, stageIndex: number) {
         try {
             const event = await this.getEventById(eventId);
-            if (!event || !event.live_ranking) return [];
+            if (!event || !event.live_ranking) {return [];}
 
             const sourceStageIndex = stageIndex - 1;
 
@@ -515,7 +515,7 @@ export const DataManager = {
                 body: JSON.stringify(formattedPools),
             });
 
-            if (!response.ok) throw new Error('Failed to save pools');
+            if (!response.ok) {throw new Error('Failed to save pools');}
             
             // Fetch created pools and sync to IndexedDB
             try {
@@ -537,7 +537,7 @@ export const DataManager = {
     async getPoolsByStageId(eventId: string, stageId: string) {
         try {
             const response = await fetch(`${API_BASE_URL}/events/${eventId}/stages/${stageId}/pools/`);
-            if (!response.ok) throw new Error('Failed to fetch pools');
+            if (!response.ok) {throw new Error('Failed to fetch pools');}
             return await response.json();
         } catch (error) {
             console.error('Get pools error:', error);
@@ -549,7 +549,7 @@ export const DataManager = {
     async getPoolsByEvent(eventId: string) {
         try {
             const response = await fetch(`${API_BASE_URL}/pools/by-event/${eventId}/`);
-            if (!response.ok) throw new Error('Failed to fetch pools by event');
+            if (!response.ok) {throw new Error('Failed to fetch pools by event');}
             return await response.json();
         } catch (error) {
             console.error('Get pools by event error:', error);
@@ -560,7 +560,7 @@ export const DataManager = {
     async getPoolsDetailed(eventId: string, stageId: string) {
         try {
             const poolDefinitions = await this.getPoolsByStageId(eventId, stageId);
-            if (!poolDefinitions || poolDefinitions.length === 0) return null;
+            if (!poolDefinitions || poolDefinitions.length === 0) {return null;}
 
             // Sort by pool number
             poolDefinitions.sort((a: any, b: any) => a.pool_number - b.pool_number);
@@ -595,7 +595,7 @@ export const DataManager = {
                 body: JSON.stringify(payload),
             });
 
-            if (!response.ok) throw new Error('Failed to update pool results');
+            if (!response.ok) {throw new Error('Failed to update pool results');}
             
             // Sync pool to IndexedDB
             try {
@@ -620,14 +620,14 @@ export const DataManager = {
     async getEventPoolRanking(eventId: string, stageId: string) {
         try {
             const pools = await this.getPoolsByStageId(eventId, stageId);
-            if (!pools || pools.length === 0) return [];
+            if (!pools || pools.length === 0) {return [];}
 
             const rankingData = [];
             const allFencers = await this.getFencersByEvent(eventId);
             const fencerMap = new Map(allFencers.map((f: any) => [f.id, f]));
 
             for (const pool of pools) {
-                if (!pool.stats || !pool.fencer_ids) continue;
+                if (!pool.stats || !pool.fencer_ids) {continue;}
 
                 const matchCount = pool.fencer_ids.length - 1;
 
@@ -665,8 +665,8 @@ export const DataManager = {
             const allRanked = await this.getEventPoolRanking(eventId, stageId);
 
             const sorted = allRanked.sort((a, b) => {
-                if (b.v_m !== a.v_m) return b.v_m - a.v_m;
-                if (b.ind !== a.ind) return b.ind - a.ind;
+                if (b.v_m !== a.v_m) {return b.v_m - a.v_m;}
+                if (b.ind !== a.ind) {return b.ind - a.ind;}
                 return b.ts - a.ts;
             });
 
@@ -691,7 +691,7 @@ export const DataManager = {
                 body: JSON.stringify({ tree_data: bracketData }),
             });
 
-            if (!response.ok) throw new Error('Failed to save DE tree');
+            if (!response.ok) {throw new Error('Failed to save DE tree');}
             return true;
         } catch (error) {
             console.error('Save DE tree error:', error);
@@ -702,7 +702,7 @@ export const DataManager = {
     async getDETree(eventId: string, stageId: string) {
         try {
             const response = await fetch(`${API_BASE_URL}/events/${eventId}/stages/${stageId}/detree/`);
-            if (!response.ok) throw new Error('Failed to fetch DE tree');
+            if (!response.ok) {throw new Error('Failed to fetch DE tree');}
             return await response.json();
         } catch (error) {
             console.error('Get DE tree error:', error);
@@ -713,11 +713,11 @@ export const DataManager = {
     async getFinalRanking(eventId: string, stageId: string) {
         try {
             const poolRanking = await this.getEventPoolRanking(eventId, stageId);
-            if (!poolRanking || poolRanking.length === 0) return [];
+            if (!poolRanking || poolRanking.length === 0) {return [];}
 
             const baseRankedFencers = poolRanking.sort((a, b) => {
-                if (b.v_m !== a.v_m) return b.v_m - a.v_m;
-                if (b.ind !== a.ind) return b.ind - a.ind;
+                if (b.v_m !== a.v_m) {return b.v_m - a.v_m;}
+                if (b.ind !== a.ind) {return b.ind - a.ind;}
                 return b.ts - a.ts;
             }).map((f, index) => ({
                 ...f,

@@ -185,10 +185,10 @@ watch(currentStep, (newStepIndex) => {
 });
 
 const nextStep = () => {
-  if (currentStep.value < computedSteps.value.length - 1) currentStep.value++
+  if (currentStep.value < computedSteps.value.length - 1) {currentStep.value++}
 }
 const prevStep = () => {
-  if (currentStep.value > 0) currentStep.value--
+  if (currentStep.value > 0) {currentStep.value--}
 }
 const handleStepClick = (index: number) => {
   currentStep.value = index

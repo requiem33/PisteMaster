@@ -271,7 +271,7 @@ const handleDeleteEvent = async (eventId: string, eventName: string) => {
       ElMessage.error('删除失败');
     }
   } finally {
-    if (loading.value) loading.value = false;
+    if (loading.value) {loading.value = false;}
   }
 };
 

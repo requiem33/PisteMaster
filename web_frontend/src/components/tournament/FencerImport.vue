@@ -126,13 +126,13 @@ const clearAll = () => {
 }
 
 const parseAndImport = () => {
-  if (!rawPasteData.value.trim()) return;
+  if (!rawPasteData.value.trim()) {return;}
   isParsing.value = true;
   try {
     const lines = rawPasteData.value.trim().split('\n');
     const newFencers: FencerRow[] = [];
     lines.forEach(line => {
-      if (!line.trim()) return;
+      if (!line.trim()) {return;}
       const columns = line.split(/\t| {2,}/).map(col => col.trim());
       const lastName = columns[0] || '';
       const firstName = columns[1] || '';
@@ -142,7 +142,7 @@ const parseAndImport = () => {
       const country_code = countryCodeRaw || 'CHN';
       let ranking: number | null = 999;
       const rankingStr = columns.find(c => /^\d+$/.test(c) && c.length < 4);
-      if (rankingStr) ranking = parseInt(rankingStr, 10);
+      if (rankingStr) {ranking = parseInt(rankingStr, 10);}
 
       if (lastName && firstName) {
         newFencers.push({last_name: lastName, first_name: firstName, gender, country_code, current_ranking: ranking});

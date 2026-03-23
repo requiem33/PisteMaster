@@ -121,7 +121,7 @@ const loadPoolData = async () => {
 
   try {
     const poolsFromDB = await DataManager.getPoolsByStageId(props.eventId, stageId);
-    if (!poolsFromDB || poolsFromDB.length === 0) return;
+    if (!poolsFromDB || poolsFromDB.length === 0) {return;}
 
     const detailedPools = [];
     for (const p of poolsFromDB) {
@@ -163,7 +163,7 @@ const loadPoolData = async () => {
 // 【已恢复】检查小组比分是否全部录入
 const isPoolComplete = (pIdx: number) => {
   const poolResults = results[pIdx];
-  if (!poolResults) return false;
+  if (!poolResults) {return false;}
   for (let i = 0; i < poolResults.length; i++) {
     for (let j = 0; j < poolResults[i].length; j++) {
       if (i !== j && (poolResults[i][j] === '' || poolResults[i][j] === null)) {
@@ -176,7 +176,7 @@ const isPoolComplete = (pIdx: number) => {
 
 const handleScoreChange = (pIdx: number, row: number, col: number) => {
   let val = results[pIdx][row][col].toUpperCase();
-  if (val === '5') val = 'V';
+  if (val === '5') {val = 'V';}
   results[pIdx][row][col] = val;
 
   calculateStats(pIdx);
@@ -189,7 +189,7 @@ const calculateStats = (pIdx: number) => {
 
   for (let i = 0; i < size; i++) {
     for (let j = 0; j < size; j++) {
-      if (i === j) continue;
+      if (i === j) {continue;}
       const score = parseScore(results[pIdx][i][j]);
       const oppScore = parseScore(results[pIdx][j][i]);
       currentPoolStats[i].TS += score;
@@ -208,7 +208,7 @@ const parseScore = (s: string) => s === 'V' ? 5 : (parseInt(s) || 0)
 // 【已恢复】持久化到数据库（现在包含 isLocked 状态）
 const persistPoolData = async (pIdx: number) => {
   const pool = poolGroups.value[pIdx];
-  if (!pool) return;
+  if (!pool) {return;}
   await DataManager.updatePoolResults(
       pool.id,
       results[pIdx],

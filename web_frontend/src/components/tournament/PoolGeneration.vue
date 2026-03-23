@@ -140,7 +140,7 @@ const generatePools = () => {
   const result: any[][] = Array.from({length: poolCount}, () => [])
   source.forEach((fencer, index) => {
     const round = Math.floor(index / poolCount)
-    let poolIndex = round % 2 === 0 ? (index % poolCount) : (poolCount - 1) - (index % poolCount)
+    const poolIndex = round % 2 === 0 ? (index % poolCount) : (poolCount - 1) - (index % poolCount)
     result[poolIndex].push(fencer)
   })
   pools.value = result

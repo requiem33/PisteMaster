@@ -40,7 +40,7 @@ const tournamentFormRef = ref<InstanceType<typeof TournamentForm>>()
 
 /* 4. 定义 handleCreate 函数 (解决 Property 'handleCreate' does not exist 报错) */
 const handleCreate = async () => {
-  if (!tournamentFormRef.value) return;
+  if (!tournamentFormRef.value) {return;}
 
   // 【关键修改】4. 调用子组件暴露的 validate 方法
   const isValid = await tournamentFormRef.value.validate();

@@ -131,7 +131,7 @@ const getTemplate = (type: string): StageConfig[] => {
 }
 
 const applyPreset = (val: string) => {
-  if (val === 'custom') return; // 切换到自定义时不重置，保留当前状态或给默认
+  if (val === 'custom') {return;} // 切换到自定义时不重置，保留当前状态或给默认
 
   const newStages = getTemplate(val);
   emit('update:modelValue', {preset: val, stages: newStages});

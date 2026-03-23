@@ -139,9 +139,9 @@ const calculateFinalRanking = async (eventData: any) => {
 
 // 辅助函数保持不变或简化
 const getMedalClass = (rank: number) => {
-  if (rank === 1) return 'gold'
-  if (rank === 2) return 'silver'
-  if (rank === 3) return 'bronze'
+  if (rank === 1) {return 'gold'}
+  if (rank === 2) {return 'silver'}
+  if (rank === 3) {return 'bronze'}
   return ''
 }
 

@@ -151,10 +151,10 @@ const getSafeId = (fencer: Fencer | null): string | null => {
   return fencer && fencer.id !== undefined && fencer.id !== null ? String(fencer.id) : null;
 }
 const parseScore = (val: string | number): number => {
-  if (val === null || val === undefined) return -1;
+  if (val === null || val === undefined) {return -1;}
   const strVal = String(val).trim().toUpperCase();
-  if (strVal === '') return -1;
-  if (strVal === 'V') return 999;
+  if (strVal === '') {return -1;}
+  if (strVal === 'V') {return 999;}
   if (strVal.startsWith('V')) {
     const numPart = parseInt(strVal.replace('V', ''));
     return isNaN(numPart) ? 999 : 100 + numPart;
@@ -187,9 +187,9 @@ const updateMatchWinner = (rIdx: number, mIdx: number) => {
 
   // 只有当两个分数都有效输入时才判断胜负
   if (sA !== -1 && sB !== -1) {
-    if (sA > sB) match.winnerId = idA;
-    else if (sB > sA) match.winnerId = idB;
-    else match.winnerId = null; // 平局或未完成
+    if (sA > sB) {match.winnerId = idA;}
+    else if (sB > sA) {match.winnerId = idB;}
+    else {match.winnerId = null;} // 平局或未完成
   } else {
     // 只要有一方分数不合法，就重置胜者
     match.winnerId = null;
@@ -204,12 +204,12 @@ const handleScoreChange = (rIdx: number, mIdx: number) => {
     let winner: Fencer | null = null;
     const wId = currentMatch.winnerId;
     if (wId) {
-      if (getSafeId(currentMatch.fencerA) === wId) winner = currentMatch.fencerA;
-      else if (getSafeId(currentMatch.fencerB) === wId) winner = currentMatch.fencerB;
+      if (getSafeId(currentMatch.fencerA) === wId) {winner = currentMatch.fencerA;}
+      else if (getSafeId(currentMatch.fencerB) === wId) {winner = currentMatch.fencerB;}
     }
     const nextRIdx = currentRIdx + 1;
     const nextMIdx = Math.floor(currentMIdxInLoop / 2);
-    if (!bracketData.value[nextRIdx] || !bracketData.value[nextRIdx][nextMIdx]) break;
+    if (!bracketData.value[nextRIdx] || !bracketData.value[nextRIdx][nextMIdx]) {break;}
     const nextMatch = bracketData.value[nextRIdx][nextMIdx];
     let participantChanged = false;
     const isSourceA = (currentMIdxInLoop % 2 === 0);
@@ -314,7 +314,7 @@ const initRealDE = async () => {
 
     nextTick(() => {
       firstRound.forEach((m, idx) => {
-        if (m.winnerId) handleScoreChange(0, idx);
+        if (m.winnerId) {handleScoreChange(0, idx);}
       });
       drawLines();
     });
@@ -334,17 +334,17 @@ const getSlotClass = (match: Match, side: 'A' | 'B') => {
   return {'winner': isWinner, 'bye-slot': !fencer};
 };
 const setMatchRef = (el: HTMLElement | null, rIdx: number, mIdx: number) => {
-  if (el) matchRefs.set(`${rIdx}-${mIdx}`, el);
+  if (el) {matchRefs.set(`${rIdx}-${mIdx}`, el);}
 };
 const drawLines = () => {
-  if (!viewportRef.value) return;
+  if (!viewportRef.value) {return;}
   const newConnections: Connection[] = [];
   const viewportRect = viewportRef.value.getBoundingClientRect();
   for (let r = 0; r < bracketData.value.length - 1; r++) {
     for (let m = 0; m < bracketData.value[r].length; m++) {
       const currEl = matchRefs.get(`${r}-${m}`);
       const nextEl = matchRefs.get(`${r + 1}-${Math.floor(m / 2)}`);
-      if (!currEl || !nextEl) continue;
+      if (!currEl || !nextEl) {continue;}
       const startRect = currEl.getBoundingClientRect();
       const endRect = nextEl.getBoundingClientRect();
       const startX = startRect.right - viewportRect.left;

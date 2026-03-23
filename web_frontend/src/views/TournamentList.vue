@@ -168,7 +168,7 @@ const handleDeleteTournament = async (tournamentId: string, tournamentName: stri
       ElMessage.error('删除失败');
     }
   } finally {
-    if (loading.value) loading.value = false;
+    if (loading.value) {loading.value = false;}
   }
 };
 

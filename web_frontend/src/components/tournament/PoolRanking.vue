@@ -125,7 +125,7 @@ const loadData = async () => {
 // 【核心改造】: 重写整个 computed 属性，确保数据完整性
 const sortedRanking = computed(() => {
   // 1. 如果基础名单为空，则直接返回
-  if (allFencersForStage.value.length === 0) return [];
+  if (allFencersForStage.value.length === 0) {return [];}
 
   // 2. 将已有赛果的选手做成一个 Map，方便快速查找
   const resultsMap = new Map(poolResultsFencers.value.map(f => [f.id, f]));
@@ -150,14 +150,14 @@ const sortedRanking = computed(() => {
   // 4. 排序：轮空选手优先，然后按赛果排序
   const sorted = enrichedList.sort((a, b) => {
     // 轮空选手排在最前面
-    if (a.is_bye && !b.is_bye) return -1;
-    if (!a.is_bye && b.is_bye) return 1;
+    if (a.is_bye && !b.is_bye) {return -1;}
+    if (!a.is_bye && b.is_bye) {return 1;}
     // 如果都是轮空选手，按原始排名排
-    if (a.is_bye && b.is_bye) return a.current_rank - b.current_rank;
+    if (a.is_bye && b.is_bye) {return a.current_rank - b.current_rank;}
 
     // 如果都是比赛选手，按比赛规则排
-    if (b.v_m !== a.v_m) return b.v_m - a.v_m;
-    if (b.ind !== a.ind) return b.ind - a.ind;
+    if (b.v_m !== a.v_m) {return b.v_m - a.v_m;}
+    if (b.ind !== a.ind) {return b.ind - a.ind;}
     return b.ts - a.ts;
   });
 

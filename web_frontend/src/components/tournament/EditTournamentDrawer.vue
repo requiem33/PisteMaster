@@ -40,7 +40,7 @@ const isSubmitting = ref(false)
 const tournamentFormRef = ref<InstanceType<typeof TournamentForm>>()
 
 const submitForm = async () => {
-  if (!tournamentFormRef.value) return;
+  if (!tournamentFormRef.value) {return;}
 
   // 【关键修改】4. 调用子组件的 validate
   const isValid = await tournamentFormRef.value.validate();
