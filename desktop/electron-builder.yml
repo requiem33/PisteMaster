@@ -30,6 +30,10 @@ extraResources:
     to: "python"
     filter:
       - "**/*"
+  - from: "../web_frontend/dist"
+    to: "app"
+    filter:
+      - "**/*"
 
 # Auto-update configuration
 publish:
