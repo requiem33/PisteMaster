@@ -85,8 +85,8 @@
 </template>
 
 <script setup lang="ts">
-import {ref, watch, onMounted} from 'vue'
-import {ArrowDown, Delete} from '@element-plus/icons-vue'
+import {ref, onMounted} from 'vue'
+import {ArrowDown} from '@element-plus/icons-vue'
 
 // 定义规则的数据结构
 export interface StageConfig {

@@ -39,7 +39,7 @@
 import {ref, watch, onMounted} from 'vue'
 import {ElMessage} from 'element-plus'
 import {DataManager} from '@/services/DataManager'
-import type {Stage} from '@/types';
+import type {Stage} from '@/types/tournament';
 
 // Props 保持不变
 const props = defineProps<{

@@ -66,7 +66,7 @@
 
 <script setup lang="ts">
 import {ref, onMounted, watch, computed} from 'vue'
-import {useRoute, useRouter} from 'vue-router'
+import {useRoute} from 'vue-router'
 import {DataManager} from '@/services/DataManager'
 import {ElMessage} from 'element-plus'
 import AppHeader from '@/components/layout/AppHeader.vue'

@@ -155,9 +155,9 @@
 
 
 <script setup lang="ts">
-import {onMounted, ref, computed} from 'vue'
+import {onMounted, ref} from 'vue'
 import {useRoute, useRouter} from 'vue-router'
-import {Location, Calendar, Cloudy, Trophy, User, Right, Plus, Edit, ArrowDown} from '@element-plus/icons-vue'
+import {Location, Calendar, Trophy, User, Right, ArrowDown} from '@element-plus/icons-vue'
 import AppHeader from '@/components/layout/AppHeader.vue'
 import CreateEventDrawer from '@/components/tournament/CreateEventDrawer.vue'
 import {DataManager} from '@/services/DataManager'
@@ -186,13 +186,6 @@ const tournamentInfo = ref<any>({
 })
 
 const events = ref<any[]>([])
-
-// 计算总参赛人数 (所有项目的人数总和)
-const totalFencersCount = computed(() => {
-  return events.value.reduce((sum, event) => {
-    return sum + (Number(event.fencer_count) || 0)
-  }, 0)
-})
 
 // --- 加载数据函数 ---
 const loadAllData = async () => {

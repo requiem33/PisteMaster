@@ -89,13 +89,13 @@ const props = defineProps<{
 const emit = defineEmits(['next'])
 
 interface FencerRow {
-  id?: string;
+  id?: string
   last_name: string
   first_name: string
   gender: string
   country_code: string
   current_ranking: number | null
-  fencing_id?: string;
+  fencing_id?: string
 }
 
 const fencers = ref<FencerRow[]>([])
@@ -174,7 +174,7 @@ const submitImport = async () => {
   isSubmitting.value = true;
   try {
     const savedFencers = await DataManager.saveFencers(fencers.value);
-    const currentIds = savedFencers.map(f => f.id);
+    const currentIds = savedFencers.map((f: any) => f.id);
     await DataManager.syncEventFencers(props.eventId, currentIds);
 
     // 【核心修改】调用新方法，创建初始排名快照
@@ -190,10 +190,10 @@ const submitImport = async () => {
   }
 };
 
-const loadExistingFencers = async () => {
+const loadExistingFencers = async (): Promise<void> => {
   try {
     const data = await DataManager.getFencersByEvent(props.eventId)
-    fencers.value = data.map(f => ({
+    fencers.value = data.map((f: FencerRow) => ({
       id: f.id,
       last_name: f.last_name,
       first_name: f.first_name,

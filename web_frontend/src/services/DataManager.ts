@@ -1,7 +1,5 @@
 import {IndexedDBService} from './storage/IndexedDBService';
 import {ElMessage} from 'element-plus';
-import {v4 as uuidv4} from 'uuid';
-import type {Tournament} from '@/types/tournament.ts';
 import {getCsrfToken} from '@/utils/csrf.ts';
 
 const API_BASE_URL = (import.meta.env.VITE_API_BASE_URL as string) || '/api';
@@ -766,7 +764,7 @@ export const DataManager = {
                 });
             });
 
-            const fullResults = baseRankedFencers.map(fencer => ({
+            const fullResults = baseRankedFencers.map((fencer: any) => ({
                 ...fencer,
                 last_round: eliminationMap.get(String(fencer.id)) || '小组赛'
             }));

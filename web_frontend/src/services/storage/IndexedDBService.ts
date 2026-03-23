@@ -10,7 +10,7 @@ export const IndexedDBService = {
      */
     async getDB(): Promise<IDBPDatabase> {
         return openDB(DB_NAME, 6, {
-            upgrade(db, oldVersion, newVersion, transaction) {
+            upgrade(db, oldVersion, _newVersion, transaction) {
                 // --- 版本 1 逻辑：创建赛事表 ---
                 if (oldVersion < 1) {
                     if (!db.objectStoreNames.contains(TOURNAMENT_STORE)) {

@@ -24,12 +24,10 @@
 </template>
 
 <script setup lang="ts">
-/* 1. 确保所有需要的引用都已导入 */
-import {reactive, ref} from 'vue'
+import {ref} from 'vue'
 import {useRouter} from 'vue-router'
 import {ElMessage} from 'element-plus'
 import AppHeader from '@/components/layout/AppHeader.vue'
-import i18n from '@/locales'
 import {DataManager} from '@/services/DataManager'
 import TournamentForm from '@/components/tournament/TournamentForm.vue'
 

@@ -29,7 +29,7 @@ import {DataManager} from '@/services/DataManager'
 import {ElMessage} from 'element-plus'
 import TournamentForm from './TournamentForm.vue'
 
-const props = defineProps<{
+defineProps<{
   modelValue: boolean,
   tournamentData: any
 }>()

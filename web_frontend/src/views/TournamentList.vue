@@ -102,7 +102,7 @@
 <script setup lang="ts">
 import {ref, computed, onMounted} from 'vue'
 import {useRouter} from 'vue-router'
-import {Search, Calendar, User, ArrowRight, Tickets} from '@element-plus/icons-vue' // 引入新图标
+import {Calendar, User, ArrowRight, Tickets} from '@element-plus/icons-vue'
 import AppHeader from '@/components/layout/AppHeader.vue'
 import {DataManager} from '@/services/DataManager';
 import {ElMessage, ElMessageBox} from "element-plus";

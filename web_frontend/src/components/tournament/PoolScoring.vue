@@ -138,7 +138,7 @@ const loadPoolData = async () => {
       
       // Validate that saved results have correct dimensions
       const savedResults = (Array.isArray(p.results) && p.results.length === size && 
-                           p.results.every(row => Array.isArray(row) && row.length === size))
+                           p.results.every((row: unknown[]) => Array.isArray(row) && row.length === size))
           ? p.results 
           : Array.from({length: size}, () => Array(size).fill(''));
       

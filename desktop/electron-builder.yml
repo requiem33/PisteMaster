@@ -13,6 +13,7 @@ win:
       arch:
         - x64
   artifactName: ${productName}-Setup-${version}.${ext}
+  signAndEditExecutable: false
 
 # NSIS installer configuration
 nsis:

@@ -5,7 +5,7 @@
 </template>
 
 <script setup lang="ts">
-import { computed, onMounted, watch } from 'vue'
+import { computed } from 'vue'
 import zhCn from 'element-plus/es/locale/lang/zh-cn'
 import enUs from 'element-plus/es/locale/lang/en'
 import i18n from './locales'
@@ -17,7 +17,7 @@ const currentLocale = computed(() => {
 })
 
 // 添加路由守卫处理国际化标题
-router.beforeEach((to, from, next) => {
+router.beforeEach((to, _from, next) => {
   if (to.meta.titleKey) {
     // 使用i18n翻译页面标题
     document.title = i18n.global.t(to.meta.titleKey as string)

@@ -94,7 +94,7 @@
 import {ref, onMounted, onUnmounted, nextTick, defineProps, PropType} from 'vue'
 import {DataManager} from '@/services/DataManager'
 import {ElMessage} from 'element-plus'
-import type {Stage} from '@/types';
+import type {Stage} from '@/types/tournament';
 
 // --- 类型定义 ---
 interface Fencer {
@@ -273,7 +273,7 @@ const initRealDE = async () => {
       return;
     }
 
-    const qualifiedFencers = fencersFromPrevStage.map(f => ({
+    const qualifiedFencers = fencersFromPrevStage.map((f: any) => ({
       ...f,
       seed: f.current_rank
     }));
@@ -284,11 +284,11 @@ const initRealDE = async () => {
 
     const seedOrder = getSeedOrder(bracketSize);
     const firstRound: Match[] = [];
-    const fencerMap = new Map(qualifiedFencers.map(f => [f.seed, f]));
+    const fencerMap = new Map<number, Fencer>(qualifiedFencers.map((f: Fencer) => [f.seed, f]));
 
     for (let i = 0; i < seedOrder.length; i += 2) {
-      const fencerA = fencerMap.get(seedOrder[i]) || null;
-      const fencerB = fencerMap.get(seedOrder[i + 1]) || null;
+      const fencerA: Fencer | null = fencerMap.get(seedOrder[i]) || null;
+      const fencerB: Fencer | null = fencerMap.get(seedOrder[i + 1]) || null;
 
       const match: Match = {
         id: i / 2 + 1, fencerA, fencerB, scoreA: '', scoreB: '', winnerId: null
@@ -333,7 +333,7 @@ const getSlotClass = (match: Match, side: 'A' | 'B') => {
   const isWinner = match.winnerId && fencer && String(match.winnerId) === String(fencer.id);
   return {'winner': isWinner, 'bye-slot': !fencer};
 };
-const setMatchRef = (el: HTMLElement | null, rIdx: number, mIdx: number) => {
+const setMatchRef = (el: HTMLElement | null, rIdx: number, mIdx: number): void => {
   if (el) {matchRefs.set(`${rIdx}-${mIdx}`, el);}
 };
 const drawLines = () => {
