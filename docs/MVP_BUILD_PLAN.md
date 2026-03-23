@@ -278,7 +278,7 @@ python manage.py runserver
   "devDependencies": {
     "@electron-toolkit/preload": "^3.0.1",
     "@electron-toolkit/utils": "^3.0.0",
-    "@types/node": "^20.11.0",
+    "@types/node": "^22.0.0",
     "electron": "^28.1.0",
     "electron-builder": "^24.9.1",
     "electron-vite": "^2.0.0",
@@ -1032,8 +1032,8 @@ on:
           - Release
 
 env:
-  NODE_VERSION: '20'
-  PYTHON_VERSION: '3.11'
+  NODE_VERSION: '22'
+  PYTHON_VERSION: '3.12'
 
 jobs:
   # Job 1: Build Python Backend
@@ -1270,8 +1270,8 @@ on:
   workflow_dispatch:
 
 env:
-  NODE_VERSION: '20'
-  PYTHON_VERSION: '3.11'
+  NODE_VERSION: '22'
+  PYTHON_VERSION: '3.12'
 
 jobs:
   lint:
