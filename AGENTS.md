@@ -8,7 +8,7 @@ PisteMaster is a full-stack fencing tournament management system with:
 - **Backend**: Django 4.2 + Django REST Framework (Python)
 - **Frontend**: Vue 3 + TypeScript + Vite + Element Plus
 - **Core**: Shared Python domain models, interfaces, and services
-- **Desktop App**: PySide6 (Qt for Python) - early development
+- **Desktop App**: Electron + Vue 3 + TypeScript
 
 ---
 
@@ -81,6 +81,27 @@ npx vitest run -t "test name pattern"
 
 # Run tests with UI
 npx vitest --ui
+```
+
+### Desktop App
+
+```bash
+# Navigate to desktop directory first
+cd desktop
+
+# Install dependencies
+npm install
+
+# Start development (Electron + Vite)
+npm run dev
+
+# Build for production
+npm run build
+
+# Build platform-specific packages
+npm run build:win      # Windows
+npm run build:mac      # macOS
+npm run build:linux   # Linux
 ```
 
 ### Root-level convenience scripts
@@ -301,7 +322,9 @@ PisteMaster/
 │   │   ├── types/              # TypeScript interfaces
 │   │   └── locales/            # i18n translations
 │   └── package.json
-├── desktop_app/                # PySide6 desktop app
+├── desktop/                    # Electron desktop app
+│   ├── src/                     # Main and renderer process code
+│   └── package.json
 ├── tests/                      # Integration/unit tests for core
 └── docs/                       # Documentation
 ```
