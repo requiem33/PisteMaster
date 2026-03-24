@@ -16,7 +16,7 @@ class TestFencer:
             last_name="张",
             first_name="三",
             nationality="CHN",
-            birth_date=date(2000, 1, 1)
+            birth_date=date(2000, 1, 1),
         )
 
         assert fencer.last_name == "张"
@@ -30,7 +30,7 @@ class TestFencer:
             last_name="Doe",
             first_name="John",
             nationality="USA",
-            birth_date=date(1995, 5, 15)
+            birth_date=date(1995, 5, 15),
         )
 
         assert fencer.get_full_name() == "Doe John"
@@ -44,7 +44,7 @@ class TestFencer:
                 last_name="",
                 first_name="三",
                 nationality="CHN",
-                birth_date=date(2000, 1, 1)
+                birth_date=date(2000, 1, 1),
             )
 
         # 空名字
@@ -53,7 +53,7 @@ class TestFencer:
                 last_name="张",
                 first_name="",
                 nationality="CHN",
-                birth_date=date(2000, 1, 1)
+                birth_date=date(2000, 1, 1),
             )
 
     def test_fencer_validation_name_length(self):
@@ -65,7 +65,7 @@ class TestFencer:
                 last_name=long_last_name,
                 first_name="三",
                 nationality="CHN",
-                birth_date=date(2000, 1, 1)
+                birth_date=date(2000, 1, 1),
             )
 
     def test_fencer_validation_nationality(self):
@@ -76,7 +76,7 @@ class TestFencer:
                 last_name="张",
                 first_name="三",
                 nationality="",
-                birth_date=date(2000, 1, 1)
+                birth_date=date(2000, 1, 1),
             )
 
         # 长度不对
@@ -85,7 +85,7 @@ class TestFencer:
                 last_name="张",
                 first_name="三",
                 nationality="CH",
-                birth_date=date(2000, 1, 1)
+                birth_date=date(2000, 1, 1),
             )
 
         # 包含数字
@@ -94,7 +94,7 @@ class TestFencer:
                 last_name="张",
                 first_name="三",
                 nationality="CH1",
-                birth_date=date(2000, 1, 1)
+                birth_date=date(2000, 1, 1),
             )
 
         # 小写字母（会被自动转大写）
@@ -102,7 +102,7 @@ class TestFencer:
             last_name="张",
             first_name="三",
             nationality="chn",  # 小写
-            birth_date=date(2000, 1, 1)
+            birth_date=date(2000, 1, 1),
         )
         assert fencer.nationality == "CHN"  # 自动转大写
 
@@ -114,7 +114,7 @@ class TestFencer:
                 last_name="张",
                 first_name="三",
                 nationality="CHN",
-                birth_date="2000-01-01"  # 字符串，不是date
+                birth_date="2000-01-01",  # 字符串，不是date
             )
 
         # 未来日期
@@ -124,7 +124,7 @@ class TestFencer:
                 last_name="张",
                 first_name="三",
                 nationality="CHN",
-                birth_date=future_date
+                birth_date=future_date,
             )
 
         # 太早的日期
@@ -133,7 +133,7 @@ class TestFencer:
                 last_name="张",
                 first_name="三",
                 nationality="CHN",
-                birth_date=date(1899, 12, 31)
+                birth_date=date(1899, 12, 31),
             )
 
         # 年龄太小
@@ -144,7 +144,7 @@ class TestFencer:
                 last_name="张",
                 first_name="三",
                 nationality="CHN",
-                birth_date=child_date
+                birth_date=child_date,
             )
 
     def test_get_age(self):
@@ -157,7 +157,7 @@ class TestFencer:
             last_name="张",
             first_name="三",
             nationality="CHN",
-            birth_date=date(2000, 1, 1)
+            birth_date=date(2000, 1, 1),
         )
         assert fencer1.get_age(test_date) == 24
 
@@ -166,7 +166,7 @@ class TestFencer:
             last_name="李",
             first_name="四",
             nationality="CHN",
-            birth_date=date(2000, 12, 1)
+            birth_date=date(2000, 12, 1),
         )
         assert fencer2.get_age(test_date) == 23
 
@@ -175,7 +175,7 @@ class TestFencer:
             last_name="王",
             first_name="五",
             nationality="CHN",
-            birth_date=date(2000, 1, 1)
+            birth_date=date(2000, 1, 1),
         )
         expected_age = date.today().year - 2000
         if (date.today().month, date.today().day) < (1, 1):
@@ -192,7 +192,7 @@ class TestFencer:
             last_name="张",
             first_name="三",
             nationality="CHN",
-            birth_date=date(2015, 6, 2)  # 8岁（参考日期时）
+            birth_date=date(2015, 6, 2),  # 8岁（参考日期时）
         )
         assert fencer_u10.get_age_group(reference_date) == "U10"
 
@@ -201,7 +201,7 @@ class TestFencer:
             last_name="李",
             first_name="四",
             nationality="CHN",
-            birth_date=date(2012, 6, 2)  # 11岁
+            birth_date=date(2012, 6, 2),  # 11岁
         )
         assert fencer_u12.get_age_group(reference_date) == "U12"
 
@@ -210,7 +210,7 @@ class TestFencer:
             last_name="王",
             first_name="五",
             nationality="CHN",
-            birth_date=date(1990, 1, 1)  # 34岁
+            birth_date=date(1990, 1, 1),  # 34岁
         )
         assert fencer_senior.get_age_group(reference_date) == "Senior"
 
@@ -219,7 +219,7 @@ class TestFencer:
             last_name="赵",
             first_name="六",
             nationality="CHN",
-            birth_date=date(1960, 1, 1)  # 64岁
+            birth_date=date(1960, 1, 1),  # 64岁
         )
         assert fencer_veteran.get_age_group(reference_date) == "Veteran"
 
@@ -229,7 +229,7 @@ class TestFencer:
             last_name="Smith",
             first_name="John",
             nationality="USA",
-            birth_date=date(1990, 1, 1)
+            birth_date=date(1990, 1, 1),
         )
 
         # 默认顺序（姓在前）
@@ -243,7 +243,7 @@ class TestFencer:
             last_name="张",
             first_name="三",
             nationality="CHN",
-            birth_date=date(2000, 1, 1)
+            birth_date=date(2000, 1, 1),
         )
         assert chinese_fencer.get_full_name() == "张 三"
 
@@ -253,7 +253,7 @@ class TestFencer:
             last_name="张",
             first_name="三",
             nationality="CHN",
-            birth_date=date(2000, 1, 1)
+            birth_date=date(2000, 1, 1),
         )
 
         result = fencer.to_dict()
@@ -273,7 +273,7 @@ class TestFencer:
             "last_name": "张",
             "first_name": "三",
             "nationality": "CHN",
-            "birth_date": "2000-01-01"
+            "birth_date": "2000-01-01",
         }
 
         fencer = Fencer.from_dict(data)
@@ -290,7 +290,7 @@ class TestFencer:
             "last_name": "张",
             "first_name": "三",
             "nationality": "CHN",
-            "birth_date": "2000-01-01"
+            "birth_date": "2000-01-01",
         }
         fencer1 = Fencer.from_dict(data1)
         assert fencer1.birth_date == date(2000, 1, 1)
@@ -300,7 +300,7 @@ class TestFencer:
             "last_name": "李",
             "first_name": "四",
             "nationality": "CHN",
-            "birth_date": "2000/01/01"
+            "birth_date": "2000/01/01",
         }
         fencer2 = Fencer.from_dict(data2)
         assert fencer2.birth_date == date(2000, 1, 1)
@@ -310,7 +310,7 @@ class TestFencer:
             "last_name": "王",
             "first_name": "五",
             "nationality": "CHN",
-            "birth_date": "01/01/2000"
+            "birth_date": "01/01/2000",
         }
         fencer3 = Fencer.from_dict(data3)
         assert fencer3.birth_date == date(2000, 1, 1)
@@ -319,19 +319,15 @@ class TestFencer:
         """测试从字典创建时缺少字段"""
         # 缺少姓氏
         with pytest.raises(ValueError, match="缺少必需字段: last_name"):
-            Fencer.from_dict({
-                "first_name": "三",
-                "nationality": "CHN",
-                "birth_date": "2000-01-01"
-            })
+            Fencer.from_dict(
+                {"first_name": "三", "nationality": "CHN", "birth_date": "2000-01-01"}
+            )
 
         # 缺少名字
         with pytest.raises(ValueError, match="缺少必需字段: first_name"):
-            Fencer.from_dict({
-                "last_name": "张",
-                "nationality": "CHN",
-                "birth_date": "2000-01-01"
-            })
+            Fencer.from_dict(
+                {"last_name": "张", "nationality": "CHN", "birth_date": "2000-01-01"}
+            )
 
     def test_str_representation(self):
         """测试字符串表示"""
@@ -339,7 +335,7 @@ class TestFencer:
             last_name="张",
             first_name="三",
             nationality="CHN",
-            birth_date=date(2000, 1, 1)
+            birth_date=date(2000, 1, 1),
         )
 
         assert str(fencer) == "张 三 (CHN)"
@@ -354,21 +350,21 @@ class TestFencer:
             last_name="张",
             first_name="三",
             nationality="CHN",
-            birth_date=date(2000, 1, 1)
+            birth_date=date(2000, 1, 1),
         )
 
         fencer2 = Fencer(
             last_name="张",
             first_name="三",
             nationality="CHN",
-            birth_date=date(2000, 1, 1)
+            birth_date=date(2000, 1, 1),
         )
 
         fencer3 = Fencer(
             last_name="李",
             first_name="四",
             nationality="CHN",
-            birth_date=date(2000, 1, 1)
+            birth_date=date(2000, 1, 1),
         )
 
         # 相同选手应该相等
@@ -387,21 +383,21 @@ class TestFencer:
             last_name="张",
             first_name="三",
             nationality="CHN",
-            birth_date=date(2000, 1, 1)
+            birth_date=date(2000, 1, 1),
         )
 
         fencer2 = Fencer(
             last_name="张",
             first_name="三",
             nationality="CHN",
-            birth_date=date(2000, 1, 1)
+            birth_date=date(2000, 1, 1),
         )
 
         fencer3 = Fencer(
             last_name="李",
             first_name="四",
             nationality="CHN",
-            birth_date=date(2000, 1, 1)
+            birth_date=date(2000, 1, 1),
         )
 
         # 相同选手应该有相同哈希

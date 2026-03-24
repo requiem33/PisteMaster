@@ -25,12 +25,12 @@ class TournamentStatusViewSet(viewsets.ViewSet):
     serializer_class = TournamentStatusSerializer
     service = TournamentStatusService()
     filter_backends = [DjangoFilterBackend, filters.SearchFilter]
-    filterset_fields = ['status_code']
-    search_fields = ['status_code', 'display_name', 'description']
+    filterset_fields = ["status_code"]
+    search_fields = ["status_code", "display_name", "description"]
 
     def get_permissions(self):
         """权限控制"""
-        if self.action in ['create', 'update', 'destroy', 'initialize']:
+        if self.action in ["create", "update", "destroy", "initialize"]:
             return [IsAuthenticated(), IsAdminUser()]
         return [IsAuthenticated()]
 
@@ -44,7 +44,9 @@ class TournamentStatusViewSet(viewsets.ViewSet):
 
         # 过滤和搜索
         for backend in list(self.filter_backends):
-            django_statuses = backend().filter_queryset(self.request, django_statuses, self)
+            django_statuses = backend().filter_queryset(
+                self.request, django_statuses, self
+            )
 
         serializer = self.serializer_class(django_statuses, many=True)
         return Response(serializer.data)
@@ -55,8 +57,7 @@ class TournamentStatusViewSet(viewsets.ViewSet):
             status = self.service.get_status_by_id(pk)
             if not status:
                 return Response(
-                    {"detail": "状态不存在"},
-                    status=status.HTTP_404_NOT_FOUND
+                    {"detail": "状态不存在"}, status=status.HTTP_404_NOT_FOUND
                 )
 
             django_status = DjangoTournamentStatus.objects.get(id=status.id)
@@ -64,10 +65,7 @@ class TournamentStatusViewSet(viewsets.ViewSet):
             return Response(serializer.data)
 
         except Exception as e:
-            return Response(
-                {"detail": str(e)},
-                status=status.HTTP_400_BAD_REQUEST
-            )
+            return Response({"detail": str(e)}, status=status.HTTP_400_BAD_REQUEST)
 
     def create(self, request):
         """创建新状态"""
@@ -79,20 +77,17 @@ class TournamentStatusViewSet(viewsets.ViewSet):
             django_status = DjangoTournamentStatus.objects.get(id=status.id)
             response_serializer = self.serializer_class(django_status)
 
-            return Response(
-                response_serializer.data,
-                status=status.HTTP_201_CREATED
-            )
+            return Response(response_serializer.data, status=status.HTTP_201_CREATED)
 
         except TournamentStatusService.TournamentStatusServiceError as e:
             return Response(
                 {"detail": e.message, "errors": e.errors},
-                status=status.HTTP_400_BAD_REQUEST
+                status=status.HTTP_400_BAD_REQUEST,
             )
         except Exception as e:
             return Response(
                 {"detail": f"创建失败: {str(e)}"},
-                status=status.HTTP_500_INTERNAL_SERVER_ERROR
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR,
             )
 
     def update(self, request, pk=None):
@@ -111,7 +106,7 @@ class TournamentStatusViewSet(viewsets.ViewSet):
         except TournamentStatusService.TournamentStatusServiceError as e:
             return Response(
                 {"detail": e.message, "errors": e.errors},
-                status=status.HTTP_400_BAD_REQUEST
+                status=status.HTTP_400_BAD_REQUEST,
             )
 
     def destroy(self, request, pk=None):
@@ -119,12 +114,13 @@ class TournamentStatusViewSet(viewsets.ViewSet):
         try:
             # 检查是否可以删除（例如是否有赛事使用此状态）
             from ..tournament.models import DjangoTournament
+
             used_count = DjangoTournament.objects.filter(status_id=pk).count()
 
             if used_count > 0:
                 return Response(
                     {"detail": f"无法删除，有 {used_count} 个赛事正在使用此状态"},
-                    status=status.HTTP_400_BAD_REQUEST
+                    status=status.HTTP_400_BAD_REQUEST,
                 )
 
             # 删除状态
@@ -132,32 +128,30 @@ class TournamentStatusViewSet(viewsets.ViewSet):
 
             if count == 0:
                 return Response(
-                    {"detail": "状态不存在"},
-                    status=status.HTTP_404_NOT_FOUND
+                    {"detail": "状态不存在"}, status=status.HTTP_404_NOT_FOUND
                 )
 
             return Response(status=status.HTTP_204_NO_CONTENT)
 
         except Exception as e:
-            return Response(
-                {"detail": str(e)},
-                status=status.HTTP_400_BAD_REQUEST
-            )
+            return Response({"detail": str(e)}, status=status.HTTP_400_BAD_REQUEST)
 
-    @action(detail=False, methods=['post'])
+    @action(detail=False, methods=["post"])
     def initialize(self, request):
         """初始化预定义状态"""
         try:
             created_statuses = self.service.initialize_predefined_statuses()
 
-            return Response({
-                "success": True,
-                "message": f"成功初始化 {len(created_statuses)} 个状态",
-                "created_count": len(created_statuses)
-            })
+            return Response(
+                {
+                    "success": True,
+                    "message": f"成功初始化 {len(created_statuses)} 个状态",
+                    "created_count": len(created_statuses),
+                }
+            )
 
         except Exception as e:
             return Response(
                 {"detail": f"初始化失败: {str(e)}"},
-                status=status.HTTP_500_INTERNAL_SERVER_ERROR
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR,
             )

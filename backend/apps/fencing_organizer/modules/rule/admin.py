@@ -7,58 +7,60 @@ class RuleAdmin(admin.ModelAdmin):
     """赛制规则管理后台"""
 
     list_display = (
-        'rule_name',
-        'elimination_type_display',
-        'final_ranking_type_display',
-        'pool_size',
-        'match_score_pool',
-        'match_score_elimination',
-        'total_qualified_count',
-        'created_at'
+        "rule_name",
+        "elimination_type_display",
+        "final_ranking_type_display",
+        "pool_size",
+        "match_score_pool",
+        "match_score_elimination",
+        "total_qualified_count",
+        "created_at",
     )
 
-    list_display_links = ('rule_name',)
+    list_display_links = ("rule_name",)
 
-    search_fields = ('rule_name', 'description', 'match_format')
+    search_fields = ("rule_name", "description", "match_format")
 
-    list_filter = (
-        'elimination_type',
-        'final_ranking_type',
-        'pool_size'
-    )
+    list_filter = ("elimination_type", "final_ranking_type", "pool_size")
 
-    ordering = ('rule_name',)
+    ordering = ("rule_name",)
 
     list_per_page = 25
 
     fieldsets = (
-        ('基本信息', {
-            'fields': ('rule_name', 'description', 'is_preset', 'preset_code')
-        }),
-        ('赛制设置', {
-            'fields': ('elimination_type', 'final_ranking_type', 'total_qualified_count')
-        }),
-        ('阶段配置', {
-            'fields': ('stages_config',)
-        }),
-        ('小组赛设置', {
-            'fields': ('pool_size', 'match_score_pool', 'group_qualification_ratio')
-        }),
-        ('淘汰赛设置', {
-            'fields': ('match_score_elimination',)
-        }),
-        ('比赛格式', {
-            'fields': ('match_format', 'match_duration')
-        }),
-        ('系统信息', {
-            'fields': ('created_at', 'updated_at'),
-            'classes': ('collapse',),
-        }),
+        (
+            "基本信息",
+            {"fields": ("rule_name", "description", "is_preset", "preset_code")},
+        ),
+        (
+            "赛制设置",
+            {
+                "fields": (
+                    "elimination_type",
+                    "final_ranking_type",
+                    "total_qualified_count",
+                )
+            },
+        ),
+        ("阶段配置", {"fields": ("stages_config",)}),
+        (
+            "小组赛设置",
+            {"fields": ("pool_size", "match_score_pool", "group_qualification_ratio")},
+        ),
+        ("淘汰赛设置", {"fields": ("match_score_elimination",)}),
+        ("比赛格式", {"fields": ("match_format", "match_duration")}),
+        (
+            "系统信息",
+            {
+                "fields": ("created_at", "updated_at"),
+                "classes": ("collapse",),
+            },
+        ),
     )
 
-    readonly_fields = ('id', 'created_at', 'updated_at')
+    readonly_fields = ("id", "created_at", "updated_at")
 
-    autocomplete_fields = ['elimination_type', 'final_ranking_type']
+    autocomplete_fields = ["elimination_type", "final_ranking_type"]
 
     def elimination_type_display(self, obj):
         """淘汰赛类型显示"""
@@ -74,6 +76,8 @@ class RuleAdmin(admin.ModelAdmin):
 
     def get_queryset(self, request):
         """优化查询集"""
-        return super().get_queryset(request).select_related(
-            'elimination_type', 'final_ranking_type'
+        return (
+            super()
+            .get_queryset(request)
+            .select_related("elimination_type", "final_ranking_type")
         )

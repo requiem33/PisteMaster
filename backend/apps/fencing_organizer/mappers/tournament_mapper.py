@@ -17,7 +17,7 @@ class TournamentMapper:
             organizer=django_tournament.organizer,
             location=django_tournament.location,
             created_at=django_tournament.created_at,
-            updated_at=django_tournament.updated_at
+            updated_at=django_tournament.updated_at,
         )
 
     @staticmethod
@@ -30,6 +30,6 @@ class TournamentMapper:
             "end_date": tournament.end_date,
             "status": tournament.status,
             "organizer": tournament.organizer,
-            "location": tournament.location
+            "location": tournament.location,
             # 注意：created_at和updated_at不包含在这里，让Django自动处理
         }

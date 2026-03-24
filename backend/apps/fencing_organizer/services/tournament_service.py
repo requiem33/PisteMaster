@@ -4,7 +4,9 @@ from uuid import UUID
 
 from django.db import IntegrityError
 
-from backend.apps.fencing_organizer.repositories.tournament_repo import DjangoTournamentRepository
+from backend.apps.fencing_organizer.repositories.tournament_repo import (
+    DjangoTournamentRepository,
+)
 from core.models.tournament import Tournament
 
 
@@ -50,12 +52,12 @@ class TournamentService:
         """
         try:
             tournament_entity = Tournament(
-                tournament_name=tournament_data['tournament_name'],
-                start_date=tournament_data['start_date'],
-                end_date=tournament_data['end_date'],
-                organizer=tournament_data.get('organizer'),
-                location=tournament_data.get('location'),
-                status=tournament_data.get('status', 'PLANNING')
+                tournament_name=tournament_data["tournament_name"],
+                start_date=tournament_data["start_date"],
+                end_date=tournament_data["end_date"],
+                organizer=tournament_data.get("organizer"),
+                location=tournament_data.get("location"),
+                status=tournament_data.get("status", "PLANNING"),
             )
 
             return self.repository.save_tournament(tournament_entity)
@@ -65,7 +67,9 @@ class TournamentService:
         except KeyError as e:
             raise self.TournamentServiceError(f"Missing required field: {str(e)}")
 
-    def update_tournament(self, tournament_id: UUID, tournament_data: dict) -> Tournament:
+    def update_tournament(
+        self, tournament_id: UUID, tournament_data: dict
+    ) -> Tournament:
         """
         Update tournament.
 

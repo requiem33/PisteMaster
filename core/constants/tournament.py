@@ -3,6 +3,7 @@ from enum import StrEnum
 
 class TournamentOrdering(StrEnum):
     """赛事排序选项"""
+
     START_DATE_ASC = "start_date"
     START_DATE_DESC = "-start_date"
     END_DATE_ASC = "end_date"

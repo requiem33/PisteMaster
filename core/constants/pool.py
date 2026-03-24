@@ -3,6 +3,7 @@ from enum import StrEnum
 
 class PoolStatus(StrEnum):
     """小组状态枚举"""
+
     SCHEDULED = "SCHEDULED"  # 已安排
     READY = "READY"  # 准备就绪
     IN_PROGRESS = "IN_PROGRESS"  # 进行中
@@ -13,6 +14,7 @@ class PoolStatus(StrEnum):
 
 class PoolLetter(StrEnum):
     """小组字母枚举"""
+
     A = "A"
     B = "B"
     C = "C"
@@ -43,8 +45,16 @@ class PoolLetter(StrEnum):
 
 # 小组状态流转规则
 STATUS_TRANSITIONS = {
-    PoolStatus.SCHEDULED: [PoolStatus.READY, PoolStatus.CANCELLED, PoolStatus.POSTPONED],
-    PoolStatus.READY: [PoolStatus.IN_PROGRESS, PoolStatus.SCHEDULED, PoolStatus.CANCELLED],
+    PoolStatus.SCHEDULED: [
+        PoolStatus.READY,
+        PoolStatus.CANCELLED,
+        PoolStatus.POSTPONED,
+    ],
+    PoolStatus.READY: [
+        PoolStatus.IN_PROGRESS,
+        PoolStatus.SCHEDULED,
+        PoolStatus.CANCELLED,
+    ],
     PoolStatus.IN_PROGRESS: [PoolStatus.COMPLETED, PoolStatus.CANCELLED],
     PoolStatus.COMPLETED: [],
     PoolStatus.CANCELLED: [PoolStatus.SCHEDULED],

@@ -11,7 +11,7 @@ class EventStatusMapper:
         return EventStatus(
             id=django_status.id,
             status_code=django_status.status_code,
-            display_name=django_status.display_name
+            display_name=django_status.display_name,
         )
 
     @staticmethod
@@ -20,5 +20,5 @@ class EventStatusMapper:
         return {
             "id": event_status.id,
             "status_code": event_status.status_code,
-            "display_name": event_status.display_name
+            "display_name": event_status.display_name,
         }

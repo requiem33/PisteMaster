@@ -3,7 +3,9 @@ from uuid import UUID
 from django.db import IntegrityError
 
 from core.models.tournament_status import TournamentStatus
-from backend.apps.fencing_organizer.repositories.tournament_status_repo import DjangoTournamentStatusRepository
+from backend.apps.fencing_organizer.repositories.tournament_status_repo import (
+    DjangoTournamentStatusRepository,
+)
 from core.constants.tournament_status import PREDEFINED_STATUSES
 
 
@@ -37,7 +39,9 @@ class TournamentStatusService:
         try:
             return self.repository.save_status(status)
         except IntegrityError:
-            raise self.TournamentStatusServiceError(f"状态代码 '{status_data.get('status_code')}'. 已存在")
+            raise self.TournamentStatusServiceError(
+                f"状态代码 '{status_data.get('status_code')}'. 已存在"
+            )
 
     def update_status(self, status_id: UUID, status_data: dict) -> TournamentStatus:
         """更新状态"""
@@ -58,7 +62,9 @@ class TournamentStatusService:
         try:
             return self.repository.save_status(existing_status)
         except IntegrityError:
-            raise self.TournamentStatusServiceError(f"状态代码 '{status_data.get('status_code')}' 已存在")
+            raise self.TournamentStatusServiceError(
+                f"状态代码 '{status_data.get('status_code')}' 已存在"
+            )
 
     def initialize_predefined_statuses(self) -> List[TournamentStatus]:
         """初始化预定义状态"""
@@ -67,7 +73,9 @@ class TournamentStatusService:
         for status_data in PREDEFINED_STATUSES:
             try:
                 # 检查是否已存在
-                existing = self.repository.get_status_by_code(status_data['status_code'])
+                existing = self.repository.get_status_by_code(
+                    status_data["status_code"]
+                )
                 if existing:
                     continue
 
@@ -85,17 +93,17 @@ class TournamentStatusService:
         errors = {}
 
         # 必填字段检查
-        if not data.get('status_code'):
-            errors['status_code'] = "状态代码不能为空"
-        elif len(data['status_code']) > 20:
-            errors['status_code'] = "状态代码长度不能超过20个字符"
+        if not data.get("status_code"):
+            errors["status_code"] = "状态代码不能为空"
+        elif len(data["status_code"]) > 20:
+            errors["status_code"] = "状态代码长度不能超过20个字符"
 
         # 可选字段长度检查
-        if data.get('display_name') and len(data['display_name']) > 50:
-            errors['display_name'] = "显示名称长度不能超过50个字符"
+        if data.get("display_name") and len(data["display_name"]) > 50:
+            errors["display_name"] = "显示名称长度不能超过50个字符"
 
-        if data.get('description') and len(data['description']) > 200:
-            errors['description'] = "描述长度不能超过200个字符"
+        if data.get("description") and len(data["description"]) > 200:
+            errors["description"] = "描述长度不能超过200个字符"
 
         if errors:
             raise self.TournamentStatusServiceError("数据验证失败", errors)

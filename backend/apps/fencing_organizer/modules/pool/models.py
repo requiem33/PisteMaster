@@ -17,9 +17,9 @@ class DjangoPool(models.Model):
     event = models.ForeignKey(
         DjangoEvent,
         on_delete=models.CASCADE,
-        db_column='event_id',
-        related_name='pools',
-        verbose_name="所属项目"
+        db_column="event_id",
+        related_name="pools",
+        verbose_name="所属项目",
     )
 
     piste = models.ForeignKey(
@@ -27,84 +27,63 @@ class DjangoPool(models.Model):
         on_delete=models.SET_NULL,
         null=True,
         blank=True,
-        db_column='piste_id',
-        related_name='pools',
-        verbose_name="分配剑道"
+        db_column="piste_id",
+        related_name="pools",
+        verbose_name="分配剑道",
     )
 
-    stage_id = models.CharField(
-        max_length=50,
-        default="1",
-        verbose_name="阶段ID"
-    )
+    stage_id = models.CharField(max_length=50, default="1", verbose_name="阶段ID")
 
     # 必填字段
     pool_number = models.IntegerField(
-        verbose_name="小组编号",
-        validators=[MinValueValidator(1)]
+        verbose_name="小组编号", validators=[MinValueValidator(1)]
     )
 
     start_time = models.DateTimeField(
-        null=True,
-        blank=True,
-        verbose_name="计划开始时间"
+        null=True, blank=True, verbose_name="计划开始时间"
     )
 
     # MVP 新增 JSON 字段
     fencer_ids = models.JSONField(
-        default=list,
-        blank=True,
-        verbose_name="组内运动员ID列表(JSON)"
+        default=list, blank=True, verbose_name="组内运动员ID列表(JSON)"
     )
 
     results = models.JSONField(
-        default=list,
-        blank=True,
-        verbose_name="比赛结果矩阵(JSON)"
+        default=list, blank=True, verbose_name="比赛结果矩阵(JSON)"
     )
 
-    stats = models.JSONField(
-        default=list,
-        blank=True,
-        verbose_name="比赛统计(JSON)"
-    )
+    stats = models.JSONField(default=list, blank=True, verbose_name="比赛统计(JSON)")
 
-    is_locked = models.BooleanField(
-        default=False,
-        verbose_name="是否锁定成绩"
-    )
+    is_locked = models.BooleanField(default=False, verbose_name="是否锁定成绩")
 
     status = models.CharField(
         max_length=20,
         choices=[(status.value, status.value) for status in PoolStatus],
         default=PoolStatus.SCHEDULED.value,
-        verbose_name="状态"
+        verbose_name="状态",
     )
 
-    is_completed = models.BooleanField(
-        default=False,
-        verbose_name="是否完成"
-    )
+    is_completed = models.BooleanField(default=False, verbose_name="是否完成")
 
     # 时间戳字段
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
     class Meta:
-        db_table = 'pool'
+        db_table = "pool"
         verbose_name = "小组"
         verbose_name_plural = "小组"
-        ordering = ['event', 'stage_id', 'pool_number']
+        ordering = ["event", "stage_id", "pool_number"]
         constraints = [
             models.UniqueConstraint(
-                fields=['event', 'stage_id', 'pool_number'],
-                name='unique_pool_event_stage_number'
+                fields=["event", "stage_id", "pool_number"],
+                name="unique_pool_event_stage_number",
             )
         ]
         indexes = [
-            models.Index(fields=['event'], name='idx_pool_event'),
-            models.Index(fields=['stage_id'], name='idx_pool_stage'),
-            models.Index(fields=['status'], name='idx_pool_status'),
+            models.Index(fields=["event"], name="idx_pool_event"),
+            models.Index(fields=["stage_id"], name="idx_pool_stage"),
+            models.Index(fields=["status"], name="idx_pool_status"),
         ]
 
     def __str__(self):

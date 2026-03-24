@@ -25,7 +25,9 @@ class PoolBoutRepositoryInterface(ABC):
         pass
 
     @abstractmethod
-    def get_bouts_by_date_range(self, start_date: datetime, end_date: datetime) -> List[PoolBout]:
+    def get_bouts_by_date_range(
+        self, start_date: datetime, end_date: datetime
+    ) -> List[PoolBout]:
         pass
 
     @abstractmethod
@@ -41,5 +43,7 @@ class PoolBoutRepositoryInterface(ABC):
         pass
 
     @abstractmethod
-    def get_bout_by_fencers(self, pool_id: UUID, fencer_a_id: UUID, fencer_b_id: UUID) -> Optional[PoolBout]:
+    def get_bout_by_fencers(
+        self, pool_id: UUID, fencer_a_id: UUID, fencer_b_id: UUID
+    ) -> Optional[PoolBout]:
         pass

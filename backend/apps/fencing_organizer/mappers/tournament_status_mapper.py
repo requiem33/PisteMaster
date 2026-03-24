@@ -1,4 +1,6 @@
-from backend.apps.fencing_organizer.modules.tournament_status.models import DjangoTournamentStatus
+from backend.apps.fencing_organizer.modules.tournament_status.models import (
+    DjangoTournamentStatus,
+)
 from core.models.tournament_status import TournamentStatus
 
 
@@ -12,7 +14,7 @@ class TournamentStatusMapper:
             id=django_status.id,
             status_code=django_status.status_code,
             display_name=django_status.display_name,
-            description=django_status.description
+            description=django_status.description,
         )
 
     @staticmethod
@@ -22,5 +24,5 @@ class TournamentStatusMapper:
             "id": status.id,
             "status_code": status.status_code,
             "display_name": status.display_name,
-            "description": status.description
+            "description": status.description,
         }

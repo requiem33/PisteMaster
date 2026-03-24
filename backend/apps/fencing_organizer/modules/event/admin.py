@@ -9,61 +9,61 @@ class EventAdmin(admin.ModelAdmin):
     """比赛项目管理后台"""
 
     list_display = (
-        'event_name',
-        'tournament_link',
-        'event_type',
-        'status',
-        'start_time',
-        'participant_count_display',
-        'is_active_display',
-        'created_at'
+        "event_name",
+        "tournament_link",
+        "event_type",
+        "status",
+        "start_time",
+        "participant_count_display",
+        "is_active_display",
+        "created_at",
     )
 
-    list_display_links = ('event_name',)
+    list_display_links = ("event_name",)
 
-    search_fields = ('event_name', 'tournament__tournament_name')
+    search_fields = ("event_name", "tournament__tournament_name")
 
     list_filter = (
-        'tournament',
-        'event_type',
-        'status',
-        'is_team_event',
-        'start_time',
-        'created_at'
+        "tournament",
+        "event_type",
+        "status",
+        "is_team_event",
+        "start_time",
+        "created_at",
     )
 
-    ordering = ('-start_time', 'event_name')
+    ordering = ("-start_time", "event_name")
 
     list_per_page = 25
 
     fieldsets = (
-        ('基本信息', {
-            'fields': ('event_name', 'tournament', 'event_type')
-        }),
-        ('赛制设置', {
-            'fields': ('rule', 'custom_rule_config', 'status')
-        }),
-        ('状态记录', {
-            'fields': ('current_step', 'live_ranking', 'de_trees')
-        }),
-        ('时间安排', {
-            'fields': ('start_time',)
-        }),
-        ('系统信息', {
-            'fields': ('created_at', 'updated_at'),
-            'classes': ('collapse',),
-        }),
+        ("基本信息", {"fields": ("event_name", "tournament", "event_type")}),
+        ("赛制设置", {"fields": ("rule", "custom_rule_config", "status")}),
+        ("状态记录", {"fields": ("current_step", "live_ranking", "de_trees")}),
+        ("时间安排", {"fields": ("start_time",)}),
+        (
+            "系统信息",
+            {
+                "fields": ("created_at", "updated_at"),
+                "classes": ("collapse",),
+            },
+        ),
     )
 
-    readonly_fields = ('id', 'created_at', 'updated_at', 'is_team_event')
+    readonly_fields = ("id", "created_at", "updated_at", "is_team_event")
 
-    autocomplete_fields = ['tournament', 'rule']
+    autocomplete_fields = ["tournament", "rule"]
 
     def tournament_link(self, obj):
         """赛事链接"""
         if obj.tournament:
-            url = reverse('admin:fencing_organizer_djangotournament_change', args=[obj.tournament.id])
-            return format_html('<a href="{}">{}</a>', url, obj.tournament.tournament_name)
+            url = reverse(
+                "admin:fencing_organizer_djangotournament_change",
+                args=[obj.tournament.id],
+            )
+            return format_html(
+                '<a href="{}">{}</a>', url, obj.tournament.tournament_name
+            )
         return "-"
 
     tournament_link.short_description = "赛事"
@@ -84,6 +84,4 @@ class EventAdmin(admin.ModelAdmin):
 
     def get_queryset(self, request):
         """优化查询集"""
-        return super().get_queryset(request).select_related(
-            'tournament', 'rule'
-        )
+        return super().get_queryset(request).select_related("tournament", "rule")

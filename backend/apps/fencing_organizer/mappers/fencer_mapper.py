@@ -20,7 +20,7 @@ class FencerMapper:
             current_ranking=django_fencer.current_ranking,
             primary_weapon=django_fencer.primary_weapon,
             created_at=django_fencer.created_at,
-            updated_at=django_fencer.updated_at
+            updated_at=django_fencer.updated_at,
         )
 
     @staticmethod
@@ -38,5 +38,5 @@ class FencerMapper:
             "current_ranking": fencer.current_ranking,
             "primary_weapon": fencer.primary_weapon,
             "created_at": fencer.created_at,
-            "updated_at": fencer.updated_at
+            "updated_at": fencer.updated_at,
         }

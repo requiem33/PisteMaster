@@ -34,7 +34,5 @@ try:
         {k: v for k, v in module.__dict__.items() if not k.startswith("_")}
     )
 except ImportError as e:
-    warnings.warn(
-        f"Could not import settings module '{settings_module}': {e}"
-    )
+    warnings.warn(f"Could not import settings module '{settings_module}': {e}")
     from PisteMaster.settings.development import *  # noqa: F403, F401

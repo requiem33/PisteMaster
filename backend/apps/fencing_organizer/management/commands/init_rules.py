@@ -3,7 +3,7 @@ from backend.apps.fencing_organizer.services.rule_service import RuleService
 
 
 class Command(BaseCommand):
-    help = '初始化预定义赛制规则数据'
+    help = "初始化预定义赛制规则数据"
 
     def handle(self, *args, **options):
         service = RuleService()

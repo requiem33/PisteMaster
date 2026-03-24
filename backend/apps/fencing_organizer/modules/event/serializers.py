@@ -7,8 +7,8 @@ from ..rule.models import DjangoRule
 
 
 DEFAULT_WORLD_CUP_STAGES = [
-    {'type': 'pool', 'config': {'byes': 16, 'hits': 5, 'elimination_rate': 20}},
-    {'type': 'de', 'config': {'hits': 15, 'final_stage': 'bronze_medal', 'rank_to': 8}}
+    {"type": "pool", "config": {"byes": 16, "hits": 5, "elimination_rate": 20}},
+    {"type": "de", "config": {"hits": 15, "final_stage": "bronze_medal", "rank_to": 8}},
 ]
 
 
@@ -28,19 +28,21 @@ class EventSerializer(DomainModelSerializer):
     event_name = serializers.CharField(max_length=200, required=True)
     tournament_id = serializers.PrimaryKeyRelatedField(
         queryset=DjangoTournament.objects.all(),
-        source='tournament',
+        source="tournament",
         write_only=True,
-        required=True
+        required=True,
     )
     rule_id = serializers.PrimaryKeyRelatedField(
         queryset=DjangoRule.objects.all(),
-        source='rule',
+        source="rule",
         write_only=True,
         required=False,
-        allow_null=True
+        allow_null=True,
     )
-    event_type = serializers.CharField(max_length=50, required=False, default='')
-    status = serializers.CharField(max_length=20, required=False, default='REGISTRATION')
+    event_type = serializers.CharField(max_length=50, required=False, default="")
+    status = serializers.CharField(
+        max_length=20, required=False, default="REGISTRATION"
+    )
     current_step = serializers.IntegerField(required=False, default=0)
     live_ranking = serializers.JSONField(required=False, default=list)
     de_trees = serializers.JSONField(required=False, default=dict)
@@ -56,43 +58,43 @@ class EventSerializer(DomainModelSerializer):
     class Meta:
         model = DjangoEvent
         fields = [
-            'id',
-            'event_name',
-            'tournament_id',
-            'rule_id',
-            'event_type',
-            'status',
-            'current_step',
-            'live_ranking',
-            'de_trees',
-            'custom_rule_config',
-            'tournament_info',
-            'rule_info',
-            'is_team_event',
-            'start_time',
-            'created_at',
-            'updated_at'
+            "id",
+            "event_name",
+            "tournament_id",
+            "rule_id",
+            "event_type",
+            "status",
+            "current_step",
+            "live_ranking",
+            "de_trees",
+            "custom_rule_config",
+            "tournament_info",
+            "rule_info",
+            "is_team_event",
+            "start_time",
+            "created_at",
+            "updated_at",
         ]
 
     def get_tournament_info(self, obj):
-        if hasattr(obj, 'tournament_id'):
+        if hasattr(obj, "tournament_id"):
             tournament_id = obj.tournament_id
             try:
                 tournament = DjangoTournament.objects.get(id=tournament_id)
                 return {
-                    'id': str(tournament.id),
-                    'tournament_name': tournament.tournament_name,
-                    'start_date': tournament.start_date,
-                    'end_date': tournament.end_date
+                    "id": str(tournament.id),
+                    "tournament_name": tournament.tournament_name,
+                    "start_date": tournament.start_date,
+                    "end_date": tournament.end_date,
                 }
             except DjangoTournament.DoesNotExist:
                 return None
-        elif hasattr(obj, 'tournament') and obj.tournament:
+        elif hasattr(obj, "tournament") and obj.tournament:
             return {
-                'id': str(obj.tournament.id),
-                'tournament_name': obj.tournament.tournament_name,
-                'start_date': obj.tournament.start_date,
-                'end_date': obj.tournament.end_date
+                "id": str(obj.tournament.id),
+                "tournament_name": obj.tournament.tournament_name,
+                "start_date": obj.tournament.start_date,
+                "end_date": obj.tournament.end_date,
             }
         return None
 
@@ -106,28 +108,28 @@ class EventSerializer(DomainModelSerializer):
         3. Default World Cup stages
         """
         custom_rule_config = None
-        if hasattr(obj, 'custom_rule_config'):
+        if hasattr(obj, "custom_rule_config"):
             custom_rule_config = obj.custom_rule_config
-        elif hasattr(obj, '__dict__') and 'custom_rule_config' in obj.__dict__:
+        elif hasattr(obj, "__dict__") and "custom_rule_config" in obj.__dict__:
             custom_rule_config = obj.custom_rule_config
 
         if custom_rule_config and isinstance(custom_rule_config, dict):
-            stages = custom_rule_config.get('stages', [])
+            stages = custom_rule_config.get("stages", [])
             if stages:
                 return {
-                    'id': None,
-                    'rule_name': 'Custom',
-                    'is_preset': False,
-                    'preset_code': 'custom',
-                    'stages': stages,
-                    'is_custom': True
+                    "id": None,
+                    "rule_name": "Custom",
+                    "is_preset": False,
+                    "preset_code": "custom",
+                    "stages": stages,
+                    "is_custom": True,
                 }
 
         rule = None
         rule_id = None
-        if hasattr(obj, 'rule_id') and obj.rule_id:
+        if hasattr(obj, "rule_id") and obj.rule_id:
             rule_id = obj.rule_id
-        elif hasattr(obj, 'rule') and obj.rule:
+        elif hasattr(obj, "rule") and obj.rule:
             rule = obj.rule
 
         if rule_id and not rule:
@@ -137,25 +139,27 @@ class EventSerializer(DomainModelSerializer):
                 rule = None
 
         if rule:
-            stages = rule.stages_config if rule.stages_config else DEFAULT_WORLD_CUP_STAGES
+            stages = (
+                rule.stages_config if rule.stages_config else DEFAULT_WORLD_CUP_STAGES
+            )
             return {
-                'id': str(rule.id),
-                'rule_name': rule.rule_name,
-                'is_preset': rule.is_preset,
-                'preset_code': rule.preset_code,
-                'stages': stages,
-                'is_custom': False,
-                'pool_size': rule.pool_size,
-                'total_qualified_count': rule.total_qualified_count
+                "id": str(rule.id),
+                "rule_name": rule.rule_name,
+                "is_preset": rule.is_preset,
+                "preset_code": rule.preset_code,
+                "stages": stages,
+                "is_custom": False,
+                "pool_size": rule.pool_size,
+                "total_qualified_count": rule.total_qualified_count,
             }
 
         return {
-            'id': None,
-            'rule_name': 'World Cup (Default)',
-            'is_preset': True,
-            'preset_code': 'world_cup',
-            'stages': DEFAULT_WORLD_CUP_STAGES,
-            'is_custom': False
+            "id": None,
+            "rule_name": "World Cup (Default)",
+            "is_preset": True,
+            "preset_code": "world_cup",
+            "stages": DEFAULT_WORLD_CUP_STAGES,
+            "is_custom": False,
         }
 
     def validate_event_name(self, value):
@@ -170,16 +174,20 @@ class EventSerializer(DomainModelSerializer):
             return {}
         if not isinstance(value, dict):
             raise serializers.ValidationError("custom_rule_config must be an object")
-        if 'stages' in value:
-            if not isinstance(value['stages'], list):
+        if "stages" in value:
+            if not isinstance(value["stages"], list):
                 raise serializers.ValidationError("stages must be a list")
-            for stage in value['stages']:
+            for stage in value["stages"]:
                 if not isinstance(stage, dict):
                     raise serializers.ValidationError("Each stage must be an object")
-                if 'type' not in stage:
-                    raise serializers.ValidationError("Each stage must have a 'type' field")
-                if stage['type'] not in ['pool', 'de']:
-                    raise serializers.ValidationError("Stage type must be 'pool' or 'de'")
+                if "type" not in stage:
+                    raise serializers.ValidationError(
+                        "Each stage must have a 'type' field"
+                    )
+                if stage["type"] not in ["pool", "de"]:
+                    raise serializers.ValidationError(
+                        "Stage type must be 'pool' or 'de'"
+                    )
         return value
 
 
@@ -190,35 +198,37 @@ class EventCreateSerializer(DomainModelSerializer):
 
     tournament_id = serializers.PrimaryKeyRelatedField(
         queryset=DjangoTournament.objects.all(),
-        source='tournament',
+        source="tournament",
         write_only=True,
-        required=True
+        required=True,
     )
     event_name = serializers.CharField(max_length=200, required=True)
-    event_type = serializers.CharField(max_length=50, required=False, default='')
+    event_type = serializers.CharField(max_length=50, required=False, default="")
     rule_id = serializers.PrimaryKeyRelatedField(
         queryset=DjangoRule.objects.all(),
-        source='rule',
+        source="rule",
         write_only=True,
         required=False,
-        allow_null=True
+        allow_null=True,
     )
     custom_rule_config = serializers.JSONField(required=False, default=dict)
     is_team_event = serializers.BooleanField(required=False, default=False)
-    status = serializers.CharField(max_length=20, required=False, default='REGISTRATION')
+    status = serializers.CharField(
+        max_length=20, required=False, default="REGISTRATION"
+    )
     start_time = serializers.DateTimeField(required=False, allow_null=True)
 
     class Meta:
         model = DjangoEvent
         fields = [
-            'tournament_id',
-            'event_name',
-            'event_type',
-            'rule_id',
-            'start_time',
-            'custom_rule_config',
-            'is_team_event',
-            'status'
+            "tournament_id",
+            "event_name",
+            "event_type",
+            "rule_id",
+            "start_time",
+            "custom_rule_config",
+            "is_team_event",
+            "status",
         ]
 
     def validate_event_name(self, value):
@@ -231,14 +241,18 @@ class EventCreateSerializer(DomainModelSerializer):
             return {}
         if not isinstance(value, dict):
             raise serializers.ValidationError("custom_rule_config must be an object")
-        if 'stages' in value:
-            if not isinstance(value['stages'], list):
+        if "stages" in value:
+            if not isinstance(value["stages"], list):
                 raise serializers.ValidationError("stages must be a list")
-            for stage in value['stages']:
+            for stage in value["stages"]:
                 if not isinstance(stage, dict):
                     raise serializers.ValidationError("Each stage must be an object")
-                if 'type' not in stage:
-                    raise serializers.ValidationError("Each stage must have a 'type' field")
-                if stage['type'] not in ['pool', 'de']:
-                    raise serializers.ValidationError("Stage type must be 'pool' or 'de'")
+                if "type" not in stage:
+                    raise serializers.ValidationError(
+                        "Each stage must have a 'type' field"
+                    )
+                if stage["type"] not in ["pool", "de"]:
+                    raise serializers.ValidationError(
+                        "Stage type must be 'pool' or 'de'"
+                    )
         return value

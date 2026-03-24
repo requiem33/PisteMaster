@@ -1,4 +1,6 @@
-from backend.apps.fencing_organizer.modules.match_status.models import DjangoMatchStatusType
+from backend.apps.fencing_organizer.modules.match_status.models import (
+    DjangoMatchStatusType,
+)
 from core.models.match_status_type import MatchStatusType
 
 
@@ -11,7 +13,7 @@ class MatchStatusMapper:
         return MatchStatusType(
             id=django_status.id,
             status_code=django_status.status_code,
-            description=django_status.description
+            description=django_status.description,
         )
 
     @staticmethod
@@ -20,5 +22,5 @@ class MatchStatusMapper:
         return {
             "id": match_status.id,
             "status_code": match_status.status_code,
-            "description": match_status.description
+            "description": match_status.description,
         }

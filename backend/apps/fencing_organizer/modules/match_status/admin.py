@@ -6,6 +6,6 @@ from .models import DjangoMatchStatusType
 class MatchStatusTypeAdmin(admin.ModelAdmin):
     """淘汰赛类型管理后台"""
 
-    list_display = ('status_code', 'description')
-    search_fields = ('status_code', 'description')
-    ordering = ('status_code',)
+    list_display = ("status_code", "description")
+    search_fields = ("status_code", "description")
+    ordering = ("status_code",)

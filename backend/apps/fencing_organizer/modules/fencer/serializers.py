@@ -16,13 +16,17 @@ class FencerSerializer(DomainModelSerializer):
     id = serializers.UUIDField(read_only=True)
     first_name = serializers.CharField(max_length=100, required=True)
     last_name = serializers.CharField(max_length=100, required=True)
-    display_name = serializers.CharField(max_length=200, required=False, allow_null=True)
+    display_name = serializers.CharField(
+        max_length=200, required=False, allow_null=True
+    )
     gender = serializers.CharField(max_length=10, required=False, allow_null=True)
     country_code = serializers.CharField(max_length=3, required=False, allow_null=True)
     birth_date = serializers.DateField(required=False, allow_null=True)
     fencing_id = serializers.CharField(max_length=50, required=False, allow_null=True)
     current_ranking = serializers.IntegerField(required=False, allow_null=True)
-    primary_weapon = serializers.CharField(max_length=10, required=False, allow_null=True)
+    primary_weapon = serializers.CharField(
+        max_length=10, required=False, allow_null=True
+    )
     created_at = serializers.DateTimeField(read_only=True)
     updated_at = serializers.DateTimeField(read_only=True)
 
@@ -33,32 +37,32 @@ class FencerSerializer(DomainModelSerializer):
     class Meta:
         model = DjangoFencer
         fields = [
-            'id',
-            'first_name',
-            'last_name',
-            'display_name',
-            'full_name',
-            'gender',
-            'country_code',
-            'birth_date',
-            'fencing_id',
-            'current_ranking',
-            'primary_weapon',
-            'age',
-            'is_international',
-            'created_at',
-            'updated_at'
+            "id",
+            "first_name",
+            "last_name",
+            "display_name",
+            "full_name",
+            "gender",
+            "country_code",
+            "birth_date",
+            "fencing_id",
+            "current_ranking",
+            "primary_weapon",
+            "age",
+            "is_international",
+            "created_at",
+            "updated_at",
         ]
 
     def get_full_name(self, obj):
-        if hasattr(obj, 'full_name'):
+        if hasattr(obj, "full_name"):
             return obj.full_name
-        last_name = getattr(obj, 'last_name', '') or ''
-        first_name = getattr(obj, 'first_name', '') or ''
+        last_name = getattr(obj, "last_name", "") or ""
+        first_name = getattr(obj, "first_name", "") or ""
         return f"{last_name} {first_name}".strip()
 
     def get_age(self, obj):
-        birth_date = getattr(obj, 'birth_date', None)
+        birth_date = getattr(obj, "birth_date", None)
         if not birth_date:
             return None
         today = date.today()
@@ -68,7 +72,7 @@ class FencerSerializer(DomainModelSerializer):
         return age
 
     def get_is_international(self, obj):
-        fencing_id = getattr(obj, 'fencing_id', None)
+        fencing_id = getattr(obj, "fencing_id", None)
         return bool(fencing_id)
 
     def validate_first_name(self, value):
@@ -91,14 +95,18 @@ class FencerSerializer(DomainModelSerializer):
             if len(value) != 3:
                 raise serializers.ValidationError("Country code must be 3 letters")
             if not value.isalpha():
-                raise serializers.ValidationError("Country code can only contain letters")
+                raise serializers.ValidationError(
+                    "Country code can only contain letters"
+                )
         return value
 
     def validate_fencing_id(self, value):
         if value:
             value = value.strip()
             if len(value) > 50:
-                raise serializers.ValidationError("Fencing ID cannot exceed 50 characters")
+                raise serializers.ValidationError(
+                    "Fencing ID cannot exceed 50 characters"
+                )
         return value
 
     def validate_birth_date(self, value):
@@ -115,13 +123,21 @@ class FencerSerializer(DomainModelSerializer):
         return value
 
     def validate(self, attrs):
-        valid_genders = ['MEN', 'WOMEN', 'MIXED', 'OPEN', None]
-        if 'gender' in attrs and attrs['gender'] not in valid_genders:
-            raise serializers.ValidationError({"gender": f"Gender must be one of: {', '.join([g for g in valid_genders if g])}"})
+        valid_genders = ["MEN", "WOMEN", "MIXED", "OPEN", None]
+        if "gender" in attrs and attrs["gender"] not in valid_genders:
+            raise serializers.ValidationError(
+                {
+                    "gender": f"Gender must be one of: {', '.join([g for g in valid_genders if g])}"
+                }
+            )
 
-        valid_weapons = ['FOIL', 'EPEE', 'SABRE', None]
-        if 'primary_weapon' in attrs and attrs['primary_weapon'] not in valid_weapons:
-            raise serializers.ValidationError({"primary_weapon": f"Weapon must be one of: {', '.join([w for w in valid_weapons if w])}"})
+        valid_weapons = ["FOIL", "EPEE", "SABRE", None]
+        if "primary_weapon" in attrs and attrs["primary_weapon"] not in valid_weapons:
+            raise serializers.ValidationError(
+                {
+                    "primary_weapon": f"Weapon must be one of: {', '.join([w for w in valid_weapons if w])}"
+                }
+            )
 
         return attrs
 
@@ -133,26 +149,30 @@ class FencerCreateSerializer(DomainModelSerializer):
 
     first_name = serializers.CharField(max_length=100, required=True)
     last_name = serializers.CharField(max_length=100, required=True)
-    display_name = serializers.CharField(max_length=200, required=False, allow_null=True)
+    display_name = serializers.CharField(
+        max_length=200, required=False, allow_null=True
+    )
     gender = serializers.CharField(max_length=10, required=False, allow_null=True)
     country_code = serializers.CharField(max_length=3, required=False, allow_null=True)
     birth_date = serializers.DateField(required=False, allow_null=True)
     fencing_id = serializers.CharField(max_length=50, required=False, allow_null=True)
     current_ranking = serializers.IntegerField(required=False, allow_null=True)
-    primary_weapon = serializers.CharField(max_length=10, required=False, allow_null=True)
+    primary_weapon = serializers.CharField(
+        max_length=10, required=False, allow_null=True
+    )
 
     class Meta:
         model = DjangoFencer
         fields = [
-            'first_name',
-            'last_name',
-            'display_name',
-            'gender',
-            'country_code',
-            'birth_date',
-            'fencing_id',
-            'current_ranking',
-            'primary_weapon'
+            "first_name",
+            "last_name",
+            "display_name",
+            "gender",
+            "country_code",
+            "birth_date",
+            "fencing_id",
+            "current_ranking",
+            "primary_weapon",
         ]
 
     def validate_first_name(self, value):
@@ -173,26 +193,30 @@ class FencerUpdateSerializer(DomainModelSerializer):
 
     first_name = serializers.CharField(max_length=100, required=False)
     last_name = serializers.CharField(max_length=100, required=False)
-    display_name = serializers.CharField(max_length=200, required=False, allow_null=True)
+    display_name = serializers.CharField(
+        max_length=200, required=False, allow_null=True
+    )
     gender = serializers.CharField(max_length=10, required=False, allow_null=True)
     country_code = serializers.CharField(max_length=3, required=False, allow_null=True)
     birth_date = serializers.DateField(required=False, allow_null=True)
     fencing_id = serializers.CharField(max_length=50, required=False, allow_null=True)
     current_ranking = serializers.IntegerField(required=False, allow_null=True)
-    primary_weapon = serializers.CharField(max_length=10, required=False, allow_null=True)
+    primary_weapon = serializers.CharField(
+        max_length=10, required=False, allow_null=True
+    )
 
     class Meta:
         model = DjangoFencer
         fields = [
-            'first_name',
-            'last_name',
-            'display_name',
-            'gender',
-            'country_code',
-            'birth_date',
-            'fencing_id',
-            'current_ranking',
-            'primary_weapon'
+            "first_name",
+            "last_name",
+            "display_name",
+            "gender",
+            "country_code",
+            "birth_date",
+            "fencing_id",
+            "current_ranking",
+            "primary_weapon",
         ]
 
 
@@ -205,12 +229,12 @@ class FencerSearchSerializer(serializers.Serializer):
         required=True,
         min_length=1,
         max_length=100,
-        help_text="Search query (name, fencing ID, country code)"
+        help_text="Search query (name, fencing ID, country code)",
     )
     limit = serializers.IntegerField(
         required=False,
         default=50,
         min_value=1,
         max_value=1000,
-        help_text="Maximum number of results"
+        help_text="Maximum number of results",
     )

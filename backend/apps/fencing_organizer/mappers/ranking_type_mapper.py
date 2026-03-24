@@ -11,7 +11,7 @@ class RankingTypeMapper:
         return RankingType(
             id=django_type.id,
             type_code=django_type.type_code,
-            display_name=django_type.display_name
+            display_name=django_type.display_name,
         )
 
     @staticmethod
@@ -20,5 +20,5 @@ class RankingTypeMapper:
         return {
             "id": ranking_type.id,
             "type_code": ranking_type.type_code,
-            "display_name": ranking_type.display_name
+            "display_name": ranking_type.display_name,
         }

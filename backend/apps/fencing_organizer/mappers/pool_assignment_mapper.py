@@ -1,4 +1,6 @@
-from backend.apps.fencing_organizer.modules.pool_assignment.models import DjangoPoolAssignment
+from backend.apps.fencing_organizer.modules.pool_assignment.models import (
+    DjangoPoolAssignment,
+)
 from core.models.pool_assignment import PoolAssignment
 
 
@@ -19,7 +21,7 @@ class PoolAssignmentMapper:
             touches_received=django_assignment.touches_received,
             matches_played=django_assignment.matches_played,
             is_qualified=django_assignment.is_qualified,
-            qualification_rank=django_assignment.qualification_rank
+            qualification_rank=django_assignment.qualification_rank,
         )
 
     @staticmethod
@@ -36,5 +38,5 @@ class PoolAssignmentMapper:
             "touches_received": assignment.touches_received,
             "matches_played": assignment.matches_played,
             "is_qualified": assignment.is_qualified,
-            "qualification_rank": assignment.qualification_rank
+            "qualification_rank": assignment.qualification_rank,
         }

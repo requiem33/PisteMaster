@@ -6,6 +6,6 @@ from .models import DjangoPiste
 class PisteAdmin(admin.ModelAdmin):
     """淘汰赛类型管理后台"""
 
-    list_display = ('piste_type', 'notes')
-    search_fields = ('piste_type', 'notes')
-    ordering = ('piste_type',)
+    list_display = ("piste_type", "notes")
+    search_fields = ("piste_type", "notes")
+    ordering = ("piste_type",)

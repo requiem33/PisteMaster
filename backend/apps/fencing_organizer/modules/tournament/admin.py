@@ -7,48 +7,40 @@ class TournamentAdmin(admin.ModelAdmin):
     """赛事管理后台"""
 
     list_display = (
-        'tournament_name',
-        'organizer',
-        'location',
-        'start_date',
-        'end_date',
-        'status',
-        'duration_days_display',
-        'created_at'
+        "tournament_name",
+        "organizer",
+        "location",
+        "start_date",
+        "end_date",
+        "status",
+        "duration_days_display",
+        "created_at",
     )
 
-    list_display_links = ('tournament_name',)
+    list_display_links = ("tournament_name",)
 
-    search_fields = ('tournament_name', 'organizer', 'location')
+    search_fields = ("tournament_name", "organizer", "location")
 
-    list_filter = (
-        'status',
-        'start_date',
-        'end_date',
-        'created_at'
-    )
+    list_filter = ("status", "start_date", "end_date", "created_at")
 
-    ordering = ('-start_date', 'tournament_name')
+    ordering = ("-start_date", "tournament_name")
 
     list_per_page = 25
 
     fieldsets = (
-        ('基本信息', {
-            'fields': ('tournament_name', 'organizer', 'location')
-        }),
-        ('时间信息', {
-            'fields': ('start_date', 'end_date')
-        }),
-        ('状态管理', {
-            'fields': ('status',)
-        }),
-        ('系统信息', {
-            'fields': ('created_at', 'updated_at'),
-            'classes': ('collapse',),
-        }),
+        ("基本信息", {"fields": ("tournament_name", "organizer", "location")}),
+        ("时间信息", {"fields": ("start_date", "end_date")}),
+        ("状态管理", {"fields": ("status",)}),
+        (
+            "系统信息",
+            {
+                "fields": ("created_at", "updated_at"),
+                "classes": ("collapse",),
+            },
+        ),
     )
 
-    readonly_fields = ('id', 'created_at', 'updated_at', 'duration_days_display')
+    readonly_fields = ("id", "created_at", "updated_at", "duration_days_display")
 
     def duration_days_display(self, obj):
         """持续时间显示"""

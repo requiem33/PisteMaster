@@ -3,7 +3,7 @@ from backend.apps.fencing_organizer.services.event_service import EventService
 
 
 class Command(BaseCommand):
-    help = '初始化预定义项目数据'
+    help = "初始化预定义项目数据"
 
     def handle(self, *args, **options):
         service = EventService()

@@ -27,7 +27,7 @@ class DjangoRankingTypeRepository:
 
     def get_all(self) -> List[RankingType]:
         """获取所有排名类型"""
-        django_types = DjangoRankingType.objects.all().order_by('type_code')
+        django_types = DjangoRankingType.objects.all().order_by("type_code")
         return [RankingTypeMapper.to_domain(t) for t in django_types]
 
     def save(self, ranking_type: RankingType) -> RankingType:
@@ -35,8 +35,7 @@ class DjangoRankingTypeRepository:
         orm_data = RankingTypeMapper.to_orm_data(ranking_type)
 
         django_type, created = DjangoRankingType.objects.update_or_create(
-            id=ranking_type.id,
-            defaults=orm_data
+            id=ranking_type.id, defaults=orm_data
         )
 
         return RankingTypeMapper.to_domain(django_type)

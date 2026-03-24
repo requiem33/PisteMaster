@@ -15,58 +15,62 @@ class DjangoEventRepository(EventRepositoryInterface):
     def get_event_by_id(self, event_id: UUID) -> Optional[Event]:
         """通过ID获取项目"""
         try:
-            django_event = DjangoEvent.objects.select_related(
-                'tournament', 'rule'
-            ).get(pk=event_id)
+            django_event = DjangoEvent.objects.select_related("tournament", "rule").get(
+                pk=event_id
+            )
             return EventMapper.to_domain(django_event)
         except DjangoEvent.DoesNotExist:
             return None
 
     def get_events_by_tournament(self, tournament_id: UUID) -> List[Event]:
         """获取指定赛事的项目"""
-        django_events = DjangoEvent.objects.select_related(
-            'tournament', 'rule'
-        ).filter(
-            tournament_id=tournament_id
-        ).order_by('start_time', 'event_name')
+        django_events = (
+            DjangoEvent.objects.select_related("tournament", "rule")
+            .filter(tournament_id=tournament_id)
+            .order_by("start_time", "event_name")
+        )
 
         return [EventMapper.to_domain(e) for e in django_events]
 
     def get_events_by_type(self, event_type: str) -> List[Event]:
         """获取指定类型的项目"""
-        django_events = DjangoEvent.objects.select_related(
-            'tournament', 'rule'
-        ).filter(
-            event_type=event_type
-        ).order_by('-start_time')
+        django_events = (
+            DjangoEvent.objects.select_related("tournament", "rule")
+            .filter(event_type=event_type)
+            .order_by("-start_time")
+        )
 
         return [EventMapper.to_domain(e) for e in django_events]
 
     def get_events_by_status(self, status: str) -> List[Event]:
         """获取指定状态的项目"""
-        django_events = DjangoEvent.objects.select_related(
-            'tournament', 'rule'
-        ).filter(
-            status=status
-        ).order_by('start_time')
+        django_events = (
+            DjangoEvent.objects.select_related("tournament", "rule")
+            .filter(status=status)
+            .order_by("start_time")
+        )
 
         return [EventMapper.to_domain(e) for e in django_events]
 
-    def get_upcoming_events(self, start_date: datetime, end_date: datetime) -> List[Event]:
+    def get_upcoming_events(
+        self, start_date: datetime, end_date: datetime
+    ) -> List[Event]:
         """获取指定时间范围内的项目"""
-        django_events = DjangoEvent.objects.select_related(
-            'tournament', 'rule'
-        ).filter(
-            Q(start_time__gte=start_date) & Q(start_time__lte=end_date)
-        ).order_by('start_time')
+        django_events = (
+            DjangoEvent.objects.select_related("tournament", "rule")
+            .filter(Q(start_time__gte=start_date) & Q(start_time__lte=end_date))
+            .order_by("start_time")
+        )
 
         return [EventMapper.to_domain(e) for e in django_events]
 
     def get_all_events(self) -> List[Event]:
         """获取所有项目"""
-        django_events = DjangoEvent.objects.select_related(
-            'tournament', 'rule'
-        ).all().order_by('-start_time')
+        django_events = (
+            DjangoEvent.objects.select_related("tournament", "rule")
+            .all()
+            .order_by("-start_time")
+        )
 
         return [EventMapper.to_domain(e) for e in django_events]
 
@@ -75,8 +79,7 @@ class DjangoEventRepository(EventRepositoryInterface):
         orm_data = EventMapper.to_orm_data(event)
 
         django_event, created = DjangoEvent.objects.update_or_create(
-            id=event.id,
-            defaults=orm_data
+            id=event.id, defaults=orm_data
         )
 
         return EventMapper.to_domain(django_event)
@@ -91,36 +94,36 @@ class DjangoEventRepository(EventRepositoryInterface):
 
     def search_events(self, **filters) -> List[Event]:
         """搜索项目"""
-        queryset = DjangoEvent.objects.select_related(
-            'tournament', 'rule'
-        )
+        queryset = DjangoEvent.objects.select_related("tournament", "rule")
 
         # 应用过滤器
-        if 'tournament_id' in filters:
-            queryset = queryset.filter(tournament_id=filters['tournament_id'])
-        if 'tournament_name' in filters:
-            queryset = queryset.filter(tournament__tournament_name__icontains=filters['tournament_name'])
-        if 'event_name' in filters:
-            queryset = queryset.filter(event_name__icontains=filters['event_name'])
-        if 'event_type' in filters:
-            queryset = queryset.filter(event_type=filters['event_type'])
-        if 'status' in filters:
-            queryset = queryset.filter(status=filters['status'])
-        if 'is_team_event' in filters:
-            queryset = queryset.filter(is_team_event=filters['is_team_event'])
-        if 'date_range' in filters:
-            start_date, end_date = filters['date_range']
+        if "tournament_id" in filters:
+            queryset = queryset.filter(tournament_id=filters["tournament_id"])
+        if "tournament_name" in filters:
+            queryset = queryset.filter(
+                tournament__tournament_name__icontains=filters["tournament_name"]
+            )
+        if "event_name" in filters:
+            queryset = queryset.filter(event_name__icontains=filters["event_name"])
+        if "event_type" in filters:
+            queryset = queryset.filter(event_type=filters["event_type"])
+        if "status" in filters:
+            queryset = queryset.filter(status=filters["status"])
+        if "is_team_event" in filters:
+            queryset = queryset.filter(is_team_event=filters["is_team_event"])
+        if "date_range" in filters:
+            start_date, end_date = filters["date_range"]
             queryset = queryset.filter(
                 Q(start_time__gte=start_date) & Q(start_time__lte=end_date)
             )
-        if 'is_active' in filters:
-            if filters['is_active']:
-                queryset = queryset.exclude(status__in=['COMPLETED', 'CANCELLED'])
+        if "is_active" in filters:
+            if filters["is_active"]:
+                queryset = queryset.exclude(status__in=["COMPLETED", "CANCELLED"])
             else:
-                queryset = queryset.filter(status__in=['COMPLETED', 'CANCELLED'])
+                queryset = queryset.filter(status__in=["COMPLETED", "CANCELLED"])
 
         # 排序
-        ordering = filters.get('ordering', '-start_time')
+        ordering = filters.get("ordering", "-start_time")
         if ordering:
             queryset = queryset.order_by(ordering)
 

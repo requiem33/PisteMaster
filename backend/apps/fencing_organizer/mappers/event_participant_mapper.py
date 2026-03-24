@@ -1,4 +1,6 @@
-from backend.apps.fencing_organizer.modules.event_participant.models import DjangoEventParticipant
+from backend.apps.fencing_organizer.modules.event_participant.models import (
+    DjangoEventParticipant,
+)
 from core.models.event_participant import EventParticipant
 
 
@@ -18,7 +20,7 @@ class EventParticipantMapper:
             registration_time=django_participant.registration_time,
             notes=django_participant.notes,
             created_at=django_participant.created_at,
-            updated_at=django_participant.updated_at
+            updated_at=django_participant.updated_at,
         )
 
     @staticmethod
@@ -34,5 +36,5 @@ class EventParticipantMapper:
             "registration_time": participant.registration_time,
             "notes": participant.notes,
             "created_at": participant.created_at,
-            "updated_at": participant.updated_at
+            "updated_at": participant.updated_at,
         }

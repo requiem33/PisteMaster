@@ -20,7 +20,7 @@ class RuleMapper:
             match_score_pool=django_rule.match_score_pool,
             match_score_elimination=django_rule.match_score_elimination,
             group_qualification_ratio=django_rule.group_qualification_ratio,
-            description=django_rule.description
+            description=django_rule.description,
         )
 
     @staticmethod
@@ -38,5 +38,5 @@ class RuleMapper:
             "match_score_pool": rule.match_score_pool,
             "match_score_elimination": rule.match_score_elimination,
             "group_qualification_ratio": rule.group_qualification_ratio,
-            "description": rule.description
+            "description": rule.description,
         }

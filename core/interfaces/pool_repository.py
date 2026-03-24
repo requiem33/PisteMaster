@@ -25,7 +25,9 @@ class PoolRepositoryInterface(ABC):
         pass
 
     @abstractmethod
-    def get_pools_by_date_range(self, start_date: datetime, end_date: datetime) -> List[Pool]:
+    def get_pools_by_date_range(
+        self, start_date: datetime, end_date: datetime
+    ) -> List[Pool]:
         pass
 
     @abstractmethod

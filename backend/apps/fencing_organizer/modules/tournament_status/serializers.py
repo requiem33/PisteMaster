@@ -7,8 +7,15 @@ class TournamentStatusSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = DjangoTournamentStatus
-        fields = ['id', 'status_code', 'display_name', 'description', 'created_at', 'updated_at']
-        read_only_fields = ['id', 'created_at', 'updated_at']
+        fields = [
+            "id",
+            "status_code",
+            "display_name",
+            "description",
+            "created_at",
+            "updated_at",
+        ]
+        read_only_fields = ["id", "created_at", "updated_at"]
 
     def validate_status_code(self, value):
         """验证状态代码"""

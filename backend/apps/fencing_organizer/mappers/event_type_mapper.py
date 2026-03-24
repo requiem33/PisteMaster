@@ -13,7 +13,7 @@ class EventTypeMapper:
             type_code=django_type.type_code,
             display_name=django_type.display_name,
             weapon_type=django_type.weapon_type,
-            gender=django_type.gender
+            gender=django_type.gender,
         )
 
     @staticmethod
@@ -24,5 +24,5 @@ class EventTypeMapper:
             "type_code": event_type.type_code,
             "display_name": event_type.display_name,
             "weapon_type": event_type.weapon_type,
-            "gender": event_type.gender
+            "gender": event_type.gender,
         }

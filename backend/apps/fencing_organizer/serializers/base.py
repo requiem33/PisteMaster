@@ -18,11 +18,11 @@ class DomainModelSerializer(serializers.Serializer):
 
     def to_representation(self, instance: Any) -> dict:
         if is_dataclass(instance) and not isinstance(instance, type):
-            if hasattr(super(), 'to_representation'):
+            if hasattr(super(), "to_representation"):
                 return super().to_representation(instance)
             return asdict(instance)
-        elif hasattr(instance, '_meta'):
-            if hasattr(super(), 'to_representation'):
+        elif hasattr(instance, "_meta"):
+            if hasattr(super(), "to_representation"):
                 return super().to_representation(instance)
             return self._represent_orm(instance)
         else:

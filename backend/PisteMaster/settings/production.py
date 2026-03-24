@@ -43,7 +43,9 @@ if CORS_ALLOWED_ORIGINS_STR == "*":
     CORS_ALLOW_ALL_ORIGINS = True
 else:
     CORS_ALLOWED_ORIGINS = [
-        origin.strip() for origin in CORS_ALLOWED_ORIGINS_STR.split(",") if origin.strip()
+        origin.strip()
+        for origin in CORS_ALLOWED_ORIGINS_STR.split(",")
+        if origin.strip()
     ]
 
 CSRF_TRUSTED_ORIGINS_STR = os.environ.get("CSRF_TRUSTED_ORIGINS", "")

@@ -18,7 +18,7 @@ class PoolMapper:
             results=django_pool.results or [],
             stats=django_pool.stats or [],
             status=django_pool.status,
-            is_completed=django_pool.is_completed
+            is_completed=django_pool.is_completed,
         )
 
     @staticmethod
@@ -34,5 +34,5 @@ class PoolMapper:
             "results": pool.results,
             "stats": pool.stats,
             "status": pool.status,
-            "is_completed": pool.is_completed
+            "is_completed": pool.is_completed,
         }

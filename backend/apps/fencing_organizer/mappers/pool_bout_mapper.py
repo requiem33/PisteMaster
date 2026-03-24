@@ -21,7 +21,7 @@ class PoolBoutMapper:
             actual_start_time=django_bout.actual_start_time,
             actual_end_time=django_bout.actual_end_time,
             duration_seconds=django_bout.duration_seconds,
-            notes=django_bout.notes
+            notes=django_bout.notes,
         )
 
     @staticmethod
@@ -40,5 +40,5 @@ class PoolBoutMapper:
             "actual_start_time": bout.actual_start_time,
             "actual_end_time": bout.actual_end_time,
             "duration_seconds": bout.duration_seconds,
-            "notes": bout.notes
+            "notes": bout.notes,
         }

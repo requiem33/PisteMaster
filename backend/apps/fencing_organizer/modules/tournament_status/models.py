@@ -9,25 +9,15 @@ class DjangoTournamentStatus(models.Model):
     id = models.UUIDField(primary_key=True, default=uuid4, editable=False)
 
     # UNIQUE 字段
-    status_code = models.CharField(
-        max_length=20,
-        unique=True,
-        verbose_name="状态代码"
-    )
+    status_code = models.CharField(max_length=20, unique=True, verbose_name="状态代码")
 
     # 可选字段
     display_name = models.CharField(
-        max_length=50,
-        null=True,
-        blank=True,
-        verbose_name="显示名称"
+        max_length=50, null=True, blank=True, verbose_name="显示名称"
     )
 
     description = models.CharField(
-        max_length=200,
-        null=True,
-        blank=True,
-        verbose_name="描述"
+        max_length=200, null=True, blank=True, verbose_name="描述"
     )
 
     # 时间戳字段
@@ -35,10 +25,10 @@ class DjangoTournamentStatus(models.Model):
     updated_at = models.DateTimeField(auto_now=True)
 
     class Meta:
-        db_table = 'tournament_status'
+        db_table = "tournament_status"
         verbose_name = "赛事状态"
         verbose_name_plural = "赛事状态"
-        ordering = ['status_code']
+        ordering = ["status_code"]
 
     def __str__(self):
         return f"{self.display_name or self.status_code}"

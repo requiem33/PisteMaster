@@ -11,10 +11,7 @@ class TestTournament:
 
     def test_create_valid_tournament(self):
         """测试创建有效的赛事"""
-        tournament = Tournament(
-            name="2024全国击剑锦标赛",
-            location="北京国家会议中心"
-        )
+        tournament = Tournament(name="2024全国击剑锦标赛", location="北京国家会议中心")
 
         assert tournament.name == "2024全国击剑锦标赛"
         assert tournament.location == "北京国家会议中心"
@@ -59,10 +56,7 @@ class TestTournament:
 
     def test_to_dict_method(self):
         """测试to_dict方法"""
-        tournament = Tournament(
-            name="测试赛事",
-            location="测试地点"
-        )
+        tournament = Tournament(name="测试赛事", location="测试地点")
 
         result = tournament.to_dict()
 
@@ -73,10 +67,7 @@ class TestTournament:
 
     def test_from_dict_method(self):
         """测试from_dict类方法"""
-        data = {
-            "name": "从字典创建的赛事",
-            "location": "字典地点"
-        }
+        data = {"name": "从字典创建的赛事", "location": "字典地点"}
 
         tournament = Tournament.from_dict(data)
 
@@ -95,10 +86,7 @@ class TestTournament:
 
     def test_str_representation(self):
         """测试字符串表示"""
-        tournament = Tournament(
-            name="测试赛事",
-            location="测试地点"
-        )
+        tournament = Tournament(name="测试赛事", location="测试地点")
 
         assert str(tournament) == "赛事: 测试赛事 @ 测试地点"
         assert "Tournament" in repr(tournament)

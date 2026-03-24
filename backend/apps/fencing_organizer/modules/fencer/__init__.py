@@ -1,1 +1,1 @@
-default_app_config = 'apps.fencing_organizer.modules.fencer.apps.FencerConfig'
+default_app_config = "apps.fencing_organizer.modules.fencer.apps.FencerConfig"

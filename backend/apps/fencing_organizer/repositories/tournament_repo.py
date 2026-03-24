@@ -20,12 +20,14 @@ class DjangoTournamentRepository(TournamentRepositoryInterface):
         except DjangoTournament.DoesNotExist:
             return None
 
-    def get_tournaments_by_date_range(self, start_date: date, end_date: date) -> List[Tournament]:
+    def get_tournaments_by_date_range(
+        self, start_date: date, end_date: date
+    ) -> List[Tournament]:
         """获取指定日期范围内的赛事"""
         # 查找与给定日期范围有重叠的赛事
         django_tournaments = DjangoTournament.objects.filter(
             Q(start_date__lte=end_date) & Q(end_date__gte=start_date)
-        ).order_by('start_date')
+        ).order_by("start_date")
 
         return [TournamentMapper.to_domain(t) for t in django_tournaments]
 
@@ -33,13 +35,13 @@ class DjangoTournamentRepository(TournamentRepositoryInterface):
         """获取指定状态的赛事"""
         django_tournaments = DjangoTournament.objects.filter(
             status_id=status_id
-        ).order_by('-start_date')
+        ).order_by("-start_date")
 
         return [TournamentMapper.to_domain(t) for t in django_tournaments]
 
     def get_all_tournaments(self) -> List[Tournament]:
         """获取所有赛事"""
-        django_tournaments = DjangoTournament.objects.all().order_by('-start_date')
+        django_tournaments = DjangoTournament.objects.all().order_by("-start_date")
         return [TournamentMapper.to_domain(t) for t in django_tournaments]
 
     def save_tournament(self, tournament: Tournament) -> Tournament:
@@ -47,8 +49,7 @@ class DjangoTournamentRepository(TournamentRepositoryInterface):
         orm_data = TournamentMapper.to_orm_data(tournament)
 
         django_tournament, created = DjangoTournament.objects.update_or_create(
-            id=tournament.id,
-            defaults=orm_data
+            id=tournament.id, defaults=orm_data
         )
 
         return TournamentMapper.to_domain(django_tournament)
@@ -66,22 +67,22 @@ class DjangoTournamentRepository(TournamentRepositoryInterface):
         queryset = DjangoTournament.objects.all()
 
         # 应用过滤器
-        if 'name' in filters:
-            queryset = queryset.filter(tournament_name__icontains=filters['name'])
-        if 'organizer' in filters:
-            queryset = queryset.filter(organizer__icontains=filters['organizer'])
-        if 'location' in filters:
-            queryset = queryset.filter(location__icontains=filters['location'])
-        if 'status_code' in filters:
-            queryset = queryset.filter(status=filters['status_code'])
-        if 'date_range' in filters:
-            start_date, end_date = filters['date_range']
+        if "name" in filters:
+            queryset = queryset.filter(tournament_name__icontains=filters["name"])
+        if "organizer" in filters:
+            queryset = queryset.filter(organizer__icontains=filters["organizer"])
+        if "location" in filters:
+            queryset = queryset.filter(location__icontains=filters["location"])
+        if "status_code" in filters:
+            queryset = queryset.filter(status=filters["status_code"])
+        if "date_range" in filters:
+            start_date, end_date = filters["date_range"]
             queryset = queryset.filter(
                 Q(start_date__lte=end_date) & Q(end_date__gte=start_date)
             )
 
         # 排序
-        ordering = filters.get('ordering', '-start_date')
+        ordering = filters.get("ordering", "-start_date")
         if ordering:
             queryset = queryset.order_by(ordering)
 

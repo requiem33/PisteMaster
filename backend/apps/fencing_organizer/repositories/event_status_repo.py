@@ -27,7 +27,7 @@ class DjangoEventStatusRepository:
 
     def get_all(self) -> List[EventStatus]:
         """获取所有状态"""
-        django_statuses = DjangoEventStatus.objects.all().order_by('status_code')
+        django_statuses = DjangoEventStatus.objects.all().order_by("status_code")
         return [EventStatusMapper.to_domain(s) for s in django_statuses]
 
     def save(self, event_status: EventStatus) -> EventStatus:
@@ -35,8 +35,7 @@ class DjangoEventStatusRepository:
         orm_data = EventStatusMapper.to_orm_data(event_status)
 
         django_status, created = DjangoEventStatus.objects.update_or_create(
-            id=event_status.id,
-            defaults=orm_data
+            id=event_status.id, defaults=orm_data
         )
 
         return EventStatusMapper.to_domain(django_status)

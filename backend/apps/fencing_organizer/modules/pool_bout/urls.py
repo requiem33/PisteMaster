@@ -3,8 +3,8 @@ from rest_framework.routers import DefaultRouter
 from .views import PoolBoutViewSet
 
 router = DefaultRouter()
-router.register(r'', PoolBoutViewSet, basename='pool_bout')
+router.register(r"", PoolBoutViewSet, basename="pool_bout")
 
 urlpatterns = [
-    path('', include(router.urls)),
+    path("", include(router.urls)),
 ]

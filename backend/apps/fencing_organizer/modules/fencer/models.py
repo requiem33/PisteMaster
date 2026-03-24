@@ -13,34 +13,27 @@ class DjangoFencer(models.Model):
 
     # 基本字段
     first_name = models.CharField(
-        max_length=100,
-        verbose_name="名",
-        validators=[MinLengthValidator(1)]
+        max_length=100, verbose_name="名", validators=[MinLengthValidator(1)]
     )
     last_name = models.CharField(
-        max_length=100,
-        verbose_name="姓",
-        validators=[MinLengthValidator(1)]
+        max_length=100, verbose_name="姓", validators=[MinLengthValidator(1)]
     )
     display_name = models.CharField(
-        max_length=200,
-        blank=True,
-        null=True,
-        verbose_name="显示名称"
+        max_length=200, blank=True, null=True, verbose_name="显示名称"
     )
 
     # 个人信息
     gender = models.CharField(
         max_length=10,
         choices=[
-            ('MEN', '男'),
-            ('WOMEN', '女'),
-            ('MIXED', '混合'),
-            ('OPEN', '公开'),
+            ("MEN", "男"),
+            ("WOMEN", "女"),
+            ("MIXED", "混合"),
+            ("OPEN", "公开"),
         ],
         blank=True,
         null=True,
-        verbose_name="性别"
+        verbose_name="性别",
     )
 
     country_code = models.CharField(
@@ -48,40 +41,30 @@ class DjangoFencer(models.Model):
         blank=True,
         null=True,
         verbose_name="国家代码",
-        help_text="IOC 3字母代码"
+        help_text="IOC 3字母代码",
     )
 
-    birth_date = models.DateField(
-        blank=True,
-        null=True,
-        verbose_name="出生日期"
-    )
+    birth_date = models.DateField(blank=True, null=True, verbose_name="出生日期")
 
     # 击剑相关
     fencing_id = models.CharField(
-        max_length=50,
-        unique=True,
-        blank=True,
-        null=True,
-        verbose_name="国际击剑ID"
+        max_length=50, unique=True, blank=True, null=True, verbose_name="国际击剑ID"
     )
 
     current_ranking = models.IntegerField(
-        blank=True,
-        null=True,
-        verbose_name="当前世界排名"
+        blank=True, null=True, verbose_name="当前世界排名"
     )
 
     primary_weapon = models.CharField(
         max_length=10,
         choices=[
-            ('FOIL', '花剑'),
-            ('EPEE', '重剑'),
-            ('SABRE', '佩剑'),
+            ("FOIL", "花剑"),
+            ("EPEE", "重剑"),
+            ("SABRE", "佩剑"),
         ],
         blank=True,
         null=True,
-        verbose_name="主剑种"
+        verbose_name="主剑种",
     )
 
     # 时间戳字段
@@ -89,19 +72,19 @@ class DjangoFencer(models.Model):
     updated_at = models.DateTimeField(auto_now=True)
 
     class Meta:
-        db_table = 'fencer'
+        db_table = "fencer"
         verbose_name = "击剑运动员"
         verbose_name_plural = "击剑运动员"
-        ordering = ['last_name', 'first_name']
+        ordering = ["last_name", "first_name"]
         indexes = [
-            models.Index(fields=['country_code'], name='idx_fencer_country'),
-            models.Index(fields=['last_name', 'first_name'], name='idx_fencer_name'),
-            models.Index(fields=['fencing_id'], name='idx_fencer_fencing_id'),
-            models.Index(fields=['current_ranking'], name='idx_fencer_ranking'),
-            models.Index(fields=['primary_weapon'], name='idx_fencer_weapon'),
-            models.Index(fields=['gender'], name='idx_fencer_gender'),
-            models.Index(fields=['birth_date'], name='idx_fencer_birth_date'),
-            models.Index(fields=['created_at'], name='idx_fencer_created_at'),
+            models.Index(fields=["country_code"], name="idx_fencer_country"),
+            models.Index(fields=["last_name", "first_name"], name="idx_fencer_name"),
+            models.Index(fields=["fencing_id"], name="idx_fencer_fencing_id"),
+            models.Index(fields=["current_ranking"], name="idx_fencer_ranking"),
+            models.Index(fields=["primary_weapon"], name="idx_fencer_weapon"),
+            models.Index(fields=["gender"], name="idx_fencer_gender"),
+            models.Index(fields=["birth_date"], name="idx_fencer_birth_date"),
+            models.Index(fields=["created_at"], name="idx_fencer_created_at"),
         ]
 
     def __str__(self):
@@ -133,6 +116,7 @@ class DjangoFencer(models.Model):
             return None
 
         from datetime import date
+
         today = date.today()
         age = today.year - self.birth_date.year
 

@@ -5,7 +5,9 @@ from uuid import UUID
 from django.db import IntegrityError
 
 from backend.apps.fencing_organizer.repositories.event_repo import DjangoEventRepository
-from backend.apps.fencing_organizer.repositories.tournament_repo import DjangoTournamentRepository
+from backend.apps.fencing_organizer.repositories.tournament_repo import (
+    DjangoTournamentRepository,
+)
 from backend.apps.fencing_organizer.repositories.rule_repo import DjangoRuleRepository
 from core.models.event import Event
 
@@ -18,13 +20,17 @@ class EventService:
     This service handles business logic only.
     """
 
-    def __init__(self,
-                 event_repository: Optional[DjangoEventRepository] = None,
-                 tournament_repository: Optional[DjangoTournamentRepository] = None,
-                 rule_repository: Optional[DjangoRuleRepository] = None):
+    def __init__(
+        self,
+        event_repository: Optional[DjangoEventRepository] = None,
+        tournament_repository: Optional[DjangoTournamentRepository] = None,
+        rule_repository: Optional[DjangoRuleRepository] = None,
+    ):
 
         self.event_repository = event_repository or DjangoEventRepository()
-        self.tournament_repository = tournament_repository or DjangoTournamentRepository()
+        self.tournament_repository = (
+            tournament_repository or DjangoTournamentRepository()
+        )
         self.rule_repository = rule_repository or DjangoRuleRepository()
 
     def get_event_by_id(self, event_id: UUID) -> Optional[Event]:
@@ -62,17 +68,25 @@ class EventService:
         self._validate_foreign_keys(event_data)
 
         event = Event(
-            tournament_id=event_data['tournament'].id if hasattr(event_data.get('tournament'), 'id') else event_data.get('tournament_id'),
-            event_name=event_data['event_name'],
-            rule_id=event_data.get('rule').id if hasattr(event_data.get('rule'), 'id') else event_data.get('rule_id'),
-            event_type=event_data.get('event_type', ''),
-            status=event_data.get('status', 'REGISTRATION'),
-            is_team_event=event_data.get('is_team_event', False),
-            start_time=event_data.get('start_time'),
-            live_ranking=event_data.get('live_ranking', []),
-            de_trees=event_data.get('de_trees', {}),
-            custom_rule_config=event_data.get('custom_rule_config', {}),
-            current_step=event_data.get('current_step', 0)
+            tournament_id=(
+                event_data["tournament"].id
+                if hasattr(event_data.get("tournament"), "id")
+                else event_data.get("tournament_id")
+            ),
+            event_name=event_data["event_name"],
+            rule_id=(
+                event_data.get("rule").id
+                if hasattr(event_data.get("rule"), "id")
+                else event_data.get("rule_id")
+            ),
+            event_type=event_data.get("event_type", ""),
+            status=event_data.get("status", "REGISTRATION"),
+            is_team_event=event_data.get("is_team_event", False),
+            start_time=event_data.get("start_time"),
+            live_ranking=event_data.get("live_ranking", []),
+            de_trees=event_data.get("de_trees", {}),
+            custom_rule_config=event_data.get("custom_rule_config", {}),
+            current_step=event_data.get("current_step", 0),
         )
 
         try:
@@ -117,10 +131,10 @@ class EventService:
     def _validate_foreign_keys(self, data: dict) -> None:
         """Validate foreign key existence."""
         tournament_id = None
-        if 'tournament' in data and hasattr(data['tournament'], 'id'):
-            tournament_id = data['tournament'].id
-        elif 'tournament_id' in data:
-            tournament_id = data['tournament_id']
+        if "tournament" in data and hasattr(data["tournament"], "id"):
+            tournament_id = data["tournament"].id
+        elif "tournament_id" in data:
+            tournament_id = data["tournament_id"]
 
         if tournament_id:
             tournament = self.tournament_repository.get_tournament_by_id(tournament_id)
@@ -128,10 +142,10 @@ class EventService:
                 raise self.EventServiceError(f"Tournament {tournament_id} not found")
 
         rule_id = None
-        if 'rule' in data and hasattr(data['rule'], 'id'):
-            rule_id = data['rule'].id
-        elif 'rule_id' in data:
-            rule_id = data['rule_id']
+        if "rule" in data and hasattr(data["rule"], "id"):
+            rule_id = data["rule"].id
+        elif "rule_id" in data:
+            rule_id = data["rule_id"]
 
         if rule_id:
             rule = self.rule_repository.get_rule_by_id(rule_id)
@@ -140,7 +154,7 @@ class EventService:
 
     def _is_completed_or_cancelled(self, event: Event) -> bool:
         """Check if event is completed or cancelled."""
-        return event.status in ['COMPLETED', 'CANCELLED']
+        return event.status in ["COMPLETED", "CANCELLED"]
 
     class EventServiceError(Exception):
         """Service layer exception."""

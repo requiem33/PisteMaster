@@ -15,7 +15,7 @@ class PisteMapper:
             location=django_piste.location,
             piste_type=django_piste.piste_type,
             is_available=django_piste.is_available,
-            notes=django_piste.notes
+            notes=django_piste.notes,
         )
 
     @staticmethod
@@ -28,5 +28,5 @@ class PisteMapper:
             "location": piste.location,
             "piste_type": piste.piste_type,
             "is_available": piste.is_available,
-            "notes": piste.notes
+            "notes": piste.notes,
         }

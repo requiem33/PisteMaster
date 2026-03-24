@@ -22,7 +22,7 @@ class EventMapper:
             is_team_event=django_event.is_team_event,
             start_time=django_event.start_time,
             created_at=django_event.created_at,
-            updated_at=django_event.updated_at
+            updated_at=django_event.updated_at,
         )
 
     @staticmethod
@@ -40,5 +40,5 @@ class EventMapper:
             "custom_rule_config": event.custom_rule_config,
             "event_name": event.event_name,
             "is_team_event": event.is_team_event,
-            "start_time": event.start_time
+            "start_time": event.start_time,
         }

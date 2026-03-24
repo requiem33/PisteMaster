@@ -2,7 +2,9 @@ from typing import Optional, List
 from uuid import UUID
 
 from backend.apps.fencing_organizer.mappers.match_status_mapper import MatchStatusMapper
-from backend.apps.fencing_organizer.modules.match_status.models import DjangoMatchStatusType
+from backend.apps.fencing_organizer.modules.match_status.models import (
+    DjangoMatchStatusType,
+)
 from core.models.match_status_type import MatchStatusType
 
 
@@ -27,7 +29,7 @@ class DjangoMatchStatusRepository:
 
     def get_all(self) -> List[MatchStatusType]:
         """获取所有状态"""
-        django_statuses = DjangoMatchStatusType.objects.all().order_by('status_code')
+        django_statuses = DjangoMatchStatusType.objects.all().order_by("status_code")
         return [MatchStatusMapper.to_domain(s) for s in django_statuses]
 
     def save(self, match_status: MatchStatusType) -> MatchStatusType:
@@ -35,8 +37,7 @@ class DjangoMatchStatusRepository:
         orm_data = MatchStatusMapper.to_orm_data(match_status)
 
         django_status, created = DjangoMatchStatusType.objects.update_or_create(
-            id=match_status.id,
-            defaults=orm_data
+            id=match_status.id, defaults=orm_data
         )
 
         return MatchStatusMapper.to_domain(django_status)

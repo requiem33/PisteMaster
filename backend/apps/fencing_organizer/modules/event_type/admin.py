@@ -7,10 +7,16 @@ from .models import DjangoEventType
 class EventTypeAdmin(admin.ModelAdmin):
     """项目类型管理后台"""
 
-    list_display = ('type_code', 'display_name', 'weapon_type', 'gender', 'is_individual_display')
-    list_filter = ('weapon_type', 'gender')
-    search_fields = ('type_code', 'display_name')
-    ordering = ('type_code',)
+    list_display = (
+        "type_code",
+        "display_name",
+        "weapon_type",
+        "gender",
+        "is_individual_display",
+    )
+    list_filter = ("weapon_type", "gender")
+    search_fields = ("type_code", "display_name")
+    ordering = ("type_code",)
 
     def is_individual_display(self, obj):
         """是否为个人赛显示"""

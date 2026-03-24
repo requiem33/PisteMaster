@@ -14,86 +14,69 @@ class DjangoPoolAssignment(models.Model):
     pool = models.ForeignKey(
         DjangoPool,
         on_delete=models.CASCADE,
-        db_column='pool_id',
-        related_name='assignments',
-        verbose_name="所属小组"
+        db_column="pool_id",
+        related_name="assignments",
+        verbose_name="所属小组",
     )
 
     fencer = models.ForeignKey(
         DjangoFencer,
         on_delete=models.CASCADE,
-        db_column='fencer_id',
-        related_name='pool_assignments',
-        verbose_name="运动员"
+        db_column="fencer_id",
+        related_name="pool_assignments",
+        verbose_name="运动员",
     )
 
     final_pool_rank = models.IntegerField(
         null=True,
         blank=True,
         validators=[MinValueValidator(1)],
-        verbose_name="最终排名"
+        verbose_name="最终排名",
     )
 
-    victories = models.IntegerField(
-        default=0,
-        verbose_name="胜场数(V)"
-    )
+    victories = models.IntegerField(default=0, verbose_name="胜场数(V)")
 
     indicator = models.IntegerField(
-        default=0,
-        verbose_name="得失分差(Ind)",
-        help_text="TS - TR，不允许直接更新"
+        default=0, verbose_name="得失分差(Ind)", help_text="TS - TR，不允许直接更新"
     )
 
-    touches_scored = models.IntegerField(
-        default=0,
-        verbose_name="总得分(TS)"
-    )
+    touches_scored = models.IntegerField(default=0, verbose_name="总得分(TS)")
 
-    touches_received = models.IntegerField(
-        default=0,
-        verbose_name="总失分(TR)"
-    )
+    touches_received = models.IntegerField(default=0, verbose_name="总失分(TR)")
 
-    matches_played = models.IntegerField(
-        default=0,
-        verbose_name="已赛场次"
-    )
+    matches_played = models.IntegerField(default=0, verbose_name="已赛场次")
 
-    is_qualified = models.BooleanField(
-        default=False,
-        verbose_name="是否晋级"
-    )
+    is_qualified = models.BooleanField(default=False, verbose_name="是否晋级")
 
     qualification_rank = models.IntegerField(
-        null=True,
-        blank=True,
-        verbose_name="晋级排名"
+        null=True, blank=True, verbose_name="晋级排名"
     )
 
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
     class Meta:
-        db_table = 'pool_assignment'
+        db_table = "pool_assignment"
         verbose_name = "小组分配"
         verbose_name_plural = "小组分配"
-        ordering = ['pool', 'final_pool_rank']
+        ordering = ["pool", "final_pool_rank"]
         constraints = [
             models.UniqueConstraint(
-                fields=['pool', 'fencer'],
-                name='unique_pool_fencer'
+                fields=["pool", "fencer"], name="unique_pool_fencer"
             ),
             models.UniqueConstraint(
-                fields=['pool', 'final_pool_rank'],
+                fields=["pool", "final_pool_rank"],
                 condition=models.Q(final_pool_rank__isnull=False),
-                name='unique_pool_rank'
-            )
+                name="unique_pool_rank",
+            ),
         ]
         indexes = [
-            models.Index(fields=['pool', 'is_qualified', 'final_pool_rank'], name='idx_pool_assignment_qualified'),
-            models.Index(fields=['fencer'], name='idx_pool_assignment_fencer'),
-            models.Index(fields=['final_pool_rank'], name='idx_pool_assignment_rank'),
+            models.Index(
+                fields=["pool", "is_qualified", "final_pool_rank"],
+                name="idx_pool_assignment_qualified",
+            ),
+            models.Index(fields=["fencer"], name="idx_pool_assignment_fencer"),
+            models.Index(fields=["final_pool_rank"], name="idx_pool_assignment_rank"),
         ]
 
     def __str__(self):

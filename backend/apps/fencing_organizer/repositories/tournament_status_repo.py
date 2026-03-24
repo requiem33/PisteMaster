@@ -1,9 +1,15 @@
 from typing import Optional, List
 from uuid import UUID
 
-from backend.apps.fencing_organizer.mappers.tournament_status_mapper import TournamentStatusMapper
-from backend.apps.fencing_organizer.modules.tournament_status.models import DjangoTournamentStatus
-from core.interfaces.tournament_status_repository import TournamentStatusRepositoryInterface
+from backend.apps.fencing_organizer.mappers.tournament_status_mapper import (
+    TournamentStatusMapper,
+)
+from backend.apps.fencing_organizer.modules.tournament_status.models import (
+    DjangoTournamentStatus,
+)
+from core.interfaces.tournament_status_repository import (
+    TournamentStatusRepositoryInterface,
+)
 from core.models.tournament_status import TournamentStatus
 
 
@@ -28,7 +34,7 @@ class DjangoTournamentStatusRepository(TournamentStatusRepositoryInterface):
 
     def get_all_statuses(self) -> List[TournamentStatus]:
         """获取所有状态"""
-        django_statuses = DjangoTournamentStatus.objects.all().order_by('status_code')
+        django_statuses = DjangoTournamentStatus.objects.all().order_by("status_code")
         return [TournamentStatusMapper.to_domain(status) for status in django_statuses]
 
     def save_status(self, status: TournamentStatus) -> TournamentStatus:
@@ -36,8 +42,7 @@ class DjangoTournamentStatusRepository(TournamentStatusRepositoryInterface):
         orm_data = TournamentStatusMapper.to_orm_data(status)
 
         django_status, created = DjangoTournamentStatus.objects.update_or_create(
-            id=status.id,
-            defaults=orm_data
+            id=status.id, defaults=orm_data
         )
 
         return TournamentStatusMapper.to_domain(django_status)

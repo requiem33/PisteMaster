@@ -18,10 +18,12 @@ class PoolService:
     This service handles business logic only.
     """
 
-    def __init__(self,
-                 pool_repository: Optional[DjangoPoolRepository] = None,
-                 event_repository: Optional[DjangoEventRepository] = None,
-                 piste_repository: Optional[DjangoPisteRepository] = None):
+    def __init__(
+        self,
+        pool_repository: Optional[DjangoPoolRepository] = None,
+        event_repository: Optional[DjangoEventRepository] = None,
+        piste_repository: Optional[DjangoPisteRepository] = None,
+    ):
 
         self.pool_repository = pool_repository or DjangoPoolRepository()
         self.event_repository = event_repository or DjangoEventRepository()
@@ -56,30 +58,36 @@ class PoolService:
         """
         self._validate_foreign_keys(pool_data)
 
-        if not pool_data.get('pool_number'):
-            pool_data['pool_number'] = self.pool_repository.get_next_pool_number(
-                pool_data['event_id'] if 'event_id' in pool_data else pool_data['event'].id
+        if not pool_data.get("pool_number"):
+            pool_data["pool_number"] = self.pool_repository.get_next_pool_number(
+                pool_data["event_id"]
+                if "event_id" in pool_data
+                else pool_data["event"].id
             )
 
-        event_id = pool_data.get('event_id') or (pool_data.get('event').id if pool_data.get('event') else None)
+        event_id = pool_data.get("event_id") or (
+            pool_data.get("event").id if pool_data.get("event") else None
+        )
 
         pool = Pool(
             event_id=event_id,
-            stage_id=pool_data.get('stage_id', '1'),
-            pool_number=pool_data['pool_number'],
-            fencer_ids=pool_data.get('fencer_ids', []),
-            results=pool_data.get('results', []),
-            stats=pool_data.get('stats', []),
-            is_locked=pool_data.get('is_locked', False),
-            status=pool_data.get('status', PoolStatus.SCHEDULED.value),
-            is_completed=pool_data.get('is_completed', False)
+            stage_id=pool_data.get("stage_id", "1"),
+            pool_number=pool_data["pool_number"],
+            fencer_ids=pool_data.get("fencer_ids", []),
+            results=pool_data.get("results", []),
+            stats=pool_data.get("stats", []),
+            is_locked=pool_data.get("is_locked", False),
+            status=pool_data.get("status", PoolStatus.SCHEDULED.value),
+            is_completed=pool_data.get("is_completed", False),
         )
 
         try:
             return self.pool_repository.save_pool(pool)
         except IntegrityError as e:
-            if 'unique_pool_event_number' in str(e):
-                raise self.PoolServiceError(f"Pool number '{pool_data.get('pool_number')}' already exists in this event")
+            if "unique_pool_event_number" in str(e):
+                raise self.PoolServiceError(
+                    f"Pool number '{pool_data.get('pool_number')}' already exists in this event"
+                )
             raise self.PoolServiceError(f"Create pool failed: {str(e)}")
 
     def update_pool(self, pool_id: UUID, pool_data: dict) -> Pool:
@@ -93,8 +101,8 @@ class PoolService:
         if not existing_pool:
             raise self.PoolServiceError(f"Pool {pool_id} not found")
 
-        if 'status' in pool_data:
-            self._validate_status_transition(existing_pool.status, pool_data['status'])
+        if "status" in pool_data:
+            self._validate_status_transition(existing_pool.status, pool_data["status"])
 
         self._validate_foreign_keys(pool_data)
 
@@ -105,8 +113,10 @@ class PoolService:
         try:
             return self.pool_repository.save_pool(existing_pool)
         except IntegrityError as e:
-            if 'unique_pool_event_number' in str(e):
-                raise self.PoolServiceError(f"Pool number '{pool_data.get('pool_number')}' already exists in this event")
+            if "unique_pool_event_number" in str(e):
+                raise self.PoolServiceError(
+                    f"Pool number '{pool_data.get('pool_number')}' already exists in this event"
+                )
             raise self.PoolServiceError(f"Update pool failed: {str(e)}")
 
     def delete_pool(self, pool_id: UUID) -> bool:
@@ -134,17 +144,17 @@ class PoolService:
     def _validate_foreign_keys(self, data: dict) -> None:
         """Validate foreign key existence."""
         event_id = None
-        if 'event' in data and hasattr(data['event'], 'id'):
-            event_id = data['event'].id
-        elif 'event_id' in data:
-            event_id = data['event_id']
+        if "event" in data and hasattr(data["event"], "id"):
+            event_id = data["event"].id
+        elif "event_id" in data:
+            event_id = data["event_id"]
 
         if event_id:
             event = self.event_repository.get_event_by_id(event_id)
             if not event:
                 raise self.PoolServiceError(f"Event {event_id} not found")
 
-        piste_id = data.get('piste_id')
+        piste_id = data.get("piste_id")
         if piste_id:
             piste = self.piste_repository.get_by_id(piste_id)
             if not piste:
