@@ -115,7 +115,7 @@ const loadData = async () => {
     allFencersForStage.value = liveFencers;
     poolResultsFencers.value = poolResults;
 
-  } catch (error) {
+  } catch (_error) {
     ElMessage.error('无法获取本阶段排名数据');
   } finally {
     loading.value = false

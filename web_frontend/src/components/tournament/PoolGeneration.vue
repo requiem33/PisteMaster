@@ -123,7 +123,7 @@ const loadDataForCurrentStage = async () => {
     } else {
       generatePools()
     }
-  } catch (error) {
+  } catch (_error) {
     ElMessage.error('加载本阶段选手名单失败')
   } finally {
     loading.value = false
@@ -165,7 +165,7 @@ const confirmPools = async () => {
     await DataManager.savePools(props.eventId, stageId, pools.value);
     ElMessage.success('本阶段分组已保存');
     emit('next');
-  } catch (error) {
+  } catch (_error) {
     ElMessage.error('保存失败');
   }
 }

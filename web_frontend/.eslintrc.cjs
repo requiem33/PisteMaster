@@ -5,6 +5,7 @@ module.exports = {
         es2021: true,
         node: true,
     },
+    ignorePatterns: ['dist/', 'node_modules/'],
     extends: [
         'eslint:recommended',
         'plugin:@typescript-eslint/recommended',
@@ -30,7 +31,8 @@ module.exports = {
         '@typescript-eslint/explicit-function-return-type': 'off',
         '@typescript-eslint/no-unused-vars': ['error', {
             'argsIgnorePattern': '^_',
-            'varsIgnorePattern': '^_'
+            'varsIgnorePattern': '^_',
+            'caughtErrorsIgnorePattern': '^_'
         }],
 
         // 通用规则

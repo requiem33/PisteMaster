@@ -9,6 +9,8 @@ on:
       - 'core/**'
       - 'desktop/**'
       - '.github/workflows/build-desktop.yml'
+      - '.github/workflows/_lint.yml'
+      - '.github/workflows/_test.yml'
   pull_request:
     branches: [main]
   workflow_call:
@@ -19,7 +21,14 @@ env:
   FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
 
 jobs:
+  lint:
+    uses: ./.github/workflows/_lint.yml
+
+  test:
+    uses: ./.github/workflows/_test.yml
+
   build-python:
+    needs: [lint, test]
     runs-on: windows-latest
     steps:
       - name: Checkout code
@@ -50,6 +59,7 @@ jobs:
           retention-days: 7
 
   build-frontend:
+    needs: [lint, test]
     runs-on: ubuntu-latest
     steps:
       - name: Checkout code

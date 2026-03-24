@@ -40,7 +40,7 @@ const submitForm = async () => {
       ElMessage.success('更新成功')
       emit('success')
       emit('update:modelValue', false)
-    } catch (e) {
+    } catch (_e) {
       ElMessage.error('更新失败')
     } finally {
       isSubmitting.value = false

@@ -52,7 +52,7 @@ const submitForm = async () => {
       ElMessage.success('赛事信息已更新');
       emit('success');
       emit('update:modelValue', false);
-    } catch (error) {
+    } catch (_error) {
       ElMessage.error('更新失败');
     } finally {
       isSubmitting.value = false;

@@ -50,7 +50,7 @@ const handleConfirm = async () => {
       ElMessage.success('项目创建成功')
       visible.value = false
       emit('success')
-    } catch (e) {
+    } catch (_e) {
       ElMessage.error('创建失败')
     } finally {
       loading.value = false

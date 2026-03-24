@@ -333,7 +333,7 @@ export const DataManager = {
             if (data.participants && Array.isArray(data.participants)) {
                 return data.participants
                     .map((p: any) => p.fencer_info)
-                    .filter((f: any) => f != null);
+                    .filter((f: any) => f !== null);
             }
             return [];
         } catch (error) {
