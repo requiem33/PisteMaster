@@ -1,6 +1,6 @@
-from typing import List, Optional, Dict, Any
+from typing import List, Optional
 from uuid import UUID
-from django.db import IntegrityError, transaction
+from django.db import IntegrityError
 
 from core.models.piste import Piste
 from backend.apps.fencing_organizer.repositories.piste_repo import DjangoPisteRepository

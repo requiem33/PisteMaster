@@ -1,11 +1,10 @@
-from rest_framework import viewsets, status, mixins
+from rest_framework import viewsets, status
 from rest_framework.decorators import action
 from rest_framework.response import Response
 from rest_framework.permissions import IsAuthenticated, AllowAny
 from rest_framework.pagination import PageNumberPagination
 from django_filters.rest_framework import DjangoFilterBackend
 from rest_framework import filters
-from django.shortcuts import get_object_or_404
 from uuid import UUID
 
 from .models import DjangoEventParticipant
@@ -17,8 +16,6 @@ from .serializers import (
     EventParticipantSeedUpdateSerializer
 )
 from ...services.event_participant_service import EventParticipantService
-from ...services.event_service import EventService
-from ...services.fencer_service import FencerService
 
 
 class StandardPagination(PageNumberPagination):

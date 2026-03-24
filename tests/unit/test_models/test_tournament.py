@@ -121,7 +121,7 @@ class TestTournament:
 
         # 与非Tournament对象比较
         assert tournament1 != "not a tournament"
-        assert tournament1 != None
+        assert tournament1 is not None
 
     def test_hash(self):
         """测试哈希值"""

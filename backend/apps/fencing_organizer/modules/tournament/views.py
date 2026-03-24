@@ -1,5 +1,4 @@
 from datetime import date
-from typing import Any
 
 from django.db.models import Count, Q
 from django_filters.rest_framework import DjangoFilterBackend

@@ -1,7 +1,6 @@
 # backend/apps/fencing_organizer/management/commands/create_sample_tournaments.py
 from django.core.management.base import BaseCommand
-from django.utils import timezone
-from datetime import date, timedelta
+from datetime import date
 from backend.apps.fencing_organizer.modules.tournament.models import DjangoTournament
 from backend.apps.fencing_organizer.modules.tournament_status.models import DjangoTournamentStatus
 

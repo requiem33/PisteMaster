@@ -1,8 +1,7 @@
-from typing import Optional, List, Dict, Any, Tuple
+from typing import Optional, List, Dict, Any
 from uuid import UUID
-from django.db.models import Q, Count, Sum, Avg
+from django.db.models import Count, Sum, Avg
 from django.db import transaction
-import operator
 
 from backend.apps.fencing_organizer.mappers.pool_assignment_mapper import PoolAssignmentMapper
 from backend.apps.fencing_organizer.modules.pool_assignment.models import DjangoPoolAssignment

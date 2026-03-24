@@ -2,7 +2,6 @@ from typing import Optional, List, Dict, Any
 from uuid import UUID
 from datetime import datetime
 from django.db.models import Q, Count
-from django.db import transaction
 
 from backend.apps.fencing_organizer.mappers.pool_bout_mapper import PoolBoutMapper
 from backend.apps.fencing_organizer.modules.pool_bout.models import DjangoPoolBout
@@ -135,10 +134,9 @@ class DjangoPoolBoutRepository(PoolBoutRepositoryInterface):
     def generate_round_robin_bouts(self, pool_id: UUID) -> List[PoolBout]:
         """为小组生成循环赛对阵"""
         from backend.apps.fencing_organizer.modules.pool.models import DjangoPool
-        from backend.apps.fencing_organizer.modules.fencer.models import DjangoFencer
 
         try:
-            pool = DjangoPool.objects.get(id=pool_id)
+            DjangoPool.objects.get(id=pool_id)
             # 获取小组成员（这里假设小组成员关系已建立）
             # 在实际实现中，需要根据PoolAssignment获取小组成员
             # 这里暂时返回空列表，实际使用时需要实现

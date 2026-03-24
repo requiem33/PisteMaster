@@ -1,6 +1,3 @@
-from datetime import datetime
-from typing import Optional
-
 from backend.apps.fencing_organizer.modules.fencer.models import DjangoFencer
 from core.models.fencer import Fencer
 

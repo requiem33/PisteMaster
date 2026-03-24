@@ -2,7 +2,6 @@ from typing import List, Optional, Dict, Any, Tuple
 from uuid import UUID
 from datetime import datetime
 from django.db import IntegrityError
-from django.utils.timezone import now
 
 from core.models.event_participant import EventParticipant
 from backend.apps.fencing_organizer.repositories.event_participant_repo import DjangoEventParticipantRepository
@@ -68,7 +67,7 @@ class EventParticipantService:
             try:
                 participant = self.register_fencer_to_event(event_id, fencer_id)
                 successful.append(participant)
-            except self.EventParticipantServiceError as e:
+            except self.EventParticipantServiceError:
                 failed.append(fencer_id)
 
         return successful, failed

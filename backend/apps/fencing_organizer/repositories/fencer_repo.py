@@ -1,8 +1,7 @@
-from typing import Optional, List, Dict, Any
+from typing import Optional, List
 from uuid import UUID
-from django.db.models import Q
+from django.db.models import Q, Count
 from django.core.exceptions import MultipleObjectsReturned
-import re
 
 from backend.apps.fencing_organizer.mappers.fencer_mapper import FencerMapper
 from backend.apps.fencing_organizer.modules.fencer.models import DjangoFencer
@@ -141,13 +140,13 @@ class DjangoFencerRepository(FencerRepositoryInterface):
         }
 
         # 按性别统计
-        genders = DjangoFencer.objects.values('gender').annotate(count=models.Count('gender'))
+        genders = DjangoFencer.objects.values('gender').annotate(count=Count('gender'))
         for gender in genders:
             if gender['gender']:
                 stats['by_gender'][gender['gender']] = gender['count']
 
         # 按剑种统计
-        weapons = DjangoFencer.objects.values('primary_weapon').annotate(count=models.Count('primary_weapon'))
+        weapons = DjangoFencer.objects.values('primary_weapon').annotate(count=Count('primary_weapon'))
         for weapon in weapons:
             if weapon['primary_weapon']:
                 stats['by_weapon'][weapon['primary_weapon']] = weapon['count']

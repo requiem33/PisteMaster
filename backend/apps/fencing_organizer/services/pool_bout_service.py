@@ -1,12 +1,10 @@
-from typing import List, Optional, Dict, Any, Tuple
+from typing import List, Optional, Dict, Any
 from uuid import UUID
-from datetime import datetime, timedelta
+from datetime import datetime
 from itertools import combinations
-from django.db import IntegrityError, transaction
-from django.core.exceptions import ValidationError
+from django.db import IntegrityError
 
 from core.models.pool_bout import PoolBout
-from core.constants.match_status import MatchStatusCode
 from backend.apps.fencing_organizer.repositories.pool_bout_repo import DjangoPoolBoutRepository
 from backend.apps.fencing_organizer.repositories.pool_repo import DjangoPoolRepository
 from backend.apps.fencing_organizer.repositories.fencer_repo import DjangoFencerRepository

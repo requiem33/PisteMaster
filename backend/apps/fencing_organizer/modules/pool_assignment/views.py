@@ -1,12 +1,11 @@
 # backend/apps/fencing_organizer/modules/pool_assignment/views.py
-from rest_framework import viewsets, status, mixins
+from rest_framework import viewsets, status
 from rest_framework.decorators import action
 from rest_framework.response import Response
 from rest_framework.permissions import IsAuthenticated, AllowAny
 from rest_framework.pagination import PageNumberPagination
 from django_filters.rest_framework import DjangoFilterBackend
 from rest_framework import filters
-from django.shortcuts import get_object_or_404
 from uuid import UUID
 
 from .models import DjangoPoolAssignment
@@ -19,7 +18,6 @@ from .serializers import (
     PoolAssignmentRankingUpdateSerializer
 )
 from ...services.pool_assignment_service import PoolAssignmentService
-from ...services.pool_service import PoolService
 
 
 class StandardPagination(PageNumberPagination):

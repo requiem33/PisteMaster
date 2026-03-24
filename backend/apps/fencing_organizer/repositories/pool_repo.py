@@ -1,7 +1,7 @@
 from typing import Optional, List, Dict, Any
 from uuid import UUID
 from datetime import datetime
-from django.db.models import Q, Count, F
+from django.db.models import Q, Count
 from django.db import transaction
 
 from backend.apps.fencing_organizer.mappers.pool_mapper import PoolMapper

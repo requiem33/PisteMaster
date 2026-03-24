@@ -1,7 +1,6 @@
 import pytest
 from django.urls import reverse
 from rest_framework import status
-from backend.apps.fencing_organizer.modules.tournament_status.models import DjangoTournamentStatus
 
 
 @pytest.mark.django_db

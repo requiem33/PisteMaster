@@ -12,7 +12,7 @@ __version__ = "0.1.0"
 
 # 提供方便的顶级导入
 try:
-    from .models import BaseModel, Tournament
+    from .models import BaseModel, Tournament  # noqa: F401
 except ImportError:
     # 在开发过程中可能会缺少依赖，这里静默失败
     pass

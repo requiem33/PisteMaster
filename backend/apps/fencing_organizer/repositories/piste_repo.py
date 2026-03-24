@@ -1,4 +1,4 @@
-from typing import Optional, List, Dict, Any
+from typing import Optional, List
 from uuid import UUID
 
 from backend.apps.fencing_organizer.mappers.piste_mapper import PisteMapper

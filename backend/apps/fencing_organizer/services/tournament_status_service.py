@@ -36,8 +36,8 @@ class TournamentStatusService:
         # 通过Repository保存
         try:
             return self.repository.save_status(status)
-        except IntegrityError as e:
-            raise self.TournamentStatusServiceError(f"状态代码 '{status_data.get('status_code')}' 已存在")
+        except IntegrityError:
+            raise self.TournamentStatusServiceError(f"状态代码 '{status_data.get('status_code')}'. 已存在")
 
     def update_status(self, status_id: UUID, status_data: dict) -> TournamentStatus:
         """更新状态"""
@@ -57,7 +57,7 @@ class TournamentStatusService:
         # 通过Repository保存
         try:
             return self.repository.save_status(existing_status)
-        except IntegrityError as e:
+        except IntegrityError:
             raise self.TournamentStatusServiceError(f"状态代码 '{status_data.get('status_code')}' 已存在")
 
     def initialize_predefined_statuses(self) -> List[TournamentStatus]:

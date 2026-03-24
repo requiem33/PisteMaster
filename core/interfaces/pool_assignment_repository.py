@@ -1,5 +1,5 @@
 from abc import ABC, abstractmethod
-from typing import Optional, List, Dict, Any, Tuple
+from typing import Optional, List, Dict, Any
 from uuid import UUID
 from core.models.pool_assignment import PoolAssignment
 

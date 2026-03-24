@@ -1,9 +1,11 @@
-from typing import List, Optional, Dict, Any
+from typing import List, Optional, Dict
 from uuid import UUID
 from decimal import Decimal, InvalidOperation
-from django.db import IntegrityError, transaction
+from django.db import IntegrityError
 
 from core.models.rule import Rule
+from core.models.elimination_type import EliminationType
+from core.models.ranking_type import RankingType
 from backend.apps.fencing_organizer.repositories.rule_repo import DjangoRuleRepository
 from backend.apps.fencing_organizer.repositories.elimination_type_repo import DjangoEliminationTypeRepository
 from backend.apps.fencing_organizer.repositories.ranking_type_repo import DjangoRankingTypeRepository
@@ -169,7 +171,7 @@ class RuleService:
                 }
 
                 # 创建规则
-                rule = self.create_rule(rule_create_data)
+                self.create_rule(rule_create_data)
                 results["rules"] += 1
             except self.RuleServiceError:
                 # 忽略重复规则
