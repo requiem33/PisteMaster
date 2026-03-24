@@ -3,7 +3,7 @@ Placeholder tests for core models.
 Real tests should be added as models are implemented.
 """
 
-import pytest
+import pytest  # noqa: F401
 
 
 class TestPlaceholder:
