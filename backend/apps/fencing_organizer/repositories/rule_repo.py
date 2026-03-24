@@ -77,7 +77,7 @@ class DjangoRuleRepository(RuleRepositoryInterface):
 
             count, _ = DjangoRule.objects.filter(id=rule_id).delete()
             return count > 0
-        except ValueError as e:
+        except ValueError:
             raise
         except Exception:
             return False

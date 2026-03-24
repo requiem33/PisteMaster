@@ -15,20 +15,23 @@ import os
 import sys
 from pathlib import Path
 
-os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'PisteMaster.settings.desktop')
+os.environ.setdefault(
+    'DJANGO_SETTINGS_MODULE', 'PisteMaster.settings.desktop'
+)
+
 
 def ensure_data_dir():
     """Create data directory if it doesn't exist."""
     app_name = "PisteMaster"
     home = Path.home()
-    
+
     if sys.platform == 'win32':
         base = Path(os.environ.get('APPDATA', home / 'AppData' / 'Roaming'))
     elif sys.platform == 'darwin':
         base = home / 'Library' / 'Application Support'
     else:
         base = home / '.local' / 'share'
-    
+
     data_dir = base / app_name / 'data'
     data_dir.mkdir(parents=True, exist_ok=True)
     return data_dir
@@ -44,25 +47,28 @@ def get_base_dir():
 
 def main():
     ensure_data_dir()
-    
+
     base_dir = get_base_dir()
     if str(base_dir) not in sys.path:
         sys.path.insert(0, str(base_dir))
-    
+
     port = int(os.environ.get('DJANGO_PORT', 8000))
-    
-    print(f"Starting PisteMaster backend server...")
+
+    print("Starting PisteMaster backend server...")
     print(f"Settings: {os.environ.get('DJANGO_SETTINGS_MODULE')}")
     print(f"Data directory: {ensure_data_dir()}")
     print(f"Server: http://127.0.0.1:{port}")
-    
+
     os.chdir(base_dir)
-    
+
     from django.core.management import execute_from_command_line
-    
+
     execute_from_command_line(['manage.py', 'migrate', '--noinput'])
-    
-    execute_from_command_line(['manage.py', 'runserver', f'127.0.0.1:{port}', '--noreload', '--nothreading'])
+
+    execute_from_command_line(
+        ['manage.py', 'runserver',
+         f'127.0.0.1:{port}', '--noreload', '--nothreading']
+    )
 
 
 if __name__ == '__main__':

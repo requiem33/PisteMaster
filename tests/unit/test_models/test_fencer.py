@@ -3,7 +3,7 @@ Fencer 模型测试
 """
 
 import pytest
-from datetime import date, datetime
+from datetime import date
 from core.models.fencer import Fencer
 
 

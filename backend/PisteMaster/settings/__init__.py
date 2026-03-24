@@ -5,7 +5,7 @@ This module provides Django settings for different environments.
 The default is development settings for backward compatibility.
 """
 
-from PisteMaster.settings.development import *
+from PisteMaster.settings.development import *  # noqa: F403
 
 __all__ = [
     "BASE_DIR",

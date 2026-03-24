@@ -57,8 +57,9 @@ class EventParticipantService:
                     return existing
             raise self.EventParticipantServiceError(f"注册失败: {str(e)}")
 
-    def bulk_register_fencers(self, event_id: UUID, fencer_ids: List[UUID]) -> Tuple[
-        List[EventParticipant], List[UUID]]:
+    def bulk_register_fencers(
+        self, event_id: UUID, fencer_ids: List[UUID]
+    ) -> Tuple[List[EventParticipant], List[UUID]]:
         """批量注册运动员到项目"""
         successful = []
         failed = []

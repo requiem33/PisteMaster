@@ -57,9 +57,11 @@ class RuleViewSet(viewsets.GenericViewSet):
         search = request.query_params.get('search')
         if search:
             search_lower = search.lower()
-            rules = [r for r in rules if
-                    search_lower in r.rule_name.lower() or
-                    (r.description and search_lower in r.description.lower())]
+            rules = [
+                r for r in rules
+                if search_lower in r.rule_name.lower() or
+                (r.description and search_lower in r.description.lower())
+            ]
 
         ordering = request.query_params.get('ordering', 'rule_name')
         reverse = ordering.startswith('-')

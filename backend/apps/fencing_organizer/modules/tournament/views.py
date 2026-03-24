@@ -58,10 +58,12 @@ class TournamentViewSet(viewsets.GenericViewSet):
 
         search = request.query_params.get('search')
         if search:
-            tournaments = [t for t in tournaments if
-                          search.lower() in t.tournament_name.lower() or
-                          (t.organizer and search.lower() in t.organizer.lower()) or
-                          (t.location and search.lower() in t.location.lower())]
+            tournaments = [
+                t for t in tournaments
+                if search.lower() in t.tournament_name.lower() or
+                (t.organizer and search.lower() in t.organizer.lower()) or
+                (t.location and search.lower() in t.location.lower())
+            ]
 
         status_filter = request.query_params.get('status')
         if status_filter:

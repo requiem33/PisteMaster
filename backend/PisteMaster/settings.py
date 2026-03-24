@@ -13,20 +13,28 @@ Usage:
     python manage.py runserver
 
     # Production
-    DJANGO_SETTINGS_MODULE=PisteMaster.settings.production python manage.py runserver
+    DJANGO_SETTINGS_MODULE=PisteMaster.settings.production \
+        python manage.py runserver
 
     # Desktop
-    DJANGO_SETTINGS_MODULE=PisteMaster.settings.desktop python manage.py runserver
+    DJANGO_SETTINGS_MODULE=PisteMaster.settings.desktop \
+        python manage.py runserver
 """
 
 import os
 import warnings
 
-settings_module = os.environ.get("DJANGO_SETTINGS_MODULE", "PisteMaster.settings.development")
+settings_module = os.environ.get(
+    "DJANGO_SETTINGS_MODULE", "PisteMaster.settings.development"
+)
 
 try:
     module = __import__(settings_module, fromlist=[""])
-    globals().update({k: v for k, v in module.__dict__.items() if not k.startswith("_")})
+    globals().update(
+        {k: v for k, v in module.__dict__.items() if not k.startswith("_")}
+    )
 except ImportError as e:
-    warnings.warn(f"Could not import settings module '{settings_module}': {e}")
-    from PisteMaster.settings.development import *
+    warnings.warn(
+        f"Could not import settings module '{settings_module}': {e}"
+    )
+    from PisteMaster.settings.development import *  # noqa: F403, F401

@@ -1,4 +1,4 @@
-from typing import Optional, List
+from typing import Optional, List, Dict
 from uuid import UUID
 from django.db.models import Q, Count
 from django.core.exceptions import MultipleObjectsReturned
