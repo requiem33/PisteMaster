@@ -5,7 +5,6 @@ from .models import DjangoEvent
 from ..tournament.models import DjangoTournament
 from ..rule.models import DjangoRule
 
-
 DEFAULT_WORLD_CUP_STAGES = [
     {"type": "pool", "config": {"byes": 16, "hits": 5, "elimination_rate": 20}},
     {"type": "de", "config": {"hits": 15, "final_stage": "bronze_medal", "rank_to": 8}},
