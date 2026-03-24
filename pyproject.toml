@@ -1,3 +1,8 @@
+[tool.pytest.ini_options]
+DJANGO_SETTINGS_MODULE = "PisteMaster.settings.development"
+python_files = ["test_*.py"]
+pythonpaths = [".", "backend"]
+
 [tool.black]
 line-length = 140
 exclude = '''
