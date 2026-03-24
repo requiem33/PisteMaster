@@ -4,9 +4,7 @@ from uuid import UUID
 
 from django.db import IntegrityError
 
-from backend.apps.fencing_organizer.repositories.fencer_repo import (
-    DjangoFencerRepository,
-)
+from backend.apps.fencing_organizer.repositories.fencer_repo import DjangoFencerRepository
 from core.models.fencer import Fencer
 
 
@@ -43,8 +41,7 @@ class FencerService:
         fencer = Fencer(
             first_name=fencer_data["first_name"],
             last_name=fencer_data["last_name"],
-            display_name=fencer_data.get("display_name")
-            or f"{fencer_data['last_name']} {fencer_data['first_name']}",
+            display_name=fencer_data.get("display_name") or f"{fencer_data['last_name']} {fencer_data['first_name']}",
             gender=fencer_data.get("gender"),
             country_code=fencer_data.get("country_code"),
             birth_date=fencer_data.get("birth_date"),
@@ -57,9 +54,7 @@ class FencerService:
             return self.repository.save_fencer(fencer)
         except IntegrityError as e:
             if "unique" in str(e).lower() and "fencing_id" in str(e):
-                raise self.FencerServiceError(
-                    f"Fencing ID '{fencer_data.get('fencing_id')}' already exists"
-                )
+                raise self.FencerServiceError(f"Fencing ID '{fencer_data.get('fencing_id')}' already exists")
             raise self.FencerServiceError(f"Create fencer failed: {str(e)}")
 
     def update_fencer(self, fencer_id: UUID, fencer_data: dict) -> Fencer:
@@ -74,13 +69,9 @@ class FencerService:
             raise self.FencerServiceError(f"Fencer {fencer_id} not found")
 
         if "fencing_id" in fencer_data and fencer_data["fencing_id"]:
-            existing_with_fencing_id = self.repository.get_fencer_by_fencing_id(
-                fencer_data["fencing_id"]
-            )
+            existing_with_fencing_id = self.repository.get_fencer_by_fencing_id(fencer_data["fencing_id"])
             if existing_with_fencing_id and existing_with_fencing_id.id != fencer_id:
-                raise self.FencerServiceError(
-                    f"Fencing ID '{fencer_data['fencing_id']}' is already used by another fencer"
-                )
+                raise self.FencerServiceError(f"Fencing ID '{fencer_data['fencing_id']}' is already used by another fencer")
 
         for key, value in fencer_data.items():
             if hasattr(existing_fencer, key):
@@ -88,9 +79,7 @@ class FencerService:
 
         if "first_name" in fencer_data or "last_name" in fencer_data:
             if not fencer_data.get("display_name"):
-                existing_fencer.display_name = (
-                    f"{existing_fencer.last_name} {existing_fencer.first_name}"
-                )
+                existing_fencer.display_name = f"{existing_fencer.last_name} {existing_fencer.first_name}"
 
         existing_fencer.updated_at = datetime.now()
 
@@ -98,9 +87,7 @@ class FencerService:
             return self.repository.save_fencer(existing_fencer)
         except IntegrityError as e:
             if "unique" in str(e).lower() and "fencing_id" in str(e):
-                raise self.FencerServiceError(
-                    f"Fencing ID '{fencer_data.get('fencing_id')}' is already used by another fencer"
-                )
+                raise self.FencerServiceError(f"Fencing ID '{fencer_data.get('fencing_id')}' is already used by another fencer")
             raise self.FencerServiceError(f"Update fencer failed: {str(e)}")
 
     def delete_fencer(self, fencer_id: UUID) -> bool:
@@ -129,9 +116,7 @@ class FencerService:
         """Get fencers by weapon."""
         valid_weapons = ["FOIL", "EPEE", "SABRE", None]
         if weapon.upper() not in valid_weapons:
-            raise self.FencerServiceError(
-                f"Weapon must be one of: {', '.join([w for w in valid_weapons if w])}"
-            )
+            raise self.FencerServiceError(f"Weapon must be one of: {', '.join([w for w in valid_weapons if w])}")
 
         return self.repository.get_fencers_by_weapon(weapon.upper())
 
@@ -139,9 +124,7 @@ class FencerService:
         """Get fencer statistics."""
         return self.repository.count_fencers()
 
-    def get_top_ranked_fencers(
-        self, limit: int = 100, country: str = None
-    ) -> List[Fencer]:
+    def get_top_ranked_fencers(self, limit: int = 100, country: str = None) -> List[Fencer]:
         """Get top ranked fencers."""
         return self.repository.get_top_ranked_fencers(limit, country)
 

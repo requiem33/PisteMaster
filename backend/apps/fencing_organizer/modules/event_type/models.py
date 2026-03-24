@@ -7,12 +7,8 @@ class DjangoEventType(models.Model):
 
     id = models.UUIDField(primary_key=True, default=uuid4, editable=False)
     type_code = models.CharField(max_length=30, unique=True, verbose_name="类型代码")
-    display_name = models.CharField(
-        max_length=50, null=True, blank=True, verbose_name="显示名称"
-    )
-    weapon_type = models.CharField(
-        max_length=10, null=True, blank=True, verbose_name="剑种"
-    )
+    display_name = models.CharField(max_length=50, null=True, blank=True, verbose_name="显示名称")
+    weapon_type = models.CharField(max_length=10, null=True, blank=True, verbose_name="剑种")
     gender = models.CharField(max_length=10, null=True, blank=True, verbose_name="性别")
 
     class Meta:

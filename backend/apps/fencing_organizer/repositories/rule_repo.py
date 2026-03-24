@@ -13,9 +13,7 @@ class DjangoRuleRepository(RuleRepositoryInterface):
     def get_rule_by_id(self, rule_id: UUID) -> Optional[Rule]:
         """通过ID获取规则"""
         try:
-            django_rule = DjangoRule.objects.select_related(
-                "elimination_type", "final_ranking_type"
-            ).get(pk=rule_id)
+            django_rule = DjangoRule.objects.select_related("elimination_type", "final_ranking_type").get(pk=rule_id)
             return RuleMapper.to_domain(django_rule)
         except DjangoRule.DoesNotExist:
             return None
@@ -23,29 +21,21 @@ class DjangoRuleRepository(RuleRepositoryInterface):
     def get_rule_by_name(self, rule_name: str) -> Optional[Rule]:
         """通过名称获取规则"""
         try:
-            django_rule = DjangoRule.objects.select_related(
-                "elimination_type", "final_ranking_type"
-            ).get(rule_name=rule_name)
+            django_rule = DjangoRule.objects.select_related("elimination_type", "final_ranking_type").get(rule_name=rule_name)
             return RuleMapper.to_domain(django_rule)
         except DjangoRule.DoesNotExist:
             return None
 
     def get_all_rules(self) -> List[Rule]:
         """获取所有规则"""
-        django_rules = (
-            DjangoRule.objects.select_related("elimination_type", "final_ranking_type")
-            .all()
-            .order_by("rule_name")
-        )
+        django_rules = DjangoRule.objects.select_related("elimination_type", "final_ranking_type").all().order_by("rule_name")
 
         return [RuleMapper.to_domain(r) for r in django_rules]
 
     def get_preset_rules(self) -> List[Rule]:
         """获取所有预设规则 (is_preset=True)"""
         django_rules = (
-            DjangoRule.objects.select_related("elimination_type", "final_ranking_type")
-            .filter(is_preset=True)
-            .order_by("rule_name")
+            DjangoRule.objects.select_related("elimination_type", "final_ranking_type").filter(is_preset=True).order_by("rule_name")
         )
 
         return [RuleMapper.to_domain(r) for r in django_rules]
@@ -64,9 +54,7 @@ class DjangoRuleRepository(RuleRepositoryInterface):
         """保存或更新规则"""
         orm_data = RuleMapper.to_orm_data(rule)
 
-        django_rule, created = DjangoRule.objects.update_or_create(
-            id=rule.id, defaults=orm_data
-        )
+        django_rule, created = DjangoRule.objects.update_or_create(id=rule.id, defaults=orm_data)
 
         return RuleMapper.to_domain(django_rule)
 
@@ -90,21 +78,15 @@ class DjangoRuleRepository(RuleRepositoryInterface):
 
     def search_rules(self, **filters) -> List[Rule]:
         """搜索规则"""
-        queryset = DjangoRule.objects.select_related(
-            "elimination_type", "final_ranking_type"
-        )
+        queryset = DjangoRule.objects.select_related("elimination_type", "final_ranking_type")
 
         # 应用过滤器
         if "name" in filters:
             queryset = queryset.filter(rule_name__icontains=filters["name"])
         if "elimination_type_code" in filters:
-            queryset = queryset.filter(
-                elimination_type__type_code=filters["elimination_type_code"]
-            )
+            queryset = queryset.filter(elimination_type__type_code=filters["elimination_type_code"])
         if "ranking_type_code" in filters:
-            queryset = queryset.filter(
-                final_ranking_type__type_code=filters["ranking_type_code"]
-            )
+            queryset = queryset.filter(final_ranking_type__type_code=filters["ranking_type_code"])
         if "min_pool_size" in filters:
             queryset = queryset.filter(pool_size__gte=filters["min_pool_size"])
         if "max_pool_size" in filters:

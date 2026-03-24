@@ -16,13 +16,7 @@ class PoolBoutAdmin(admin.ModelAdmin):
         "duration_display",
     )
     list_filter = ("status", "pool", "scheduled_time")
-    search_fields = (
-        "fencer_a__last_name",
-        "fencer_a__first_name",
-        "fencer_b__last_name",
-        "fencer_b__first_name",
-        "pool__pool_letter",
-    )
+    search_fields = ("fencer_a__last_name", "fencer_a__first_name", "fencer_b__last_name", "fencer_b__first_name", "pool__pool_letter")
     ordering = ("pool", "scheduled_time")
     raw_id_fields = ("pool", "fencer_a", "fencer_b", "winner", "status")
     readonly_fields = (
@@ -40,30 +34,10 @@ class PoolBoutAdmin(admin.ModelAdmin):
     fieldsets = (
         ("基本信息", {"fields": ("pool", "fencer_a", "fencer_b", "status", "winner")}),
         ("比分", {"fields": ("fencer_a_score", "fencer_b_score")}),
-        (
-            "时间",
-            {
-                "fields": (
-                    "scheduled_time",
-                    "actual_start_time",
-                    "actual_end_time",
-                    "duration_seconds",
-                )
-            },
-        ),
+        ("时间", {"fields": ("scheduled_time", "actual_start_time", "actual_end_time", "duration_seconds")}),
         (
             "计算字段",
-            {
-                "fields": (
-                    "is_completed",
-                    "is_draw",
-                    "is_forfeited",
-                    "is_ready_to_start",
-                    "target_score",
-                    "is_score_valid",
-                    "display_name",
-                )
-            },
+            {"fields": ("is_completed", "is_draw", "is_forfeited", "is_ready_to_start", "target_score", "is_score_valid", "display_name")},
         ),
         ("其他", {"fields": ("notes", "created_at", "updated_at")}),
     )
@@ -126,7 +100,5 @@ class PoolBoutAdmin(admin.ModelAdmin):
 
     def get_queryset(self, request):
         queryset = super().get_queryset(request)
-        queryset = queryset.select_related(
-            "pool", "fencer_a", "fencer_b", "winner", "status"
-        )
+        queryset = queryset.select_related("pool", "fencer_a", "fencer_b", "winner", "status")
         return queryset

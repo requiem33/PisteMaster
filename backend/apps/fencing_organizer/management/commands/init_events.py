@@ -10,8 +10,5 @@ class Command(BaseCommand):
         results = service.initialize_predefined_data()
 
         self.stdout.write(
-            self.style.SUCCESS(
-                f'成功初始化: {results["event_statuses"]} 个项目状态, '
-                f'{results["event_types"]} 个项目类型'
-            )
+            self.style.SUCCESS(f'成功初始化: {results["event_statuses"]} 个项目状态, ' f'{results["event_types"]} 个项目类型')
         )

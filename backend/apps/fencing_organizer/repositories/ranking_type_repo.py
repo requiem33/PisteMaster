@@ -34,8 +34,6 @@ class DjangoRankingTypeRepository:
         """保存排名类型"""
         orm_data = RankingTypeMapper.to_orm_data(ranking_type)
 
-        django_type, created = DjangoRankingType.objects.update_or_create(
-            id=ranking_type.id, defaults=orm_data
-        )
+        django_type, created = DjangoRankingType.objects.update_or_create(id=ranking_type.id, defaults=orm_data)
 
         return RankingTypeMapper.to_domain(django_type)

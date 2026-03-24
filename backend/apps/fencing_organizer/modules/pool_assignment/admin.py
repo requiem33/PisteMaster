@@ -20,48 +20,15 @@ class PoolAssignmentAdmin(admin.ModelAdmin):
         "created_at",
     )
     list_filter = ("is_qualified", "pool", "pool__event", "pool__event__tournament")
-    search_fields = (
-        "fencer__first_name",
-        "fencer__last_name",
-        "fencer__display_name",
-        "pool__pool_letter",
-        "pool__event__event_name",
-    )
+    search_fields = ("fencer__first_name", "fencer__last_name", "fencer__display_name", "pool__pool_letter", "pool__event__event_name")
     ordering = ("pool", "final_pool_rank")
-    readonly_fields = (
-        "indicator",
-        "created_at",
-        "updated_at",
-        "win_rate",
-        "average_touches_scored",
-        "average_touches_received",
-    )
+    readonly_fields = ("indicator", "created_at", "updated_at", "win_rate", "average_touches_scored", "average_touches_received")
 
     fieldsets = (
         ("基本信息", {"fields": ("pool", "fencer")}),
         ("排名", {"fields": ("final_pool_rank", "is_qualified", "qualification_rank")}),
-        (
-            "比赛数据",
-            {
-                "fields": (
-                    "victories",
-                    "touches_scored",
-                    "touches_received",
-                    "matches_played",
-                )
-            },
-        ),
-        (
-            "计算字段",
-            {
-                "fields": (
-                    "indicator",
-                    "win_rate",
-                    "average_touches_scored",
-                    "average_touches_received",
-                )
-            },
-        ),
+        ("比赛数据", {"fields": ("victories", "touches_scored", "touches_received", "matches_played")}),
+        ("计算字段", {"fields": ("indicator", "win_rate", "average_touches_scored", "average_touches_received")}),
         ("时间戳", {"fields": ("created_at", "updated_at")}),
     )
 
@@ -111,7 +78,5 @@ class PoolAssignmentAdmin(admin.ModelAdmin):
     def get_queryset(self, request):
         """优化查询"""
         queryset = super().get_queryset(request)
-        queryset = queryset.select_related(
-            "pool", "fencer", "pool__event", "pool__event__tournament"
-        )
+        queryset = queryset.select_related("pool", "fencer", "pool__event", "pool__event__tournament")
         return queryset

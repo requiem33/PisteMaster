@@ -45,16 +45,8 @@ class PoolLetter(StrEnum):
 
 # 小组状态流转规则
 STATUS_TRANSITIONS = {
-    PoolStatus.SCHEDULED: [
-        PoolStatus.READY,
-        PoolStatus.CANCELLED,
-        PoolStatus.POSTPONED,
-    ],
-    PoolStatus.READY: [
-        PoolStatus.IN_PROGRESS,
-        PoolStatus.SCHEDULED,
-        PoolStatus.CANCELLED,
-    ],
+    PoolStatus.SCHEDULED: [PoolStatus.READY, PoolStatus.CANCELLED, PoolStatus.POSTPONED],
+    PoolStatus.READY: [PoolStatus.IN_PROGRESS, PoolStatus.SCHEDULED, PoolStatus.CANCELLED],
     PoolStatus.IN_PROGRESS: [PoolStatus.COMPLETED, PoolStatus.CANCELLED],
     PoolStatus.COMPLETED: [],
     PoolStatus.CANCELLED: [PoolStatus.SCHEDULED],

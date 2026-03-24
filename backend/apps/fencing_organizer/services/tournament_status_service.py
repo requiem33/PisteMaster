@@ -3,9 +3,7 @@ from uuid import UUID
 from django.db import IntegrityError
 
 from core.models.tournament_status import TournamentStatus
-from backend.apps.fencing_organizer.repositories.tournament_status_repo import (
-    DjangoTournamentStatusRepository,
-)
+from backend.apps.fencing_organizer.repositories.tournament_status_repo import DjangoTournamentStatusRepository
 from core.constants.tournament_status import PREDEFINED_STATUSES
 
 
@@ -39,9 +37,7 @@ class TournamentStatusService:
         try:
             return self.repository.save_status(status)
         except IntegrityError:
-            raise self.TournamentStatusServiceError(
-                f"状态代码 '{status_data.get('status_code')}'. 已存在"
-            )
+            raise self.TournamentStatusServiceError(f"状态代码 '{status_data.get('status_code')}'. 已存在")
 
     def update_status(self, status_id: UUID, status_data: dict) -> TournamentStatus:
         """更新状态"""
@@ -62,9 +58,7 @@ class TournamentStatusService:
         try:
             return self.repository.save_status(existing_status)
         except IntegrityError:
-            raise self.TournamentStatusServiceError(
-                f"状态代码 '{status_data.get('status_code')}' 已存在"
-            )
+            raise self.TournamentStatusServiceError(f"状态代码 '{status_data.get('status_code')}' 已存在")
 
     def initialize_predefined_statuses(self) -> List[TournamentStatus]:
         """初始化预定义状态"""
@@ -73,9 +67,7 @@ class TournamentStatusService:
         for status_data in PREDEFINED_STATUSES:
             try:
                 # 检查是否已存在
-                existing = self.repository.get_status_by_code(
-                    status_data["status_code"]
-                )
+                existing = self.repository.get_status_by_code(status_data["status_code"])
                 if existing:
                     continue
 

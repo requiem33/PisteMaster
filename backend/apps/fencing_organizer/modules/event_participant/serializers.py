@@ -9,12 +9,8 @@ class EventParticipantSerializer(serializers.ModelSerializer):
     """EventParticipant API序列化器"""
 
     # 嵌套序列化器字段（写操作）
-    event = serializers.PrimaryKeyRelatedField(
-        queryset=DjangoEvent.objects.all(), write_only=True, required=True
-    )
-    fencer = serializers.PrimaryKeyRelatedField(
-        queryset=DjangoFencer.objects.all(), write_only=True, required=True
-    )
+    event = serializers.PrimaryKeyRelatedField(queryset=DjangoEvent.objects.all(), write_only=True, required=True)
+    fencer = serializers.PrimaryKeyRelatedField(queryset=DjangoFencer.objects.all(), write_only=True, required=True)
 
     # 只读嵌套字段（用于输出）
     event_info = serializers.SerializerMethodField(read_only=True)
@@ -44,14 +40,8 @@ class EventParticipantSerializer(serializers.ModelSerializer):
             return {
                 "id": str(obj.event.id),
                 "event_name": obj.event.event_name,
-                "tournament_id": (
-                    str(obj.event.tournament.id) if obj.event.tournament else None
-                ),
-                "tournament_name": (
-                    obj.event.tournament.tournament_name
-                    if obj.event.tournament
-                    else None
-                ),
+                "tournament_id": str(obj.event.tournament.id) if obj.event.tournament else None,
+                "tournament_name": obj.event.tournament.tournament_name if obj.event.tournament else None,
             }
         return None
 
@@ -129,16 +119,12 @@ class EventParticipantUpdateSerializer(EventParticipantSerializer):
 class EventParticipantBulkRegisterSerializer(serializers.Serializer):
     """批量注册序列化器"""
 
-    fencer_ids = serializers.ListField(
-        child=serializers.UUIDField(), required=True, min_length=1
-    )
+    fencer_ids = serializers.ListField(child=serializers.UUIDField(), required=True, min_length=1)
 
 
 class EventParticipantSeedUpdateSerializer(serializers.Serializer):
     """种子排名更新序列化器"""
 
     fencer_id = serializers.UUIDField(required=True)
-    seed_rank = serializers.IntegerField(
-        required=True, validators=[MinValueValidator(1)]
-    )
+    seed_rank = serializers.IntegerField(required=True, validators=[MinValueValidator(1)])
     seed_value = serializers.FloatField(required=False, allow_null=True)

@@ -13,9 +13,7 @@ class PoolSerializer(DomainModelSerializer):
     """
 
     id = serializers.UUIDField(read_only=True)
-    event = serializers.PrimaryKeyRelatedField(
-        queryset=DjangoEvent.objects.all(), write_only=True, required=True
-    )
+    event = serializers.PrimaryKeyRelatedField(queryset=DjangoEvent.objects.all(), write_only=True, required=True)
     stage_id = serializers.CharField(max_length=50, required=False, default="1")
     pool_number = serializers.IntegerField(required=True)
     fencer_ids = serializers.JSONField(required=False, default=list)
@@ -55,9 +53,7 @@ class PoolSerializer(DomainModelSerializer):
                 return {
                     "id": str(event.id),
                     "event_name": event.event_name,
-                    "tournament_id": (
-                        str(event.tournament.id) if event.tournament else None
-                    ),
+                    "tournament_id": str(event.tournament.id) if event.tournament else None,
                 }
             except DjangoEvent.DoesNotExist:
                 return None
@@ -65,9 +61,7 @@ class PoolSerializer(DomainModelSerializer):
             return {
                 "id": str(obj.event.id),
                 "event_name": obj.event.event_name,
-                "tournament_id": (
-                    str(obj.event.tournament.id) if obj.event.tournament else None
-                ),
+                "tournament_id": str(obj.event.tournament.id) if obj.event.tournament else None,
             }
         return None
 
@@ -81,9 +75,7 @@ class PoolSerializer(DomainModelSerializer):
 
         valid_statuses = [status.value for status in PoolStatus]
         if value not in valid_statuses:
-            raise serializers.ValidationError(
-                f"Status must be one of: {', '.join(valid_statuses)}"
-            )
+            raise serializers.ValidationError(f"Status must be one of: {', '.join(valid_statuses)}")
         return value
 
 
@@ -92,9 +84,7 @@ class PoolCreateSerializer(DomainModelSerializer):
     Pool create serializer - for creating new pools.
     """
 
-    event = serializers.PrimaryKeyRelatedField(
-        queryset=DjangoEvent.objects.all(), write_only=True, required=True
-    )
+    event = serializers.PrimaryKeyRelatedField(queryset=DjangoEvent.objects.all(), write_only=True, required=True)
     stage_id = serializers.CharField(max_length=50, required=False, default="1")
     pool_number = serializers.IntegerField(required=True)
     fencer_ids = serializers.JSONField(required=False, default=list)
@@ -124,15 +114,7 @@ class PoolUpdateSerializer(DomainModelSerializer):
 
     class Meta:
         model = DjangoPool
-        fields = [
-            "pool_number",
-            "fencer_ids",
-            "results",
-            "stats",
-            "is_locked",
-            "status",
-            "is_completed",
-        ]
+        fields = ["pool_number", "fencer_ids", "results", "stats", "is_locked", "status", "is_completed"]
 
     def validate_pool_number(self, value):
         if value is not None and value < 1:
@@ -145,7 +127,5 @@ class PoolUpdateSerializer(DomainModelSerializer):
 
             valid_statuses = [status.value for status in PoolStatus]
             if value not in valid_statuses:
-                raise serializers.ValidationError(
-                    f"Status must be one of: {', '.join(valid_statuses)}"
-                )
+                raise serializers.ValidationError(f"Status must be one of: {', '.join(valid_statuses)}")
         return value

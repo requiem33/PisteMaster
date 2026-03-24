@@ -36,20 +36,10 @@ class PoolAssignmentViewSet(viewsets.ModelViewSet):
     queryset = DjangoPoolAssignment.objects.all().order_by("pool", "final_pool_rank")
     serializer_class = PoolAssignmentSerializer
     permission_classes = [IsAuthenticated]
-    filter_backends = [
-        DjangoFilterBackend,
-        filters.SearchFilter,
-        filters.OrderingFilter,
-    ]
+    filter_backends = [DjangoFilterBackend, filters.SearchFilter, filters.OrderingFilter]
     filterset_fields = ["pool", "fencer", "is_qualified"]
     search_fields = ["fencer__first_name", "fencer__last_name", "fencer__display_name"]
-    ordering_fields = [
-        "final_pool_rank",
-        "victories",
-        "indicator",
-        "touches_scored",
-        "touches_received",
-    ]
+    ordering_fields = ["final_pool_rank", "victories", "indicator", "touches_scored", "touches_received"]
     ordering = ["pool", "final_pool_rank"]
     pagination_class = StandardPagination
 
@@ -86,10 +76,7 @@ class PoolAssignmentViewSet(viewsets.ModelViewSet):
             output_serializer = PoolAssignmentSerializer(django_assignment)
             return Response(output_serializer.data, status=status.HTTP_201_CREATED)
         except PoolAssignmentService.PoolAssignmentServiceError as e:
-            return Response(
-                {"detail": e.message, "errors": e.errors},
-                status=status.HTTP_400_BAD_REQUEST,
-            )
+            return Response({"detail": e.message, "errors": e.errors}, status=status.HTTP_400_BAD_REQUEST)
 
     def update(self, request, *args, **kwargs):
         partial = kwargs.pop("partial", False)
@@ -99,9 +86,7 @@ class PoolAssignmentViewSet(viewsets.ModelViewSet):
 
         # 不允许更新pool和fencer
         if "pool" in serializer.validated_data or "fencer" in serializer.validated_data:
-            return Response(
-                {"detail": "不能修改小组或运动员"}, status=status.HTTP_400_BAD_REQUEST
-            )
+            return Response({"detail": "不能修改小组或运动员"}, status=status.HTTP_400_BAD_REQUEST)
 
         try:
             # 更新其他字段
@@ -128,27 +113,16 @@ class PoolAssignmentViewSet(viewsets.ModelViewSet):
         try:
             assignment_service = PoolAssignmentService()
             updated_assignment = assignment_service.update_match_result(
-                assignment.pool.id,
-                assignment.fencer.id,
-                touches_scored,
-                touches_received,
-                is_winner,
+                assignment.pool.id, assignment.fencer.id, touches_scored, touches_received, is_winner
             )
 
             if updated_assignment:
-                output_serializer = PoolAssignmentSerializer(
-                    DjangoPoolAssignment.objects.get(id=updated_assignment.id)
-                )
+                output_serializer = PoolAssignmentSerializer(DjangoPoolAssignment.objects.get(id=updated_assignment.id))
                 return Response(output_serializer.data)
             else:
-                return Response(
-                    {"detail": "更新比赛结果失败"}, status=status.HTTP_400_BAD_REQUEST
-                )
+                return Response({"detail": "更新比赛结果失败"}, status=status.HTTP_400_BAD_REQUEST)
         except PoolAssignmentService.PoolAssignmentServiceError as e:
-            return Response(
-                {"detail": e.message, "errors": e.errors},
-                status=status.HTTP_400_BAD_REQUEST,
-            )
+            return Response({"detail": e.message, "errors": e.errors}, status=status.HTTP_400_BAD_REQUEST)
 
     @action(detail=False, methods=["post"], url_path="bulk-create")
     def bulk_create(self, request):
@@ -160,33 +134,22 @@ class PoolAssignmentViewSet(viewsets.ModelViewSet):
         fencer_ids = serializer.validated_data["fencer_ids"]
 
         if not pool_id:
-            return Response(
-                {"detail": "pool_id is required"}, status=status.HTTP_400_BAD_REQUEST
-            )
+            return Response({"detail": "pool_id is required"}, status=status.HTTP_400_BAD_REQUEST)
 
         try:
             assignment_service = PoolAssignmentService()
             assignments = assignment_service.assign_fencers_to_pool(pool_id, fencer_ids)
 
             assignment_ids = [a.id for a in assignments]
-            django_assignments = DjangoPoolAssignment.objects.filter(
-                id__in=assignment_ids
-            )
+            django_assignments = DjangoPoolAssignment.objects.filter(id__in=assignment_ids)
             output_serializer = PoolAssignmentSerializer(django_assignments, many=True)
 
             return Response(
-                {
-                    "pool_id": pool_id,
-                    "created_count": len(assignments),
-                    "assignments": output_serializer.data,
-                },
+                {"pool_id": pool_id, "created_count": len(assignments), "assignments": output_serializer.data},
                 status=status.HTTP_201_CREATED,
             )
         except PoolAssignmentService.PoolAssignmentServiceError as e:
-            return Response(
-                {"detail": e.message, "errors": e.errors},
-                status=status.HTTP_400_BAD_REQUEST,
-            )
+            return Response({"detail": e.message, "errors": e.errors}, status=status.HTTP_400_BAD_REQUEST)
 
     @action(detail=False, methods=["post"], url_path="update-ranking")
     def update_ranking(self, request):
@@ -196,9 +159,7 @@ class PoolAssignmentViewSet(viewsets.ModelViewSet):
 
         pool_id = request.data.get("pool_id")
         if not pool_id:
-            return Response(
-                {"detail": "pool_id is required"}, status=status.HTTP_400_BAD_REQUEST
-            )
+            return Response({"detail": "pool_id is required"}, status=status.HTTP_400_BAD_REQUEST)
 
         ranking_updates = []
         for update in serializer.validated_data:
@@ -212,27 +173,16 @@ class PoolAssignmentViewSet(viewsets.ModelViewSet):
             )
 
         try:
-            from ....repositories.pool_assignment_repo import (
-                DjangoPoolAssignmentRepository,
-            )
+            from ....repositories.pool_assignment_repo import DjangoPoolAssignmentRepository
 
             assignment_repo = DjangoPoolAssignmentRepository()
-            updated_assignments = assignment_repo.update_ranking(
-                pool_id, ranking_updates
-            )
+            updated_assignments = assignment_repo.update_ranking(pool_id, ranking_updates)
 
             updated_assignment_ids = [a.id for a in updated_assignments]
-            django_assignments = DjangoPoolAssignment.objects.filter(
-                id__in=updated_assignment_ids
-            )
+            django_assignments = DjangoPoolAssignment.objects.filter(id__in=updated_assignment_ids)
             output_serializer = PoolAssignmentSerializer(django_assignments, many=True)
 
-            return Response(
-                {
-                    "message": f"成功更新 {len(updated_assignments)} 名运动员的排名",
-                    "assignments": output_serializer.data,
-                }
-            )
+            return Response({"message": f"成功更新 {len(updated_assignments)} 名运动员的排名", "assignments": output_serializer.data})
         except Exception as e:
             return Response({"detail": str(e)}, status=status.HTTP_400_BAD_REQUEST)
 
@@ -242,9 +192,7 @@ class PoolAssignmentViewSet(viewsets.ModelViewSet):
         try:
             pool_uuid = UUID(pool_id)
         except ValueError:
-            return Response(
-                {"detail": "Invalid pool ID format"}, status=status.HTTP_400_BAD_REQUEST
-            )
+            return Response({"detail": "Invalid pool ID format"}, status=status.HTTP_400_BAD_REQUEST)
 
         assignment_service = PoolAssignmentService()
         assignments = assignment_service.get_assignments_by_pool(pool_uuid)
@@ -253,13 +201,7 @@ class PoolAssignmentViewSet(viewsets.ModelViewSet):
         django_assignments = DjangoPoolAssignment.objects.filter(id__in=assignment_ids)
         serializer = PoolAssignmentSerializer(django_assignments, many=True)
 
-        return Response(
-            {
-                "pool_id": pool_id,
-                "assignment_count": len(assignments),
-                "assignments": serializer.data,
-            }
-        )
+        return Response({"pool_id": pool_id, "assignment_count": len(assignments), "assignments": serializer.data})
 
     @action(detail=False, methods=["get"], url_path="by-fencer/(?P<fencer_id>[^/.]+)")
     def by_fencer(self, request, fencer_id=None):
@@ -267,10 +209,7 @@ class PoolAssignmentViewSet(viewsets.ModelViewSet):
         try:
             fencer_uuid = UUID(fencer_id)
         except ValueError:
-            return Response(
-                {"detail": "Invalid fencer ID format"},
-                status=status.HTTP_400_BAD_REQUEST,
-            )
+            return Response({"detail": "Invalid fencer ID format"}, status=status.HTTP_400_BAD_REQUEST)
 
         assignment_service = PoolAssignmentService()
         assignments = assignment_service.get_assignments_by_fencer(fencer_uuid)
@@ -279,75 +218,44 @@ class PoolAssignmentViewSet(viewsets.ModelViewSet):
         django_assignments = DjangoPoolAssignment.objects.filter(id__in=assignment_ids)
         serializer = PoolAssignmentSerializer(django_assignments, many=True)
 
-        return Response(
-            {
-                "fencer_id": fencer_id,
-                "assignment_count": len(assignments),
-                "assignments": serializer.data,
-            }
-        )
+        return Response({"fencer_id": fencer_id, "assignment_count": len(assignments), "assignments": serializer.data})
 
-    @action(
-        detail=False,
-        methods=["post"],
-        url_path="calculate-pool-ranking/(?P<pool_id>[^/.]+)",
-    )
+    @action(detail=False, methods=["post"], url_path="calculate-pool-ranking/(?P<pool_id>[^/.]+)")
     def calculate_pool_ranking(self, request, pool_id=None):
         """计算小组排名"""
         try:
             pool_uuid = UUID(pool_id)
         except ValueError:
-            return Response(
-                {"detail": "Invalid pool ID format"}, status=status.HTTP_400_BAD_REQUEST
-            )
+            return Response({"detail": "Invalid pool ID format"}, status=status.HTTP_400_BAD_REQUEST)
 
         try:
             assignment_service = PoolAssignmentService()
             assignments = assignment_service.get_pool_ranking(pool_uuid)
 
             assignment_ids = [a.id for a in assignments]
-            django_assignments = DjangoPoolAssignment.objects.filter(
-                id__in=assignment_ids
-            )
+            django_assignments = DjangoPoolAssignment.objects.filter(id__in=assignment_ids)
             serializer = PoolAssignmentSerializer(django_assignments, many=True)
 
             return Response({"pool_id": pool_id, "ranking": serializer.data})
         except PoolAssignmentService.PoolAssignmentServiceError as e:
             return Response({"detail": e.message}, status=status.HTTP_400_BAD_REQUEST)
 
-    @action(
-        detail=False,
-        methods=["post"],
-        url_path="calculate-qualification/(?P<event_id>[^/.]+)",
-    )
+    @action(detail=False, methods=["post"], url_path="calculate-qualification/(?P<event_id>[^/.]+)")
     def calculate_qualification(self, request, event_id=None):
         """计算晋级排名"""
         qualification_count = request.data.get("qualification_count", 16)
 
         try:
             assignment_service = PoolAssignmentService()
-            assignments = assignment_service.calculate_qualification_for_event(
-                event_id, qualification_count
-            )
+            assignments = assignment_service.calculate_qualification_for_event(event_id, qualification_count)
 
             assignment_ids = [a.id for a in assignments]
-            django_assignments = DjangoPoolAssignment.objects.filter(
-                id__in=assignment_ids
-            )
+            django_assignments = DjangoPoolAssignment.objects.filter(id__in=assignment_ids)
             serializer = PoolAssignmentSerializer(django_assignments, many=True)
 
-            return Response(
-                {
-                    "event_id": event_id,
-                    "qualification_count": qualification_count,
-                    "qualified_fencers": serializer.data,
-                }
-            )
+            return Response({"event_id": event_id, "qualification_count": qualification_count, "qualified_fencers": serializer.data})
         except PoolAssignmentService.PoolAssignmentServiceError as e:
-            return Response(
-                {"detail": e.message, "errors": e.errors},
-                status=status.HTTP_400_BAD_REQUEST,
-            )
+            return Response({"detail": e.message, "errors": e.errors}, status=status.HTTP_400_BAD_REQUEST)
 
     @action(detail=False, methods=["get"], url_path="qualified/(?P<event_id>[^/.]+)")
     def get_qualified_fencers(self, request, event_id=None):
@@ -357,18 +265,10 @@ class PoolAssignmentViewSet(viewsets.ModelViewSet):
             assignments = assignment_service.get_qualified_fencers_for_event(event_id)
 
             assignment_ids = [a.id for a in assignments]
-            django_assignments = DjangoPoolAssignment.objects.filter(
-                id__in=assignment_ids
-            )
+            django_assignments = DjangoPoolAssignment.objects.filter(id__in=assignment_ids)
             serializer = PoolAssignmentSerializer(django_assignments, many=True)
 
-            return Response(
-                {
-                    "event_id": event_id,
-                    "qualified_count": len(assignments),
-                    "qualified_fencers": serializer.data,
-                }
-            )
+            return Response({"event_id": event_id, "qualified_count": len(assignments), "qualified_fencers": serializer.data})
         except PoolAssignmentService.PoolAssignmentServiceError as e:
             return Response({"detail": e.message}, status=status.HTTP_400_BAD_REQUEST)
 
@@ -378,21 +278,13 @@ class PoolAssignmentViewSet(viewsets.ModelViewSet):
         try:
             pool_uuid = UUID(pool_id)
         except ValueError:
-            return Response(
-                {"detail": "Invalid pool ID format"}, status=status.HTTP_400_BAD_REQUEST
-            )
+            return Response({"detail": "Invalid pool ID format"}, status=status.HTTP_400_BAD_REQUEST)
 
         try:
             assignment_service = PoolAssignmentService()
             details = assignment_service.get_pool_assignment_details(pool_uuid)
 
-            return Response(
-                {
-                    "pool_id": pool_id,
-                    "assignment_count": len(details),
-                    "assignments": details,
-                }
-            )
+            return Response({"pool_id": pool_id, "assignment_count": len(details), "assignments": details})
         except PoolAssignmentService.PoolAssignmentServiceError as e:
             return Response({"detail": e.message}, status=status.HTTP_400_BAD_REQUEST)
 
@@ -402,9 +294,7 @@ class PoolAssignmentViewSet(viewsets.ModelViewSet):
         try:
             pool_uuid = UUID(pool_id)
         except ValueError:
-            return Response(
-                {"detail": "Invalid pool ID format"}, status=status.HTTP_400_BAD_REQUEST
-            )
+            return Response({"detail": "Invalid pool ID format"}, status=status.HTTP_400_BAD_REQUEST)
 
         try:
             assignment_service = PoolAssignmentService()
@@ -413,8 +303,6 @@ class PoolAssignmentViewSet(viewsets.ModelViewSet):
             if success:
                 return Response({"message": f"成功重置小组 {pool_id} 的分配记录"})
             else:
-                return Response(
-                    {"detail": "重置失败"}, status=status.HTTP_400_BAD_REQUEST
-                )
+                return Response({"detail": "重置失败"}, status=status.HTTP_400_BAD_REQUEST)
         except PoolAssignmentService.PoolAssignmentServiceError as e:
             return Response({"detail": e.message}, status=status.HTTP_400_BAD_REQUEST)

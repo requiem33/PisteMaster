@@ -4,9 +4,7 @@ from django.db import IntegrityError
 
 from core.models.piste import Piste
 from backend.apps.fencing_organizer.repositories.piste_repo import DjangoPisteRepository
-from backend.apps.fencing_organizer.repositories.tournament_repo import (
-    DjangoTournamentRepository,
-)
+from backend.apps.fencing_organizer.repositories.tournament_repo import DjangoTournamentRepository
 
 
 class PisteService:
@@ -34,13 +32,9 @@ class PisteService:
         self._validate_piste_data(piste_data)
 
         # 验证赛事存在
-        tournament = self.tournament_repository.get_tournament_by_id(
-            piste_data.get("tournament_id")
-        )
+        tournament = self.tournament_repository.get_tournament_by_id(piste_data.get("tournament_id"))
         if not tournament:
-            raise self.PisteServiceError(
-                f"赛事 {piste_data.get('tournament_id')} 不存在"
-            )
+            raise self.PisteServiceError(f"赛事 {piste_data.get('tournament_id')} 不存在")
 
         # 创建Domain对象
         piste = Piste(**piste_data)
@@ -50,9 +44,7 @@ class PisteService:
             return self.repository.save(piste)
         except IntegrityError as e:
             if "unique_piste_tournament_number" in str(e):
-                raise self.PisteServiceError(
-                    f"剑道编号 '{piste_data.get('piste_number')}' 在该赛事中已存在"
-                )
+                raise self.PisteServiceError(f"剑道编号 '{piste_data.get('piste_number')}' 在该赛事中已存在")
             raise self.PisteServiceError(f"创建剑道失败: {str(e)}")
 
     def update_piste(self, piste_id: UUID, piste_data: dict) -> Piste:
@@ -75,9 +67,7 @@ class PisteService:
             return self.repository.save(existing_piste)
         except IntegrityError as e:
             if "unique_piste_tournament_number" in str(e):
-                raise self.PisteServiceError(
-                    f"剑道编号 '{piste_data.get('piste_number')}' 在该赛事中已存在"
-                )
+                raise self.PisteServiceError(f"剑道编号 '{piste_data.get('piste_number')}' 在该赛事中已存在")
             raise self.PisteServiceError(f"更新剑道失败: {str(e)}")
 
     def _validate_piste_data(self, data: dict, is_update: bool = False) -> None:
@@ -107,9 +97,7 @@ class PisteService:
         # 剑道类型验证
         valid_piste_types = ["MAIN", "SIDE", "WARMUP", None]
         if data.get("piste_type") not in valid_piste_types:
-            errors["piste_type"] = (
-                f"剑道类型必须是: {', '.join([t for t in valid_piste_types if t])}"
-            )
+            errors["piste_type"] = f"剑道类型必须是: {', '.join([t for t in valid_piste_types if t])}"
 
         if errors:
             raise self.PisteServiceError("数据验证失败", errors)

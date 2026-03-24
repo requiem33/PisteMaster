@@ -25,9 +25,7 @@ class EventRepositoryInterface(ABC):
         pass
 
     @abstractmethod
-    def get_upcoming_events(
-        self, start_date: datetime, end_date: datetime
-    ) -> List[Event]:
+    def get_upcoming_events(self, start_date: datetime, end_date: datetime) -> List[Event]:
         pass
 
     @abstractmethod

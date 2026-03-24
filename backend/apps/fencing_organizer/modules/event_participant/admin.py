@@ -7,14 +7,7 @@ from .models import DjangoEventParticipant
 class EventParticipantAdmin(admin.ModelAdmin):
     """EventParticipant管理后台"""
 
-    list_display = (
-        "fencer_display",
-        "event_display",
-        "seed_rank",
-        "is_confirmed",
-        "registration_time",
-        "created_at",
-    )
+    list_display = ("fencer_display", "event_display", "seed_rank", "is_confirmed", "registration_time", "created_at")
     list_filter = ("is_confirmed", "event", "event__tournament", "fencer__country_code")
     search_fields = (
         "fencer__first_name",
@@ -48,11 +41,7 @@ class EventParticipantAdmin(admin.ModelAdmin):
     def event_display(self, obj):
         """事件显示"""
         if obj.event:
-            return format_html(
-                '<a href="/admin/fencing_organizer/djangoevent/{}/change/">{}</a>',
-                obj.event.id,
-                obj.event.event_name,
-            )
+            return format_html('<a href="/admin/fencing_organizer/djangoevent/{}/change/">{}</a>', obj.event.id, obj.event.event_name)
         return "-"
 
     event_display.short_description = "项目"

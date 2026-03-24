@@ -1,6 +1,4 @@
-from backend.apps.fencing_organizer.modules.pool_assignment.models import (
-    DjangoPoolAssignment,
-)
+from backend.apps.fencing_organizer.modules.pool_assignment.models import DjangoPoolAssignment
 from core.models.pool_assignment import PoolAssignment
 
 

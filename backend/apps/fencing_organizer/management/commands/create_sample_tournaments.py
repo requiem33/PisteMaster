@@ -2,9 +2,7 @@
 from django.core.management.base import BaseCommand
 from datetime import date
 from backend.apps.fencing_organizer.modules.tournament.models import DjangoTournament
-from backend.apps.fencing_organizer.modules.tournament_status.models import (
-    DjangoTournamentStatus,
-)
+from backend.apps.fencing_organizer.modules.tournament_status.models import DjangoTournamentStatus
 
 
 class Command(BaseCommand):
@@ -14,19 +12,11 @@ class Command(BaseCommand):
         # 获取状态
         try:
             planning_status = DjangoTournamentStatus.objects.get(status_code="PLANNING")
-            registration_open = DjangoTournamentStatus.objects.get(
-                status_code="REGISTRATION_OPEN"
-            )
+            registration_open = DjangoTournamentStatus.objects.get(status_code="REGISTRATION_OPEN")
             ongoing_status = DjangoTournamentStatus.objects.get(status_code="ONGOING")
-            completed_status = DjangoTournamentStatus.objects.get(
-                status_code="COMPLETED"
-            )
+            completed_status = DjangoTournamentStatus.objects.get(status_code="COMPLETED")
         except DjangoTournamentStatus.DoesNotExist:
-            self.stdout.write(
-                self.style.ERROR(
-                    "请先初始化赛事状态数据 (python manage.py init_tournament_statuses)"
-                )
-            )
+            self.stdout.write(self.style.ERROR("请先初始化赛事状态数据 (python manage.py init_tournament_statuses)"))
             return
 
         # 示例赛事数据
@@ -69,14 +59,11 @@ class Command(BaseCommand):
         for tournament_data in sample_tournaments:
             # 检查是否已存在
             if not DjangoTournament.objects.filter(
-                tournament_name=tournament_data["tournament_name"],
-                start_date=tournament_data["start_date"],
+                tournament_name=tournament_data["tournament_name"], start_date=tournament_data["start_date"]
             ).exists():
                 tournament = DjangoTournament(**tournament_data)
                 tournament.save()
                 created_count += 1
-                self.stdout.write(
-                    self.style.SUCCESS(f"创建赛事: {tournament.tournament_name}")
-                )
+                self.stdout.write(self.style.SUCCESS(f"创建赛事: {tournament.tournament_name}"))
 
         self.stdout.write(self.style.SUCCESS(f"成功创建 {created_count} 个示例赛事"))

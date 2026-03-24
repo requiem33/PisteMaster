@@ -1,12 +1,8 @@
 from typing import Optional, List
 from uuid import UUID
 
-from backend.apps.fencing_organizer.mappers.elimination_type_mapper import (
-    EliminationTypeMapper,
-)
-from backend.apps.fencing_organizer.modules.elimination_type.models import (
-    DjangoEliminationType,
-)
+from backend.apps.fencing_organizer.mappers.elimination_type_mapper import EliminationTypeMapper
+from backend.apps.fencing_organizer.modules.elimination_type.models import DjangoEliminationType
 from core.models.elimination_type import EliminationType
 
 
@@ -38,8 +34,6 @@ class DjangoEliminationTypeRepository:
         """保存淘汰赛类型"""
         orm_data = EliminationTypeMapper.to_orm_data(elimination_type)
 
-        django_type, created = DjangoEliminationType.objects.update_or_create(
-            id=elimination_type.id, defaults=orm_data
-        )
+        django_type, created = DjangoEliminationType.objects.update_or_create(id=elimination_type.id, defaults=orm_data)
 
         return EliminationTypeMapper.to_domain(django_type)

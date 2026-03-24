@@ -12,20 +12,14 @@ class DjangoPiste(models.Model):
 
     # 外键字段
     tournament = models.ForeignKey(
-        DjangoTournament,
-        on_delete=models.CASCADE,
-        db_column="tournament_id",
-        related_name="pistes",
-        verbose_name="所属赛事",
+        DjangoTournament, on_delete=models.CASCADE, db_column="tournament_id", related_name="pistes", verbose_name="所属赛事"
     )
 
     # 必填字段
     piste_number = models.CharField(max_length=10, verbose_name="剑道编号")
 
     # 可选字段
-    location = models.CharField(
-        max_length=100, null=True, blank=True, verbose_name="具体位置"
-    )
+    location = models.CharField(max_length=100, null=True, blank=True, verbose_name="具体位置")
 
     piste_type = models.CharField(
         max_length=20,
@@ -52,16 +46,9 @@ class DjangoPiste(models.Model):
         verbose_name = "剑道"
         verbose_name_plural = "剑道"
         ordering = ["tournament", "piste_number"]
-        constraints = [
-            models.UniqueConstraint(
-                fields=["tournament", "piste_number"],
-                name="unique_piste_tournament_number",
-            )
-        ]
+        constraints = [models.UniqueConstraint(fields=["tournament", "piste_number"], name="unique_piste_tournament_number")]
         indexes = [
-            models.Index(
-                fields=["tournament", "is_available"], name="idx_piste_availability"
-            ),
+            models.Index(fields=["tournament", "is_available"], name="idx_piste_availability"),
             models.Index(fields=["piste_type"], name="idx_piste_type"),
         ]
 

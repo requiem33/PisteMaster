@@ -13,9 +13,7 @@ class TournamentRepositoryInterface(ABC):
         pass
 
     @abstractmethod
-    def get_tournaments_by_date_range(
-        self, start_date: date, end_date: date
-    ) -> List[Tournament]:
+    def get_tournaments_by_date_range(self, start_date: date, end_date: date) -> List[Tournament]:
         pass
 
     @abstractmethod

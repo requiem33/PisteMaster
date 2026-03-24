@@ -12,15 +12,9 @@ class DjangoFencer(models.Model):
     id = models.UUIDField(primary_key=True, default=uuid4, editable=False)
 
     # 基本字段
-    first_name = models.CharField(
-        max_length=100, verbose_name="名", validators=[MinLengthValidator(1)]
-    )
-    last_name = models.CharField(
-        max_length=100, verbose_name="姓", validators=[MinLengthValidator(1)]
-    )
-    display_name = models.CharField(
-        max_length=200, blank=True, null=True, verbose_name="显示名称"
-    )
+    first_name = models.CharField(max_length=100, verbose_name="名", validators=[MinLengthValidator(1)])
+    last_name = models.CharField(max_length=100, verbose_name="姓", validators=[MinLengthValidator(1)])
+    display_name = models.CharField(max_length=200, blank=True, null=True, verbose_name="显示名称")
 
     # 个人信息
     gender = models.CharField(
@@ -36,24 +30,14 @@ class DjangoFencer(models.Model):
         verbose_name="性别",
     )
 
-    country_code = models.CharField(
-        max_length=3,
-        blank=True,
-        null=True,
-        verbose_name="国家代码",
-        help_text="IOC 3字母代码",
-    )
+    country_code = models.CharField(max_length=3, blank=True, null=True, verbose_name="国家代码", help_text="IOC 3字母代码")
 
     birth_date = models.DateField(blank=True, null=True, verbose_name="出生日期")
 
     # 击剑相关
-    fencing_id = models.CharField(
-        max_length=50, unique=True, blank=True, null=True, verbose_name="国际击剑ID"
-    )
+    fencing_id = models.CharField(max_length=50, unique=True, blank=True, null=True, verbose_name="国际击剑ID")
 
-    current_ranking = models.IntegerField(
-        blank=True, null=True, verbose_name="当前世界排名"
-    )
+    current_ranking = models.IntegerField(blank=True, null=True, verbose_name="当前世界排名")
 
     primary_weapon = models.CharField(
         max_length=10,

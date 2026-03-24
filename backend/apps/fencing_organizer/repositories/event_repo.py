@@ -15,9 +15,7 @@ class DjangoEventRepository(EventRepositoryInterface):
     def get_event_by_id(self, event_id: UUID) -> Optional[Event]:
         """通过ID获取项目"""
         try:
-            django_event = DjangoEvent.objects.select_related("tournament", "rule").get(
-                pk=event_id
-            )
+            django_event = DjangoEvent.objects.select_related("tournament", "rule").get(pk=event_id)
             return EventMapper.to_domain(django_event)
         except DjangoEvent.DoesNotExist:
             return None
@@ -34,27 +32,17 @@ class DjangoEventRepository(EventRepositoryInterface):
 
     def get_events_by_type(self, event_type: str) -> List[Event]:
         """获取指定类型的项目"""
-        django_events = (
-            DjangoEvent.objects.select_related("tournament", "rule")
-            .filter(event_type=event_type)
-            .order_by("-start_time")
-        )
+        django_events = DjangoEvent.objects.select_related("tournament", "rule").filter(event_type=event_type).order_by("-start_time")
 
         return [EventMapper.to_domain(e) for e in django_events]
 
     def get_events_by_status(self, status: str) -> List[Event]:
         """获取指定状态的项目"""
-        django_events = (
-            DjangoEvent.objects.select_related("tournament", "rule")
-            .filter(status=status)
-            .order_by("start_time")
-        )
+        django_events = DjangoEvent.objects.select_related("tournament", "rule").filter(status=status).order_by("start_time")
 
         return [EventMapper.to_domain(e) for e in django_events]
 
-    def get_upcoming_events(
-        self, start_date: datetime, end_date: datetime
-    ) -> List[Event]:
+    def get_upcoming_events(self, start_date: datetime, end_date: datetime) -> List[Event]:
         """获取指定时间范围内的项目"""
         django_events = (
             DjangoEvent.objects.select_related("tournament", "rule")
@@ -66,11 +54,7 @@ class DjangoEventRepository(EventRepositoryInterface):
 
     def get_all_events(self) -> List[Event]:
         """获取所有项目"""
-        django_events = (
-            DjangoEvent.objects.select_related("tournament", "rule")
-            .all()
-            .order_by("-start_time")
-        )
+        django_events = DjangoEvent.objects.select_related("tournament", "rule").all().order_by("-start_time")
 
         return [EventMapper.to_domain(e) for e in django_events]
 
@@ -78,9 +62,7 @@ class DjangoEventRepository(EventRepositoryInterface):
         """保存或更新项目"""
         orm_data = EventMapper.to_orm_data(event)
 
-        django_event, created = DjangoEvent.objects.update_or_create(
-            id=event.id, defaults=orm_data
-        )
+        django_event, created = DjangoEvent.objects.update_or_create(id=event.id, defaults=orm_data)
 
         return EventMapper.to_domain(django_event)
 
@@ -100,9 +82,7 @@ class DjangoEventRepository(EventRepositoryInterface):
         if "tournament_id" in filters:
             queryset = queryset.filter(tournament_id=filters["tournament_id"])
         if "tournament_name" in filters:
-            queryset = queryset.filter(
-                tournament__tournament_name__icontains=filters["tournament_name"]
-            )
+            queryset = queryset.filter(tournament__tournament_name__icontains=filters["tournament_name"])
         if "event_name" in filters:
             queryset = queryset.filter(event_name__icontains=filters["event_name"])
         if "event_type" in filters:
@@ -113,9 +93,7 @@ class DjangoEventRepository(EventRepositoryInterface):
             queryset = queryset.filter(is_team_event=filters["is_team_event"])
         if "date_range" in filters:
             start_date, end_date = filters["date_range"]
-            queryset = queryset.filter(
-                Q(start_time__gte=start_date) & Q(start_time__lte=end_date)
-            )
+            queryset = queryset.filter(Q(start_time__gte=start_date) & Q(start_time__lte=end_date))
         if "is_active" in filters:
             if filters["is_active"]:
                 queryset = queryset.exclude(status__in=["COMPLETED", "CANCELLED"])

@@ -1,15 +1,9 @@
 from typing import Optional, List
 from uuid import UUID
 
-from backend.apps.fencing_organizer.mappers.tournament_status_mapper import (
-    TournamentStatusMapper,
-)
-from backend.apps.fencing_organizer.modules.tournament_status.models import (
-    DjangoTournamentStatus,
-)
-from core.interfaces.tournament_status_repository import (
-    TournamentStatusRepositoryInterface,
-)
+from backend.apps.fencing_organizer.mappers.tournament_status_mapper import TournamentStatusMapper
+from backend.apps.fencing_organizer.modules.tournament_status.models import DjangoTournamentStatus
+from core.interfaces.tournament_status_repository import TournamentStatusRepositoryInterface
 from core.models.tournament_status import TournamentStatus
 
 
@@ -41,8 +35,6 @@ class DjangoTournamentStatusRepository(TournamentStatusRepositoryInterface):
         """保存或更新状态"""
         orm_data = TournamentStatusMapper.to_orm_data(status)
 
-        django_status, created = DjangoTournamentStatus.objects.update_or_create(
-            id=status.id, defaults=orm_data
-        )
+        django_status, created = DjangoTournamentStatus.objects.update_or_create(id=status.id, defaults=orm_data)
 
         return TournamentStatusMapper.to_domain(django_status)

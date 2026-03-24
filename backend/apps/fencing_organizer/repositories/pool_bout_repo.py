@@ -15,9 +15,7 @@ class DjangoPoolBoutRepository(PoolBoutRepositoryInterface):
     def get_bout_by_id(self, bout_id: UUID) -> Optional[PoolBout]:
         """通过ID获取比赛"""
         try:
-            django_bout = DjangoPoolBout.objects.select_related(
-                "pool", "fencer_a", "fencer_b", "winner", "status"
-            ).get(pk=bout_id)
+            django_bout = DjangoPoolBout.objects.select_related("pool", "fencer_a", "fencer_b", "winner", "status").get(pk=bout_id)
             return PoolBoutMapper.to_domain(django_bout)
         except DjangoPoolBout.DoesNotExist:
             return None
@@ -25,9 +23,7 @@ class DjangoPoolBoutRepository(PoolBoutRepositoryInterface):
     def get_bouts_by_pool(self, pool_id: UUID) -> List[PoolBout]:
         """获取指定小组的所有比赛"""
         django_bouts = (
-            DjangoPoolBout.objects.select_related(
-                "pool", "fencer_a", "fencer_b", "winner", "status"
-            )
+            DjangoPoolBout.objects.select_related("pool", "fencer_a", "fencer_b", "winner", "status")
             .filter(pool_id=pool_id)
             .order_by("scheduled_time")
         )
@@ -37,9 +33,7 @@ class DjangoPoolBoutRepository(PoolBoutRepositoryInterface):
     def get_bouts_by_fencer(self, fencer_id: UUID) -> List[PoolBout]:
         """获取指定运动员的所有比赛"""
         django_bouts = (
-            DjangoPoolBout.objects.select_related(
-                "pool", "fencer_a", "fencer_b", "winner", "status"
-            )
+            DjangoPoolBout.objects.select_related("pool", "fencer_a", "fencer_b", "winner", "status")
             .filter(Q(fencer_a_id=fencer_id) | Q(fencer_b_id=fencer_id))
             .order_by("-scheduled_time")
         )
@@ -49,23 +43,17 @@ class DjangoPoolBoutRepository(PoolBoutRepositoryInterface):
     def get_bouts_by_status(self, status_id: UUID) -> List[PoolBout]:
         """获取指定状态的所有比赛"""
         django_bouts = (
-            DjangoPoolBout.objects.select_related(
-                "pool", "fencer_a", "fencer_b", "winner", "status"
-            )
+            DjangoPoolBout.objects.select_related("pool", "fencer_a", "fencer_b", "winner", "status")
             .filter(status_id=status_id)
             .order_by("scheduled_time")
         )
 
         return [PoolBoutMapper.to_domain(b) for b in django_bouts]
 
-    def get_bouts_by_date_range(
-        self, start_date: datetime, end_date: datetime
-    ) -> List[PoolBout]:
+    def get_bouts_by_date_range(self, start_date: datetime, end_date: datetime) -> List[PoolBout]:
         """获取指定时间范围内的比赛"""
         django_bouts = (
-            DjangoPoolBout.objects.select_related(
-                "pool", "fencer_a", "fencer_b", "winner", "status"
-            )
+            DjangoPoolBout.objects.select_related("pool", "fencer_a", "fencer_b", "winner", "status")
             .filter(Q(scheduled_time__gte=start_date) & Q(scheduled_time__lte=end_date))
             .order_by("scheduled_time")
         )
@@ -75,11 +63,7 @@ class DjangoPoolBoutRepository(PoolBoutRepositoryInterface):
     def get_all_bouts(self) -> List[PoolBout]:
         """获取所有比赛"""
         django_bouts = (
-            DjangoPoolBout.objects.select_related(
-                "pool", "fencer_a", "fencer_b", "winner", "status"
-            )
-            .all()
-            .order_by("-scheduled_time")
+            DjangoPoolBout.objects.select_related("pool", "fencer_a", "fencer_b", "winner", "status").all().order_by("-scheduled_time")
         )
 
         return [PoolBoutMapper.to_domain(b) for b in django_bouts]
@@ -88,9 +72,7 @@ class DjangoPoolBoutRepository(PoolBoutRepositoryInterface):
         """保存或更新比赛"""
         orm_data = PoolBoutMapper.to_orm_data(bout)
 
-        django_bout, created = DjangoPoolBout.objects.update_or_create(
-            id=bout.id, defaults=orm_data
-        )
+        django_bout, created = DjangoPoolBout.objects.update_or_create(id=bout.id, defaults=orm_data)
 
         return PoolBoutMapper.to_domain(django_bout)
 
@@ -102,18 +84,16 @@ class DjangoPoolBoutRepository(PoolBoutRepositoryInterface):
         except Exception:
             return False
 
-    def get_bout_by_fencers(
-        self, pool_id: UUID, fencer_a_id: UUID, fencer_b_id: UUID
-    ) -> Optional[PoolBout]:
+    def get_bout_by_fencers(self, pool_id: UUID, fencer_a_id: UUID, fencer_b_id: UUID) -> Optional[PoolBout]:
         """获取指定运动员对之间的比赛"""
         # 确保fencer_a_id < fencer_b_id
         fencer_a = min(fencer_a_id, fencer_b_id)
         fencer_b = max(fencer_a_id, fencer_b_id)
 
         try:
-            django_bout = DjangoPoolBout.objects.select_related(
-                "pool", "fencer_a", "fencer_b", "winner", "status"
-            ).get(pool_id=pool_id, fencer_a_id=fencer_a, fencer_b_id=fencer_b)
+            django_bout = DjangoPoolBout.objects.select_related("pool", "fencer_a", "fencer_b", "winner", "status").get(
+                pool_id=pool_id, fencer_a_id=fencer_a, fencer_b_id=fencer_b
+            )
             return PoolBoutMapper.to_domain(django_bout)
         except DjangoPoolBout.DoesNotExist:
             return None
@@ -124,13 +104,8 @@ class DjangoPoolBoutRepository(PoolBoutRepositoryInterface):
         future_time = now + datetime.timedelta(hours=hours)
 
         django_bouts = (
-            DjangoPoolBout.objects.select_related(
-                "pool", "fencer_a", "fencer_b", "winner", "status"
-            )
-            .filter(
-                Q(scheduled_time__gte=now) & Q(scheduled_time__lte=future_time),
-                status__status_code__in=["SCHEDULED", "READY"],
-            )
+            DjangoPoolBout.objects.select_related("pool", "fencer_a", "fencer_b", "winner", "status")
+            .filter(Q(scheduled_time__gte=now) & Q(scheduled_time__lte=future_time), status__status_code__in=["SCHEDULED", "READY"])
             .order_by("scheduled_time")
         )
 
@@ -139,9 +114,7 @@ class DjangoPoolBoutRepository(PoolBoutRepositoryInterface):
     def get_active_bouts(self) -> List[PoolBout]:
         """获取活跃的比赛（非已完成/已取消）"""
         django_bouts = (
-            DjangoPoolBout.objects.select_related(
-                "pool", "fencer_a", "fencer_b", "winner", "status"
-            )
+            DjangoPoolBout.objects.select_related("pool", "fencer_a", "fencer_b", "winner", "status")
             .exclude(status__status_code__in=["COMPLETED", "CANCELLED"])
             .order_by("scheduled_time")
         )
@@ -167,11 +140,7 @@ class DjangoPoolBoutRepository(PoolBoutRepositoryInterface):
             return []
 
     def update_bout_result(
-        self,
-        bout_id: UUID,
-        fencer_a_score: int,
-        fencer_b_score: int,
-        winner_id: Optional[UUID] = None,
+        self, bout_id: UUID, fencer_a_score: int, fencer_b_score: int, winner_id: Optional[UUID] = None
     ) -> Optional[PoolBout]:
         """更新比赛结果"""
         try:
@@ -181,13 +150,9 @@ class DjangoPoolBoutRepository(PoolBoutRepositoryInterface):
             bout.winner_id = winner_id
 
             # 自动设置状态为已完成
-            from backend.apps.fencing_organizer.modules.match_status.models import (
-                DjangoMatchStatusType,
-            )
+            from backend.apps.fencing_organizer.modules.match_status.models import DjangoMatchStatusType
 
-            completed_status = DjangoMatchStatusType.objects.get(
-                status_code="COMPLETED"
-            )
+            completed_status = DjangoMatchStatusType.objects.get(status_code="COMPLETED")
             bout.status = completed_status
 
             bout.save()

@@ -36,15 +36,11 @@ class DjangoFencerRepository(FencerRepositoryInterface):
 
     def get_fencers_by_country(self, country_code: str) -> List[Fencer]:
         """根据国家获取运动员列表"""
-        django_fencers = DjangoFencer.objects.filter(
-            country_code=country_code.upper()
-        ).order_by("last_name", "first_name")
+        django_fencers = DjangoFencer.objects.filter(country_code=country_code.upper()).order_by("last_name", "first_name")
 
         return [FencerMapper.to_domain(fencer) for fencer in django_fencers]
 
-    def get_fencers_by_name(
-        self, first_name: Optional[str] = None, last_name: Optional[str] = None
-    ) -> List[Fencer]:
+    def get_fencers_by_name(self, first_name: Optional[str] = None, last_name: Optional[str] = None) -> List[Fencer]:
         """根据姓名获取运动员列表"""
         query = Q()
 
@@ -54,9 +50,7 @@ class DjangoFencerRepository(FencerRepositoryInterface):
         if last_name:
             query &= Q(last_name__icontains=last_name)
 
-        django_fencers = DjangoFencer.objects.filter(query).order_by(
-            "last_name", "first_name"
-        )
+        django_fencers = DjangoFencer.objects.filter(query).order_by("last_name", "first_name")
         return [FencerMapper.to_domain(fencer) for fencer in django_fencers]
 
     def get_all_fencers(self, skip: int = 0, limit: int = 100) -> List[Fencer]:
@@ -75,9 +69,7 @@ class DjangoFencerRepository(FencerRepositoryInterface):
         """保存或更新运动员"""
         orm_data = FencerMapper.to_orm_data(fencer)
 
-        django_fencer, created = DjangoFencer.objects.update_or_create(
-            id=fencer.id, defaults=orm_data
-        )
+        django_fencer, created = DjangoFencer.objects.update_or_create(id=fencer.id, defaults=orm_data)
 
         return FencerMapper.to_domain(django_fencer)
 
@@ -111,22 +103,16 @@ class DjangoFencerRepository(FencerRepositoryInterface):
         if not q_objects:
             return []
 
-        django_fencers = DjangoFencer.objects.filter(q_objects).order_by(
-            "last_name", "first_name"
-        )[:limit]
+        django_fencers = DjangoFencer.objects.filter(q_objects).order_by("last_name", "first_name")[:limit]
         return [FencerMapper.to_domain(fencer) for fencer in django_fencers]
 
     def get_fencers_by_weapon(self, weapon: str) -> List[Fencer]:
         """根据主剑种获取运动员"""
-        django_fencers = DjangoFencer.objects.filter(
-            primary_weapon=weapon.upper()
-        ).order_by("current_ranking", "last_name", "first_name")
+        django_fencers = DjangoFencer.objects.filter(primary_weapon=weapon.upper()).order_by("current_ranking", "last_name", "first_name")
 
         return [FencerMapper.to_domain(fencer) for fencer in django_fencers]
 
-    def get_top_ranked_fencers(
-        self, limit: int = 100, country: Optional[str] = None
-    ) -> List[Fencer]:
+    def get_top_ranked_fencers(self, limit: int = 100, country: Optional[str] = None) -> List[Fencer]:
         """获取排名最高的运动员"""
         query = DjangoFencer.objects.filter(current_ranking__isnull=False)
 
@@ -140,9 +126,7 @@ class DjangoFencerRepository(FencerRepositoryInterface):
         """统计运动员数量"""
         stats = {
             "total": DjangoFencer.objects.count(),
-            "with_fencing_id": DjangoFencer.objects.exclude(
-                fencing_id__isnull=True
-            ).count(),
+            "with_fencing_id": DjangoFencer.objects.exclude(fencing_id__isnull=True).count(),
             "by_gender": {},
             "by_weapon": {},
         }
@@ -154,9 +138,7 @@ class DjangoFencerRepository(FencerRepositoryInterface):
                 stats["by_gender"][gender["gender"]] = gender["count"]
 
         # 按剑种统计
-        weapons = DjangoFencer.objects.values("primary_weapon").annotate(
-            count=Count("primary_weapon")
-        )
+        weapons = DjangoFencer.objects.values("primary_weapon").annotate(count=Count("primary_weapon"))
         for weapon in weapons:
             if weapon["primary_weapon"]:
                 stats["by_weapon"][weapon["primary_weapon"]] = weapon["count"]

@@ -23,9 +23,7 @@ class PoolAssignmentRepositoryInterface(ABC):
         pass
 
     @abstractmethod
-    def get_assignment(
-        self, pool_id: UUID, fencer_id: UUID
-    ) -> Optional[PoolAssignment]:
+    def get_assignment(self, pool_id: UUID, fencer_id: UUID) -> Optional[PoolAssignment]:
         """获取指定小组和运动员的分配记录"""
         pass
 
@@ -45,9 +43,7 @@ class PoolAssignmentRepositoryInterface(ABC):
         pass
 
     @abstractmethod
-    def update_ranking(
-        self, pool_id: UUID, ranking_updates: List[Dict[str, Any]]
-    ) -> List[PoolAssignment]:
+    def update_ranking(self, pool_id: UUID, ranking_updates: List[Dict[str, Any]]) -> List[PoolAssignment]:
         """更新排名"""
         pass
 
@@ -63,12 +59,7 @@ class PoolAssignmentRepositoryInterface(ABC):
 
     @abstractmethod
     def update_match_result(
-        self,
-        pool_id: UUID,
-        fencer_id: UUID,
-        touches_scored: int,
-        touches_received: int,
-        is_winner: bool,
+        self, pool_id: UUID, fencer_id: UUID, touches_scored: int, touches_received: int, is_winner: bool
     ) -> Optional[PoolAssignment]:
         """更新比赛结果"""
         pass
@@ -79,9 +70,7 @@ class PoolAssignmentRepositoryInterface(ABC):
         pass
 
     @abstractmethod
-    def calculate_qualification_ranking(
-        self, event_id: UUID, qualification_count: int
-    ) -> List[PoolAssignment]:
+    def calculate_qualification_ranking(self, event_id: UUID, qualification_count: int) -> List[PoolAssignment]:
         """计算晋级排名"""
         pass
 

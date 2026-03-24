@@ -3,12 +3,8 @@ from uuid import UUID
 from django.db.models import Count, Sum, Avg
 from django.db import transaction
 
-from backend.apps.fencing_organizer.mappers.pool_assignment_mapper import (
-    PoolAssignmentMapper,
-)
-from backend.apps.fencing_organizer.modules.pool_assignment.models import (
-    DjangoPoolAssignment,
-)
+from backend.apps.fencing_organizer.mappers.pool_assignment_mapper import PoolAssignmentMapper
+from backend.apps.fencing_organizer.modules.pool_assignment.models import DjangoPoolAssignment
 from core.interfaces.pool_assignment_repository import PoolAssignmentRepositoryInterface
 from core.models.pool_assignment import PoolAssignment
 
@@ -19,41 +15,29 @@ class DjangoPoolAssignmentRepository(PoolAssignmentRepositoryInterface):
     def get_assignment_by_id(self, assignment_id: UUID) -> Optional[PoolAssignment]:
         """根据ID获取分配记录"""
         try:
-            django_assignment = DjangoPoolAssignment.objects.select_related(
-                "pool", "fencer"
-            ).get(pk=assignment_id)
+            django_assignment = DjangoPoolAssignment.objects.select_related("pool", "fencer").get(pk=assignment_id)
             return PoolAssignmentMapper.to_domain(django_assignment)
         except DjangoPoolAssignment.DoesNotExist:
             return None
 
     def get_assignments_by_pool(self, pool_id: UUID) -> List[PoolAssignment]:
         """获取指定小组的所有分配记录"""
-        assignments = (
-            DjangoPoolAssignment.objects.filter(pool_id=pool_id)
-            .select_related("pool", "fencer")
-            .order_by("final_pool_rank")
-        )
+        assignments = DjangoPoolAssignment.objects.filter(pool_id=pool_id).select_related("pool", "fencer").order_by("final_pool_rank")
 
         return [PoolAssignmentMapper.to_domain(a) for a in assignments]
 
     def get_assignments_by_fencer(self, fencer_id: UUID) -> List[PoolAssignment]:
         """获取指定运动员的所有小组分配记录"""
         assignments = (
-            DjangoPoolAssignment.objects.filter(fencer_id=fencer_id)
-            .select_related("pool", "fencer")
-            .order_by("-pool__event__start_time")
+            DjangoPoolAssignment.objects.filter(fencer_id=fencer_id).select_related("pool", "fencer").order_by("-pool__event__start_time")
         )
 
         return [PoolAssignmentMapper.to_domain(a) for a in assignments]
 
-    def get_assignment(
-        self, pool_id: UUID, fencer_id: UUID
-    ) -> Optional[PoolAssignment]:
+    def get_assignment(self, pool_id: UUID, fencer_id: UUID) -> Optional[PoolAssignment]:
         """获取指定小组和运动员的分配记录"""
         try:
-            django_assignment = DjangoPoolAssignment.objects.select_related(
-                "pool", "fencer"
-            ).get(pool_id=pool_id, fencer_id=fencer_id)
+            django_assignment = DjangoPoolAssignment.objects.select_related("pool", "fencer").get(pool_id=pool_id, fencer_id=fencer_id)
             return PoolAssignmentMapper.to_domain(django_assignment)
         except DjangoPoolAssignment.DoesNotExist:
             return None
@@ -62,18 +46,14 @@ class DjangoPoolAssignmentRepository(PoolAssignmentRepositoryInterface):
         """保存或更新分配记录"""
         orm_data = PoolAssignmentMapper.to_orm_data(assignment)
 
-        django_assignment, created = DjangoPoolAssignment.objects.update_or_create(
-            id=assignment.id, defaults=orm_data
-        )
+        django_assignment, created = DjangoPoolAssignment.objects.update_or_create(id=assignment.id, defaults=orm_data)
 
         return PoolAssignmentMapper.to_domain(django_assignment)
 
     def delete_assignment(self, pool_id: UUID, fencer_id: UUID) -> bool:
         """删除分配记录"""
         try:
-            count, _ = DjangoPoolAssignment.objects.filter(
-                pool_id=pool_id, fencer_id=fencer_id
-            ).delete()
+            count, _ = DjangoPoolAssignment.objects.filter(pool_id=pool_id, fencer_id=fencer_id).delete()
             return count > 0
         except Exception:
             return False
@@ -99,9 +79,7 @@ class DjangoPoolAssignmentRepository(PoolAssignmentRepositoryInterface):
 
         return self.save_assignment(assignment)
 
-    def update_ranking(
-        self, pool_id: UUID, ranking_updates: List[Dict[str, Any]]
-    ) -> List[PoolAssignment]:
+    def update_ranking(self, pool_id: UUID, ranking_updates: List[Dict[str, Any]]) -> List[PoolAssignment]:
         """更新排名"""
         updated_assignments = []
 
@@ -116,17 +94,13 @@ class DjangoPoolAssignmentRepository(PoolAssignmentRepositoryInterface):
                     continue
 
                 try:
-                    assignment = DjangoPoolAssignment.objects.get(
-                        pool_id=pool_id, fencer_id=fencer_id
-                    )
+                    assignment = DjangoPoolAssignment.objects.get(pool_id=pool_id, fencer_id=fencer_id)
                     assignment.final_pool_rank = final_pool_rank
                     assignment.is_qualified = is_qualified
                     assignment.qualification_rank = qualification_rank
                     assignment.save()
 
-                    updated_assignments.append(
-                        PoolAssignmentMapper.to_domain(assignment)
-                    )
+                    updated_assignments.append(PoolAssignmentMapper.to_domain(assignment))
                 except DjangoPoolAssignment.DoesNotExist:
                     continue
 
@@ -140,11 +114,7 @@ class DjangoPoolAssignmentRepository(PoolAssignmentRepositoryInterface):
             return []
 
         # 第一步：按胜场数排序
-        sorted_assignments = sorted(
-            assignments,
-            key=lambda x: (x.victories, x.indicator, x.touches_scored),
-            reverse=True,
-        )
+        sorted_assignments = sorted(assignments, key=lambda x: (x.victories, x.indicator, x.touches_scored), reverse=True)
 
         # 处理平局：如果有完全相同的胜场数、得失分差和总得分，需要检查直接对战结果
         # 这里简化处理，直接按已有排序
@@ -170,13 +140,9 @@ class DjangoPoolAssignmentRepository(PoolAssignmentRepositoryInterface):
         )
 
         # 获取排名分布
-        ranked_count = DjangoPoolAssignment.objects.filter(
-            pool_id=pool_id, final_pool_rank__isnull=False
-        ).count()
+        ranked_count = DjangoPoolAssignment.objects.filter(pool_id=pool_id, final_pool_rank__isnull=False).count()
 
-        qualified_count = DjangoPoolAssignment.objects.filter(
-            pool_id=pool_id, is_qualified=True
-        ).count()
+        qualified_count = DjangoPoolAssignment.objects.filter(pool_id=pool_id, is_qualified=True).count()
 
         stats["ranked_count"] = ranked_count
         stats["qualified_count"] = qualified_count
@@ -184,18 +150,11 @@ class DjangoPoolAssignmentRepository(PoolAssignmentRepositoryInterface):
         return stats
 
     def update_match_result(
-        self,
-        pool_id: UUID,
-        fencer_id: UUID,
-        touches_scored: int,
-        touches_received: int,
-        is_winner: bool,
+        self, pool_id: UUID, fencer_id: UUID, touches_scored: int, touches_received: int, is_winner: bool
     ) -> Optional[PoolAssignment]:
         """更新比赛结果"""
         try:
-            assignment = DjangoPoolAssignment.objects.get(
-                pool_id=pool_id, fencer_id=fencer_id
-            )
+            assignment = DjangoPoolAssignment.objects.get(pool_id=pool_id, fencer_id=fencer_id)
 
             assignment.matches_played += 1
             assignment.touches_scored += touches_scored
@@ -218,9 +177,7 @@ class DjangoPoolAssignmentRepository(PoolAssignmentRepositoryInterface):
         from backend.apps.fencing_organizer.modules.pool.models import DjangoPool
 
         # 获取该事件的所有小组
-        pool_ids = DjangoPool.objects.filter(event_id=event_id).values_list(
-            "id", flat=True
-        )
+        pool_ids = DjangoPool.objects.filter(event_id=event_id).values_list("id", flat=True)
 
         assignments = (
             DjangoPoolAssignment.objects.filter(pool_id__in=pool_ids, is_qualified=True)
@@ -230,16 +187,12 @@ class DjangoPoolAssignmentRepository(PoolAssignmentRepositoryInterface):
 
         return [PoolAssignmentMapper.to_domain(a) for a in assignments]
 
-    def calculate_qualification_ranking(
-        self, event_id: UUID, qualification_count: int
-    ) -> List[PoolAssignment]:
+    def calculate_qualification_ranking(self, event_id: UUID, qualification_count: int) -> List[PoolAssignment]:
         """计算晋级排名"""
         from backend.apps.fencing_organizer.modules.pool.models import DjangoPool
 
         # 获取该事件的所有小组
-        pool_ids = DjangoPool.objects.filter(event_id=event_id).values_list(
-            "id", flat=True
-        )
+        pool_ids = DjangoPool.objects.filter(event_id=event_id).values_list("id", flat=True)
 
         # 获取所有小组中排名靠前的运动员
         all_assignments = []
@@ -252,9 +205,7 @@ class DjangoPoolAssignmentRepository(PoolAssignmentRepositoryInterface):
             all_assignments,
             key=lambda x: (
                 x.is_qualified,  # 优先已经标记为晋级的
-                (
-                    x.final_pool_rank if x.final_pool_rank else float("inf")
-                ),  # 小组排名靠前的优先
+                x.final_pool_rank if x.final_pool_rank else float("inf"),  # 小组排名靠前的优先
                 x.victories,  # 胜场数多的优先
                 x.indicator,  # 得失分差大的优先
                 x.touches_scored,  # 总得分多的优先
@@ -294,11 +245,7 @@ class DjangoPoolAssignmentRepository(PoolAssignmentRepositoryInterface):
 
     def get_pool_assignments_with_fencers(self, pool_id: UUID) -> List[Dict[str, Any]]:
         """获取小组分配记录（包含运动员信息）"""
-        assignments = (
-            DjangoPoolAssignment.objects.filter(pool_id=pool_id)
-            .select_related("fencer", "pool")
-            .order_by("final_pool_rank")
-        )
+        assignments = DjangoPoolAssignment.objects.filter(pool_id=pool_id).select_related("fencer", "pool").order_by("final_pool_rank")
 
         result = []
         for assignment in assignments:

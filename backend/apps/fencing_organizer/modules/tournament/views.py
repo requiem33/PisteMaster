@@ -37,25 +37,14 @@ class TournamentViewSet(viewsets.GenericViewSet):
     queryset = DjangoTournament.objects.all()
     serializer_class = TournamentSerializer
     service = TournamentService()
-    filter_backends = [
-        DjangoFilterBackend,
-        filters.SearchFilter,
-        filters.OrderingFilter,
-    ]
+    filter_backends = [DjangoFilterBackend, filters.SearchFilter, filters.OrderingFilter]
     filterset_fields = ["status", "start_date", "end_date"]
     search_fields = ["tournament_name", "organizer", "location"]
     ordering_fields = ["tournament_name", "start_date", "end_date", "created_at"]
     ordering = ["-start_date"]
 
     def get_permissions(self):
-        if self.action in [
-            "create",
-            "list",
-            "retrieve",
-            "update",
-            "partial_update",
-            "destroy",
-        ]:
+        if self.action in ["create", "list", "retrieve", "update", "partial_update", "destroy"]:
             return [AllowAny()]
         return [IsAuthenticated()]
 
@@ -85,9 +74,7 @@ class TournamentViewSet(viewsets.GenericViewSet):
         reverse = ordering.startswith("-")
         order_field = ordering.lstrip("-")
         if hasattr(tournaments[0] if tournaments else None, order_field):
-            tournaments = sorted(
-                tournaments, key=lambda x: getattr(x, order_field), reverse=reverse
-            )
+            tournaments = sorted(tournaments, key=lambda x: getattr(x, order_field), reverse=reverse)
 
         return get_paginated_response(self.get_serializer_class(), tournaments, request)
 
@@ -95,15 +82,11 @@ class TournamentViewSet(viewsets.GenericViewSet):
         try:
             tournament_id = UUID(pk)
         except (ValueError, TypeError):
-            return Response(
-                {"detail": "Invalid tournament ID"}, status=status.HTTP_400_BAD_REQUEST
-            )
+            return Response({"detail": "Invalid tournament ID"}, status=status.HTTP_400_BAD_REQUEST)
 
         tournament = self.service.get_tournament_by_id(tournament_id)
         if not tournament:
-            return Response(
-                {"detail": "Tournament not found"}, status=status.HTTP_404_NOT_FOUND
-            )
+            return Response({"detail": "Tournament not found"}, status=status.HTTP_404_NOT_FOUND)
 
         serializer = self.get_serializer(tournament)
         return Response(serializer.data)
@@ -117,71 +100,50 @@ class TournamentViewSet(viewsets.GenericViewSet):
             response_serializer = self.get_serializer(tournament)
             return Response(response_serializer.data, status=status.HTTP_201_CREATED)
         except self.service.TournamentServiceError as e:
-            return Response(
-                {"detail": e.message, "errors": e.errors},
-                status=status.HTTP_400_BAD_REQUEST,
-            )
+            return Response({"detail": e.message, "errors": e.errors}, status=status.HTTP_400_BAD_REQUEST)
 
     def update(self, request, pk=None):
         try:
             tournament_id = UUID(pk)
         except (ValueError, TypeError):
-            return Response(
-                {"detail": "Invalid tournament ID"}, status=status.HTTP_400_BAD_REQUEST
-            )
+            return Response({"detail": "Invalid tournament ID"}, status=status.HTTP_400_BAD_REQUEST)
 
         serializer = self.get_serializer(data=request.data)
         serializer.is_valid(raise_exception=True)
 
         try:
-            tournament = self.service.update_tournament(
-                tournament_id, serializer.validated_data
-            )
+            tournament = self.service.update_tournament(tournament_id, serializer.validated_data)
             response_serializer = self.get_serializer(tournament)
             return Response(response_serializer.data)
         except self.service.TournamentServiceError as e:
-            return Response(
-                {"detail": e.message, "errors": e.errors},
-                status=status.HTTP_400_BAD_REQUEST,
-            )
+            return Response({"detail": e.message, "errors": e.errors}, status=status.HTTP_400_BAD_REQUEST)
 
     def partial_update(self, request, pk=None):
         try:
             tournament_id = UUID(pk)
         except (ValueError, TypeError):
-            return Response(
-                {"detail": "Invalid tournament ID"}, status=status.HTTP_400_BAD_REQUEST
-            )
+            return Response({"detail": "Invalid tournament ID"}, status=status.HTTP_400_BAD_REQUEST)
 
         serializer = TournamentSerializer(data=request.data, partial=True)
         serializer.is_valid(raise_exception=True)
 
         try:
-            tournament = self.service.update_tournament(
-                tournament_id, serializer.validated_data
-            )
+            tournament = self.service.update_tournament(tournament_id, serializer.validated_data)
             response_serializer = TournamentSerializer(tournament)
             return Response(response_serializer.data)
         except self.service.TournamentServiceError as e:
-            return Response(
-                {"detail": e.message, "errors": e.errors},
-                status=status.HTTP_400_BAD_REQUEST,
-            )
+            return Response({"detail": e.message, "errors": e.errors}, status=status.HTTP_400_BAD_REQUEST)
 
     def destroy(self, request, pk=None):
         try:
             tournament_id = UUID(pk)
         except (ValueError, TypeError):
-            return Response(
-                {"detail": "Invalid tournament ID"}, status=status.HTTP_400_BAD_REQUEST
-            )
+            return Response({"detail": "Invalid tournament ID"}, status=status.HTTP_400_BAD_REQUEST)
 
         try:
             success = self.service.delete_tournament(tournament_id)
             if not success:
-                return Response(
-                    {"detail": "Tournament not found"}, status=status.HTTP_404_NOT_FOUND
-                )
+                return Response({"detail": "Tournament not found"}, status=status.HTTP_404_NOT_FOUND)
             return Response(status=status.HTTP_204_NO_CONTENT)
         except self.service.TournamentServiceError as e:
             return Response({"detail": e.message}, status=status.HTTP_400_BAD_REQUEST)
@@ -202,17 +164,11 @@ class TournamentViewSet(viewsets.GenericViewSet):
     @action(detail=False, methods=["get"])
     def statistics(self, request):
         total_tournaments = DjangoTournament.objects.count()
-        status_stats = (
-            DjangoTournament.objects.values("status")
-            .annotate(count=Count("id"))
-            .order_by("status")
-        )
+        status_stats = DjangoTournament.objects.values("status").annotate(count=Count("id")).order_by("status")
 
         today = date.today()
         upcoming_count = DjangoTournament.objects.filter(start_date__gte=today).count()
-        ongoing_count = DjangoTournament.objects.filter(
-            Q(start_date__lte=today) & Q(end_date__gte=today)
-        ).count()
+        ongoing_count = DjangoTournament.objects.filter(Q(start_date__lte=today) & Q(end_date__gte=today)).count()
         past_count = DjangoTournament.objects.filter(end_date__lt=today).count()
 
         return Response(
@@ -232,34 +188,18 @@ class TournamentViewSet(viewsets.GenericViewSet):
             tournament_id = UUID(pk)
             tournament = self.service.get_tournament_by_id(tournament_id)
             if not tournament:
-                return Response(
-                    {"detail": "Tournament not found"}, status=status.HTTP_404_NOT_FOUND
-                )
+                return Response({"detail": "Tournament not found"}, status=status.HTTP_404_NOT_FOUND)
 
             return Response(
                 {
                     "tournament_id": pk,
                     "current_status": {
                         "code": tournament.status,
-                        "since": (
-                            tournament.updated_at.isoformat()
-                            if tournament.updated_at
-                            else None
-                        ),
+                        "since": tournament.updated_at.isoformat() if tournament.updated_at else None,
                     },
-                    "created_at": (
-                        tournament.created_at.isoformat()
-                        if tournament.created_at
-                        else None
-                    ),
-                    "last_updated": (
-                        tournament.updated_at.isoformat()
-                        if tournament.updated_at
-                        else None
-                    ),
+                    "created_at": tournament.created_at.isoformat() if tournament.created_at else None,
+                    "last_updated": tournament.updated_at.isoformat() if tournament.updated_at else None,
                 }
             )
         except (ValueError, TypeError):
-            return Response(
-                {"detail": "Invalid tournament ID"}, status=status.HTTP_400_BAD_REQUEST
-            )
+            return Response({"detail": "Invalid tournament ID"}, status=status.HTTP_400_BAD_REQUEST)

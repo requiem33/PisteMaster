@@ -7,12 +7,7 @@ from rest_framework import filters
 from uuid import UUID
 
 from .models import DjangoPoolBout
-from .serializers import (
-    PoolBoutSerializer,
-    PoolBoutResultSerializer,
-    PoolBoutStartSerializer,
-    PoolBoutGenerateSerializer,
-)
+from .serializers import PoolBoutSerializer, PoolBoutResultSerializer, PoolBoutStartSerializer, PoolBoutGenerateSerializer
 from ...services.pool_bout_service import PoolBoutService
 
 
@@ -24,19 +19,9 @@ class PoolBoutViewSet(viewsets.ModelViewSet):
     queryset = DjangoPoolBout.objects.all().order_by("pool", "scheduled_time")
     serializer_class = PoolBoutSerializer
     permission_classes = [IsAuthenticated]
-    filter_backends = [
-        DjangoFilterBackend,
-        filters.SearchFilter,
-        filters.OrderingFilter,
-    ]
+    filter_backends = [DjangoFilterBackend, filters.SearchFilter, filters.OrderingFilter]
     filterset_fields = ["pool", "fencer_a", "fencer_b", "status", "winner"]
-    search_fields = [
-        "pool__pool_letter",
-        "fencer_a__last_name",
-        "fencer_a__first_name",
-        "fencer_b__last_name",
-        "fencer_b__first_name",
-    ]
+    search_fields = ["pool__pool_letter", "fencer_a__last_name", "fencer_a__first_name", "fencer_b__last_name", "fencer_b__first_name"]
     ordering_fields = ["scheduled_time", "actual_start_time", "actual_end_time"]
     ordering = ["scheduled_time"]
 
@@ -65,10 +50,7 @@ class PoolBoutViewSet(viewsets.ModelViewSet):
             output_serializer = PoolBoutSerializer(django_bout)
             return Response(output_serializer.data, status=status.HTTP_201_CREATED)
         except PoolBoutService.PoolBoutServiceError as e:
-            return Response(
-                {"detail": str(e), "errors": e.errors},
-                status=status.HTTP_400_BAD_REQUEST,
-            )
+            return Response({"detail": str(e), "errors": e.errors}, status=status.HTTP_400_BAD_REQUEST)
 
     def update(self, request, *args, **kwargs):
         partial = kwargs.pop("partial", False)
@@ -83,10 +65,7 @@ class PoolBoutViewSet(viewsets.ModelViewSet):
             output_serializer = PoolBoutSerializer(django_bout)
             return Response(output_serializer.data, status=status.HTTP_200_OK)
         except PoolBoutService.PoolBoutServiceError as e:
-            return Response(
-                {"detail": str(e), "errors": e.errors},
-                status=status.HTTP_400_BAD_REQUEST,
-            )
+            return Response({"detail": str(e), "errors": e.errors}, status=status.HTTP_400_BAD_REQUEST)
 
     @action(detail=True, methods=["post"], url_path="update-result")
     def update_result(self, request, pk=None):
@@ -104,24 +83,17 @@ class PoolBoutViewSet(viewsets.ModelViewSet):
 
         try:
             bout_service = PoolBoutService()
-            updated_bout = bout_service.update_bout_result(
-                bout.id, fencer_a_score, fencer_b_score, winner_id
-            )
+            updated_bout = bout_service.update_bout_result(bout.id, fencer_a_score, fencer_b_score, winner_id)
 
             # 更新备注
             if notes:
                 updated_bout.notes = notes
                 updated_bout.save()
 
-            output_serializer = PoolBoutSerializer(
-                DjangoPoolBout.objects.get(id=updated_bout.id)
-            )
+            output_serializer = PoolBoutSerializer(DjangoPoolBout.objects.get(id=updated_bout.id))
             return Response(output_serializer.data, status=status.HTTP_200_OK)
         except PoolBoutService.PoolBoutServiceError as e:
-            return Response(
-                {"detail": str(e), "errors": e.errors},
-                status=status.HTTP_400_BAD_REQUEST,
-            )
+            return Response({"detail": str(e), "errors": e.errors}, status=status.HTTP_400_BAD_REQUEST)
 
     @action(detail=True, methods=["post"], url_path="start")
     def start_bout(self, request, pk=None):
@@ -149,15 +121,10 @@ class PoolBoutViewSet(viewsets.ModelViewSet):
                 updated_bout.notes = notes
                 updated_bout.save()
 
-            output_serializer = PoolBoutSerializer(
-                DjangoPoolBout.objects.get(id=updated_bout.id)
-            )
+            output_serializer = PoolBoutSerializer(DjangoPoolBout.objects.get(id=updated_bout.id))
             return Response(output_serializer.data, status=status.HTTP_200_OK)
         except PoolBoutService.PoolBoutServiceError as e:
-            return Response(
-                {"detail": str(e), "errors": e.errors},
-                status=status.HTTP_400_BAD_REQUEST,
-            )
+            return Response({"detail": str(e), "errors": e.errors}, status=status.HTTP_400_BAD_REQUEST)
 
     @action(detail=True, methods=["post"], url_path="complete")
     def complete_bout(self, request, pk=None):
@@ -175,9 +142,7 @@ class PoolBoutViewSet(viewsets.ModelViewSet):
 
         try:
             bout_service = PoolBoutService()
-            updated_bout = bout_service.complete_bout(
-                bout.id, fencer_a_score, fencer_b_score
-            )
+            updated_bout = bout_service.complete_bout(bout.id, fencer_a_score, fencer_b_score)
 
             # 如果指定了胜者，更新胜者
             if winner_id:
@@ -189,15 +154,10 @@ class PoolBoutViewSet(viewsets.ModelViewSet):
                 updated_bout.notes = notes
                 updated_bout.save()
 
-            output_serializer = PoolBoutSerializer(
-                DjangoPoolBout.objects.get(id=updated_bout.id)
-            )
+            output_serializer = PoolBoutSerializer(DjangoPoolBout.objects.get(id=updated_bout.id))
             return Response(output_serializer.data, status=status.HTTP_200_OK)
         except PoolBoutService.PoolBoutServiceError as e:
-            return Response(
-                {"detail": str(e), "errors": e.errors},
-                status=status.HTTP_400_BAD_REQUEST,
-            )
+            return Response({"detail": str(e), "errors": e.errors}, status=status.HTTP_400_BAD_REQUEST)
 
     @action(detail=True, methods=["post"], url_path="cancel")
     def cancel_bout(self, request, pk=None):
@@ -210,15 +170,10 @@ class PoolBoutViewSet(viewsets.ModelViewSet):
         try:
             bout_service = PoolBoutService()
             updated_bout = bout_service.cancel_bout(bout.id, notes)
-            output_serializer = PoolBoutSerializer(
-                DjangoPoolBout.objects.get(id=updated_bout.id)
-            )
+            output_serializer = PoolBoutSerializer(DjangoPoolBout.objects.get(id=updated_bout.id))
             return Response(output_serializer.data, status=status.HTTP_200_OK)
         except PoolBoutService.PoolBoutServiceError as e:
-            return Response(
-                {"detail": str(e), "errors": e.errors},
-                status=status.HTTP_400_BAD_REQUEST,
-            )
+            return Response({"detail": str(e), "errors": e.errors}, status=status.HTTP_400_BAD_REQUEST)
 
     @action(detail=True, methods=["get"], url_path="stats")
     def get_stats(self, request, pk=None):
@@ -254,23 +209,12 @@ class PoolBoutViewSet(viewsets.ModelViewSet):
             bouts = bout_service.generate_round_robin_bouts(pool_id)
 
             bout_ids = [bout.id for bout in bouts]
-            django_bouts = DjangoPoolBout.objects.filter(id__in=bout_ids).order_by(
-                "scheduled_time"
-            )
+            django_bouts = DjangoPoolBout.objects.filter(id__in=bout_ids).order_by("scheduled_time")
             output_serializer = PoolBoutSerializer(django_bouts, many=True)
 
-            return Response(
-                {
-                    "message": f"成功生成{len(bouts)}场比赛",
-                    "bouts": output_serializer.data,
-                },
-                status=status.HTTP_201_CREATED,
-            )
+            return Response({"message": f"成功生成{len(bouts)}场比赛", "bouts": output_serializer.data}, status=status.HTTP_201_CREATED)
         except PoolBoutService.PoolBoutServiceError as e:
-            return Response(
-                {"detail": str(e), "errors": e.errors},
-                status=status.HTTP_400_BAD_REQUEST,
-            )
+            return Response({"detail": str(e), "errors": e.errors}, status=status.HTTP_400_BAD_REQUEST)
 
     @action(detail=False, methods=["get"], url_path="by-pool/(?P<pool_id>[^/.]+)")
     def by_pool(self, request, pool_id=None):
@@ -280,13 +224,9 @@ class PoolBoutViewSet(viewsets.ModelViewSet):
         try:
             pool_uuid = UUID(pool_id)
         except ValueError:
-            return Response(
-                {"detail": "Invalid pool ID format"}, status=status.HTTP_400_BAD_REQUEST
-            )
+            return Response({"detail": "Invalid pool ID format"}, status=status.HTTP_400_BAD_REQUEST)
 
-        bouts = DjangoPoolBout.objects.filter(pool_id=pool_uuid).order_by(
-            "scheduled_time"
-        )
+        bouts = DjangoPoolBout.objects.filter(pool_id=pool_uuid).order_by("scheduled_time")
         serializer = PoolBoutSerializer(bouts, many=True)
         return Response(serializer.data, status=status.HTTP_200_OK)
 
@@ -306,9 +246,7 @@ class PoolBoutViewSet(viewsets.ModelViewSet):
             bouts = bout_service.get_upcoming_bouts(hours)
 
             bout_ids = [bout.id for bout in bouts]
-            django_bouts = DjangoPoolBout.objects.filter(id__in=bout_ids).order_by(
-                "scheduled_time"
-            )
+            django_bouts = DjangoPoolBout.objects.filter(id__in=bout_ids).order_by("scheduled_time")
             output_serializer = PoolBoutSerializer(django_bouts, many=True)
 
             return Response(output_serializer.data, status=status.HTTP_200_OK)
@@ -325,9 +263,7 @@ class PoolBoutViewSet(viewsets.ModelViewSet):
             bouts = bout_service.get_active_bouts()
 
             bout_ids = [bout.id for bout in bouts]
-            django_bouts = DjangoPoolBout.objects.filter(id__in=bout_ids).order_by(
-                "scheduled_time"
-            )
+            django_bouts = DjangoPoolBout.objects.filter(id__in=bout_ids).order_by("scheduled_time")
             output_serializer = PoolBoutSerializer(django_bouts, many=True)
 
             return Response(output_serializer.data, status=status.HTTP_200_OK)

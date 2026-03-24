@@ -19,11 +19,7 @@ class TestTournamentStatusAPI:
         url = reverse("tournament-status-list")
         client.force_login(admin_user)
 
-        data = {
-            "status_code": "TEST_STATUS",
-            "display_name": "测试状态",
-            "description": "这是一个测试状态",
-        }
+        data = {"status_code": "TEST_STATUS", "display_name": "测试状态", "description": "这是一个测试状态"}
 
         response = client.post(url, data, format="json")
 

@@ -13,9 +13,7 @@ class EventParticipantRepositoryInterface(ABC):
         pass
 
     @abstractmethod
-    def get_participants_by_event(
-        self, event_id: UUID, confirmed_only: bool = True
-    ) -> List[EventParticipant]:
+    def get_participants_by_event(self, event_id: UUID, confirmed_only: bool = True) -> List[EventParticipant]:
         """获取指定项目的参与者"""
         pass
 
@@ -25,9 +23,7 @@ class EventParticipantRepositoryInterface(ABC):
         pass
 
     @abstractmethod
-    def get_participant(
-        self, event_id: UUID, fencer_id: UUID
-    ) -> Optional[EventParticipant]:
+    def get_participant(self, event_id: UUID, fencer_id: UUID) -> Optional[EventParticipant]:
         """获取指定项目和运动员的参与记录"""
         pass
 
@@ -54,9 +50,7 @@ class EventParticipantRepositoryInterface(ABC):
         pass
 
     @abstractmethod
-    def update_seed_ranks(
-        self, event_id: UUID, seed_updates: List[Tuple[UUID, int]]
-    ) -> List[EventParticipant]:
+    def update_seed_ranks(self, event_id: UUID, seed_updates: List[Tuple[UUID, int]]) -> List[EventParticipant]:
         """批量更新种子排名"""
         pass
 
@@ -66,16 +60,12 @@ class EventParticipantRepositoryInterface(ABC):
         pass
 
     @abstractmethod
-    def confirm_participant(
-        self, event_id: UUID, fencer_id: UUID
-    ) -> Optional[EventParticipant]:
+    def confirm_participant(self, event_id: UUID, fencer_id: UUID) -> Optional[EventParticipant]:
         """确认参赛"""
         pass
 
     @abstractmethod
-    def unconfirm_participant(
-        self, event_id: UUID, fencer_id: UUID
-    ) -> Optional[EventParticipant]:
+    def unconfirm_participant(self, event_id: UUID, fencer_id: UUID) -> Optional[EventParticipant]:
         """取消确认参赛"""
         pass
 
@@ -85,8 +75,6 @@ class EventParticipantRepositoryInterface(ABC):
         pass
 
     @abstractmethod
-    def get_top_seeded_fencers(
-        self, event_id: UUID, limit: int = 10
-    ) -> List[EventParticipant]:
+    def get_top_seeded_fencers(self, event_id: UUID, limit: int = 10) -> List[EventParticipant]:
         """获取种子排名最高的参与者"""
         pass

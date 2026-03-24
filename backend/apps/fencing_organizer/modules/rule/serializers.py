@@ -3,9 +3,7 @@ from decimal import Decimal
 from rest_framework import serializers
 
 from backend.apps.fencing_organizer.serializers.base import DomainModelSerializer
-from backend.apps.fencing_organizer.modules.elimination_type.models import (
-    DjangoEliminationType,
-)
+from backend.apps.fencing_organizer.modules.elimination_type.models import DjangoEliminationType
 from backend.apps.fencing_organizer.modules.ranking_type.models import DjangoRankingType
 from .models import DjangoRule
 
@@ -42,21 +40,15 @@ class RuleSerializer(DomainModelSerializer):
 
     elimination_type = EliminationTypeSerializer(read_only=True)
     final_ranking_type = RankingTypeSerializer(read_only=True)
-    elimination_type_code = serializers.CharField(
-        source="elimination_type.type_code", read_only=True
-    )
-    ranking_type_code = serializers.CharField(
-        source="final_ranking_type.type_code", read_only=True
-    )
+    elimination_type_code = serializers.CharField(source="elimination_type.type_code", read_only=True)
+    ranking_type_code = serializers.CharField(source="final_ranking_type.type_code", read_only=True)
 
     pool_size = serializers.IntegerField(required=False, allow_null=True)
     total_qualified_count = serializers.IntegerField(required=True)
     match_score_pool = serializers.IntegerField(required=False, allow_null=True)
     match_score_elimination = serializers.IntegerField(required=False, allow_null=True)
     match_duration = serializers.IntegerField(required=False, allow_null=True)
-    group_qualification_ratio = serializers.DecimalField(
-        max_digits=5, decimal_places=4, required=False, allow_null=True
-    )
+    group_qualification_ratio = serializers.DecimalField(max_digits=5, decimal_places=4, required=False, allow_null=True)
     description = serializers.CharField(required=False, allow_null=True)
     created_at = serializers.DateTimeField(read_only=True)
     updated_at = serializers.DateTimeField(read_only=True)
@@ -83,13 +75,7 @@ class RuleSerializer(DomainModelSerializer):
             "created_at",
             "updated_at",
         ]
-        read_only_fields = [
-            "id",
-            "is_preset",
-            "preset_code",
-            "created_at",
-            "updated_at",
-        ]
+        read_only_fields = ["id", "is_preset", "preset_code", "created_at", "updated_at"]
 
     def validate_rule_name(self, value):
         if not value or len(value.strip()) == 0:
@@ -105,9 +91,7 @@ class RuleSerializer(DomainModelSerializer):
 
     def validate_total_qualified_count(self, value):
         if value < 1:
-            raise serializers.ValidationError(
-                "Total qualified count must be greater than 0"
-            )
+            raise serializers.ValidationError("Total qualified count must be greater than 0")
         return value
 
     def validate_group_qualification_ratio(self, value):
@@ -115,13 +99,9 @@ class RuleSerializer(DomainModelSerializer):
             try:
                 ratio = Decimal(str(value))
                 if ratio < 0 or ratio > 1:
-                    raise serializers.ValidationError(
-                        "Qualification ratio must be between 0 and 1"
-                    )
+                    raise serializers.ValidationError("Qualification ratio must be between 0 and 1")
             except (ValueError, TypeError):
-                raise serializers.ValidationError(
-                    "Qualification ratio must be a valid decimal"
-                )
+                raise serializers.ValidationError("Qualification ratio must be a valid decimal")
         return value
 
     def validate_stages_config(self, value):
@@ -154,9 +134,7 @@ class RuleCreateSerializer(DomainModelSerializer):
     match_score_pool = serializers.IntegerField(required=False, allow_null=True)
     match_score_elimination = serializers.IntegerField(required=False, allow_null=True)
     match_duration = serializers.IntegerField(required=False, allow_null=True)
-    group_qualification_ratio = serializers.DecimalField(
-        max_digits=5, decimal_places=4, required=False, allow_null=True
-    )
+    group_qualification_ratio = serializers.DecimalField(max_digits=5, decimal_places=4, required=False, allow_null=True)
     description = serializers.CharField(required=False, allow_null=True)
 
     class Meta:
@@ -182,21 +160,13 @@ class RuleCreateSerializer(DomainModelSerializer):
 
     def validate(self, data):
         try:
-            data["elimination_type"] = DjangoEliminationType.objects.get(
-                pk=data.pop("elimination_type_id")
-            )
+            data["elimination_type"] = DjangoEliminationType.objects.get(pk=data.pop("elimination_type_id"))
         except DjangoEliminationType.DoesNotExist:
-            raise serializers.ValidationError(
-                {"elimination_type_id": "Elimination type not found"}
-            )
+            raise serializers.ValidationError({"elimination_type_id": "Elimination type not found"})
 
         try:
-            data["final_ranking_type"] = DjangoRankingType.objects.get(
-                pk=data.pop("final_ranking_type_id")
-            )
+            data["final_ranking_type"] = DjangoRankingType.objects.get(pk=data.pop("final_ranking_type_id"))
         except DjangoRankingType.DoesNotExist:
-            raise serializers.ValidationError(
-                {"final_ranking_type_id": "Ranking type not found"}
-            )
+            raise serializers.ValidationError({"final_ranking_type_id": "Ranking type not found"})
 
         return data

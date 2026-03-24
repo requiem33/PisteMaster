@@ -9,12 +9,8 @@ class PoolAssignmentSerializer(serializers.ModelSerializer):
     """PoolAssignment API序列化器"""
 
     # 嵌套序列化器字段（写操作）
-    pool = serializers.PrimaryKeyRelatedField(
-        queryset=DjangoPool.objects.all(), write_only=True, required=True
-    )
-    fencer = serializers.PrimaryKeyRelatedField(
-        queryset=DjangoFencer.objects.all(), write_only=True, required=True
-    )
+    pool = serializers.PrimaryKeyRelatedField(queryset=DjangoPool.objects.all(), write_only=True, required=True)
+    fencer = serializers.PrimaryKeyRelatedField(queryset=DjangoFencer.objects.all(), write_only=True, required=True)
 
     # 只读嵌套字段（用于输出）
     pool_info = serializers.SerializerMethodField(read_only=True)
@@ -96,11 +92,7 @@ class PoolAssignmentSerializer(serializers.ModelSerializer):
             errors["matches_played"] = "已赛场次不能为负数"
 
         # 验证胜场数不超过已赛场次
-        if (
-            "victories" in data
-            and "matches_played" in data
-            and data["victories"] > data["matches_played"]
-        ):
+        if "victories" in data and "matches_played" in data and data["victories"] > data["matches_played"]:
             errors["victories"] = "胜场数不能超过已赛场次"
 
         if errors:
@@ -147,31 +139,21 @@ class PoolAssignmentUpdateSerializer(PoolAssignmentSerializer):
 class PoolAssignmentMatchResultSerializer(serializers.Serializer):
     """比赛结果序列化器"""
 
-    touches_scored = serializers.IntegerField(
-        required=True, validators=[MinValueValidator(0)]
-    )
-    touches_received = serializers.IntegerField(
-        required=True, validators=[MinValueValidator(0)]
-    )
+    touches_scored = serializers.IntegerField(required=True, validators=[MinValueValidator(0)])
+    touches_received = serializers.IntegerField(required=True, validators=[MinValueValidator(0)])
     is_winner = serializers.BooleanField(default=False)
 
 
 class PoolAssignmentBulkCreateSerializer(serializers.Serializer):
     """批量创建序列化器"""
 
-    fencer_ids = serializers.ListField(
-        child=serializers.UUIDField(), required=True, min_length=1
-    )
+    fencer_ids = serializers.ListField(child=serializers.UUIDField(), required=True, min_length=1)
 
 
 class PoolAssignmentRankingUpdateSerializer(serializers.Serializer):
     """排名更新序列化器"""
 
     fencer_id = serializers.UUIDField(required=True)
-    final_pool_rank = serializers.IntegerField(
-        required=True, validators=[MinValueValidator(1)]
-    )
+    final_pool_rank = serializers.IntegerField(required=True, validators=[MinValueValidator(1)])
     is_qualified = serializers.BooleanField(default=False)
-    qualification_rank = serializers.IntegerField(
-        required=False, allow_null=True, validators=[MinValueValidator(1)]
-    )
+    qualification_rank = serializers.IntegerField(required=False, allow_null=True, validators=[MinValueValidator(1)])

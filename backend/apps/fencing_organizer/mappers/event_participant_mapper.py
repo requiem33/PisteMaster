@@ -1,6 +1,4 @@
-from backend.apps.fencing_organizer.modules.event_participant.models import (
-    DjangoEventParticipant,
-)
+from backend.apps.fencing_organizer.modules.event_participant.models import DjangoEventParticipant
 from core.models.event_participant import EventParticipant
 
 

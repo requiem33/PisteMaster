@@ -6,13 +6,7 @@ from .models import DjangoTournamentStatus
 class TournamentStatusAdmin(admin.ModelAdmin):
     """赛事状态管理后台"""
 
-    list_display = (
-        "status_code",
-        "display_name",
-        "description",
-        "created_at",
-        "updated_at",
-    )
+    list_display = ("status_code", "display_name", "description", "created_at", "updated_at")
     list_display_links = ("status_code", "display_name")
     search_fields = ("status_code", "display_name", "description")
     list_filter = ("created_at", "updated_at")

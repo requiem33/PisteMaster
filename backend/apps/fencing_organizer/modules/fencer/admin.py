@@ -17,13 +17,7 @@ class FencerAdmin(admin.ModelAdmin):
         "created_at",
     )
     list_filter = ("gender", "country_code", "primary_weapon")
-    search_fields = (
-        "first_name",
-        "last_name",
-        "display_name",
-        "fencing_id",
-        "country_code",
-    )
+    search_fields = ("first_name", "last_name", "display_name", "fencing_id", "country_code")
     ordering = ("last_name", "first_name")
     readonly_fields = ("created_at", "updated_at", "age_display", "is_international")
     fieldsets = (
@@ -37,11 +31,7 @@ class FencerAdmin(admin.ModelAdmin):
     def country_display(self, obj):
         """国家显示"""
         if obj.country_code:
-            return format_html(
-                '<span class="fi fi-{}"></span> {}',
-                obj.country_code.lower(),
-                obj.country_code,
-            )
+            return format_html('<span class="fi fi-{}"></span> {}', obj.country_code.lower(), obj.country_code)
         return "-"
 
     country_display.short_description = "国家"
@@ -73,8 +63,4 @@ class FencerAdmin(admin.ModelAdmin):
     class Media:
         """添加CSS样式"""
 
-        css = {
-            "all": [
-                "https://cdnjs.cloudflare.com/ajax/libs/flag-icon-css/6.6.6/css/flag-icons.min.css"
-            ]
-        }
+        css = {"all": ["https://cdnjs.cloudflare.com/ajax/libs/flag-icon-css/6.6.6/css/flag-icons.min.css"]}

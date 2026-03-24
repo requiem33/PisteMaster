@@ -4,9 +4,7 @@ from django.urls import reverse
 from rest_framework import status
 from datetime import date, timedelta
 from backend.apps.fencing_organizer.modules.tournament.models import DjangoTournament
-from backend.apps.fencing_organizer.modules.tournament_status.models import (
-    DjangoTournamentStatus,
-)
+from backend.apps.fencing_organizer.modules.tournament_status.models import DjangoTournamentStatus
 
 
 @pytest.mark.django_db
@@ -40,13 +38,9 @@ class TestTournamentAPI:
         assert response.data["tournament_name"] == "测试赛事"
         assert response.data["status_code"] == "PLANNING"
 
-    def test_update_tournament_status(
-        self, client, admin_user, sample_tournament, ongoing_status
-    ):
+    def test_update_tournament_status(self, client, admin_user, sample_tournament, ongoing_status):
         """测试更新赛事状态"""
-        url = reverse(
-            "tournament-update-status", kwargs={"pk": str(sample_tournament.id)}
-        )
+        url = reverse("tournament-update-status", kwargs={"pk": str(sample_tournament.id)})
         client.force_login(admin_user)
 
         data = {"status_id": str(ongoing_status.id)}
@@ -67,8 +61,7 @@ class TestTournamentAPI:
     def planning_status(self):
         """计划中状态fixture"""
         status, created = DjangoTournamentStatus.objects.get_or_create(
-            status_code="PLANNING",
-            defaults={"display_name": "计划中", "description": "赛事正在计划阶段"},
+            status_code="PLANNING", defaults={"display_name": "计划中", "description": "赛事正在计划阶段"}
         )
         return status
 
@@ -76,8 +69,7 @@ class TestTournamentAPI:
     def ongoing_status(self):
         """进行中状态fixture"""
         status, created = DjangoTournamentStatus.objects.get_or_create(
-            status_code="ONGOING",
-            defaults={"display_name": "进行中", "description": "赛事正在进行中"},
+            status_code="ONGOING", defaults={"display_name": "进行中", "description": "赛事正在进行中"}
         )
         return status
 

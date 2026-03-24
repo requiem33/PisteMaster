@@ -34,8 +34,6 @@ class DjangoEventStatusRepository:
         """保存项目状态"""
         orm_data = EventStatusMapper.to_orm_data(event_status)
 
-        django_status, created = DjangoEventStatus.objects.update_or_create(
-            id=event_status.id, defaults=orm_data
-        )
+        django_status, created = DjangoEventStatus.objects.update_or_create(id=event_status.id, defaults=orm_data)
 
         return EventStatusMapper.to_domain(django_status)

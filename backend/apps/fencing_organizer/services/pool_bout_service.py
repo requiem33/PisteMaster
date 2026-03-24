@@ -5,16 +5,10 @@ from itertools import combinations
 from django.db import IntegrityError
 
 from core.models.pool_bout import PoolBout
-from backend.apps.fencing_organizer.repositories.pool_bout_repo import (
-    DjangoPoolBoutRepository,
-)
+from backend.apps.fencing_organizer.repositories.pool_bout_repo import DjangoPoolBoutRepository
 from backend.apps.fencing_organizer.repositories.pool_repo import DjangoPoolRepository
-from backend.apps.fencing_organizer.repositories.fencer_repo import (
-    DjangoFencerRepository,
-)
-from backend.apps.fencing_organizer.repositories.match_status_repo import (
-    DjangoMatchStatusRepository,
-)
+from backend.apps.fencing_organizer.repositories.fencer_repo import DjangoFencerRepository
+from backend.apps.fencing_organizer.repositories.match_status_repo import DjangoMatchStatusRepository
 
 
 class PoolBoutService:
@@ -31,9 +25,7 @@ class PoolBoutService:
         self.bout_repository = bout_repository or DjangoPoolBoutRepository()
         self.pool_repository = pool_repository or DjangoPoolRepository()
         self.fencer_repository = fencer_repository or DjangoFencerRepository()
-        self.match_status_repository = (
-            match_status_repository or DjangoMatchStatusRepository()
-        )
+        self.match_status_repository = match_status_repository or DjangoMatchStatusRepository()
 
     def get_bout_by_id(self, bout_id: UUID) -> Optional[PoolBout]:
         """根据ID获取比赛"""
@@ -96,9 +88,7 @@ class PoolBoutService:
 
         for fencer_a_id, fencer_b_id in bout_pairs:
             # 检查是否已存在
-            existing_bout = self.bout_repository.get_bout_by_fencers(
-                pool_id, fencer_a_id, fencer_b_id
-            )
+            existing_bout = self.bout_repository.get_bout_by_fencers(pool_id, fencer_a_id, fencer_b_id)
             if existing_bout:
                 continue
 
@@ -132,9 +122,7 @@ class PoolBoutService:
         if "status_id" in bout_data:
             new_status = self.match_status_repository.get_by_id(bout_data["status_id"])
             if new_status:
-                self._validate_status_transition(
-                    existing_bout.status_id, bout_data["status_id"]
-                )
+                self._validate_status_transition(existing_bout.status_id, bout_data["status_id"])
 
         # 验证外键存在性
         self._validate_foreign_keys(bout_data)
@@ -152,13 +140,7 @@ class PoolBoutService:
                 raise self.PoolBoutServiceError("这两名运动员在该小组中已有比赛安排")
             raise self.PoolBoutServiceError(f"更新比赛失败: {str(e)}")
 
-    def update_bout_result(
-        self,
-        bout_id: UUID,
-        fencer_a_score: int,
-        fencer_b_score: int,
-        winner_id: Optional[UUID] = None,
-    ) -> PoolBout:
+    def update_bout_result(self, bout_id: UUID, fencer_a_score: int, fencer_b_score: int, winner_id: Optional[UUID] = None) -> PoolBout:
         """更新比赛结果"""
         # 检查比赛是否存在
         bout = self.bout_repository.get_bout_by_id(bout_id)
@@ -185,9 +167,7 @@ class PoolBoutService:
             raise self.PoolBoutServiceError("找不到 'COMPLETED' 比赛状态")
 
         # 更新比赛
-        updated_bout = self.bout_repository.update_bout_result(
-            bout_id, fencer_a_score, fencer_b_score, winner_id
-        )
+        updated_bout = self.bout_repository.update_bout_result(bout_id, fencer_a_score, fencer_b_score, winner_id)
 
         if not updated_bout:
             raise self.PoolBoutServiceError("更新比赛结果失败")
@@ -210,16 +190,11 @@ class PoolBoutService:
             raise self.PoolBoutServiceError("找不到 'IN_PROGRESS' 比赛状态")
 
         # 设置实际开始时间
-        updated_bout = self.update_bout(
-            bout_id,
-            {"status_id": in_progress_status.id, "actual_start_time": datetime.now()},
-        )
+        updated_bout = self.update_bout(bout_id, {"status_id": in_progress_status.id, "actual_start_time": datetime.now()})
 
         return updated_bout
 
-    def complete_bout(
-        self, bout_id: UUID, fencer_a_score: int, fencer_b_score: int
-    ) -> PoolBout:
+    def complete_bout(self, bout_id: UUID, fencer_a_score: int, fencer_b_score: int) -> PoolBout:
         """完成比赛"""
         return self.update_bout_result(bout_id, fencer_a_score, fencer_b_score)
 
@@ -235,9 +210,7 @@ class PoolBoutService:
             raise self.PoolBoutServiceError("找不到 'CANCELLED' 比赛状态")
 
         # 更新比赛
-        updated_bout = self.update_bout(
-            bout_id, {"status_id": cancelled_status.id, "notes": notes}
-        )
+        updated_bout = self.update_bout(bout_id, {"status_id": cancelled_status.id, "notes": notes})
 
         return updated_bout
 
@@ -262,10 +235,7 @@ class PoolBoutService:
                 errors["fencer_b_id"] = "运动员A和运动员B不能是同一人"
 
         # 比分验证
-        if (
-            data.get("fencer_a_score") is not None
-            and data.get("fencer_b_score") is not None
-        ):
+        if data.get("fencer_a_score") is not None and data.get("fencer_b_score") is not None:
             if data["fencer_a_score"] < 0 or data["fencer_b_score"] < 0:
                 errors["fencer_a_score"] = "比分不能为负数"
                 errors["fencer_b_score"] = "比分不能为负数"
@@ -300,9 +270,7 @@ class PoolBoutService:
             if not winner:
                 raise self.PoolBoutServiceError(f"获胜者 {data['winner_id']} 不存在")
 
-    def _validate_status_transition(
-        self, current_status_id: UUID, new_status_id: UUID
-    ) -> None:
+    def _validate_status_transition(self, current_status_id: UUID, new_status_id: UUID) -> None:
         """验证状态转移是否有效"""
         if current_status_id == new_status_id:
             return
@@ -321,15 +289,10 @@ class PoolBoutService:
             raise self.PoolBoutServiceError("已完成的比赛不能更改状态")
 
         # 已取消的状态不能改变（除非重新安排）
-        if (
-            current_status.status_code == "CANCELLED"
-            and new_status.status_code != "SCHEDULED"
-        ):
+        if current_status.status_code == "CANCELLED" and new_status.status_code != "SCHEDULED":
             raise self.PoolBoutServiceError("已取消的比赛只能重新安排")
 
-    def _validate_scores(
-        self, fencer_a_score: int, fencer_b_score: int, bout: PoolBout
-    ) -> None:
+    def _validate_scores(self, fencer_a_score: int, fencer_b_score: int, bout: PoolBout) -> None:
         """验证比分"""
         errors = {}
 
@@ -357,9 +320,7 @@ class PoolBoutService:
         if errors:
             raise self.PoolBoutServiceError("比分验证失败", errors)
 
-    def _validate_winner(
-        self, winner_id: UUID, fencer_a_id: UUID, fencer_b_id: UUID
-    ) -> None:
+    def _validate_winner(self, winner_id: UUID, fencer_a_id: UUID, fencer_b_id: UUID) -> None:
         """验证胜者"""
         if winner_id not in [fencer_a_id, fencer_b_id]:
             raise self.PoolBoutServiceError("胜者必须是比赛双方之一")

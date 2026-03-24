@@ -7,9 +7,7 @@ class DjangoMatchStatusType(models.Model):
 
     id = models.UUIDField(primary_key=True, default=uuid4, editable=False)
     status_code = models.CharField(max_length=20, unique=True, verbose_name="状态代码")
-    description = models.CharField(
-        max_length=100, null=True, blank=True, verbose_name="描述"
-    )
+    description = models.CharField(max_length=100, null=True, blank=True, verbose_name="描述")
 
     class Meta:
         db_table = "match_status_type"

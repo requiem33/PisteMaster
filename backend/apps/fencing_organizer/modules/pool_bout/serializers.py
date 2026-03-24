@@ -10,24 +10,11 @@ class PoolBoutSerializer(serializers.ModelSerializer):
     """小组赛单场比赛序列化器"""
 
     # 嵌套序列化器字段（写操作）
-    pool = serializers.PrimaryKeyRelatedField(
-        queryset=DjangoPool.objects.all(), write_only=True, required=True
-    )
-    fencer_a = serializers.PrimaryKeyRelatedField(
-        queryset=DjangoFencer.objects.all(), write_only=True, required=True
-    )
-    fencer_b = serializers.PrimaryKeyRelatedField(
-        queryset=DjangoFencer.objects.all(), write_only=True, required=True
-    )
-    status = serializers.PrimaryKeyRelatedField(
-        queryset=DjangoMatchStatusType.objects.all(), write_only=True, required=True
-    )
-    winner = serializers.PrimaryKeyRelatedField(
-        queryset=DjangoFencer.objects.all(),
-        write_only=True,
-        required=False,
-        allow_null=True,
-    )
+    pool = serializers.PrimaryKeyRelatedField(queryset=DjangoPool.objects.all(), write_only=True, required=True)
+    fencer_a = serializers.PrimaryKeyRelatedField(queryset=DjangoFencer.objects.all(), write_only=True, required=True)
+    fencer_b = serializers.PrimaryKeyRelatedField(queryset=DjangoFencer.objects.all(), write_only=True, required=True)
+    status = serializers.PrimaryKeyRelatedField(queryset=DjangoMatchStatusType.objects.all(), write_only=True, required=True)
+    winner = serializers.PrimaryKeyRelatedField(queryset=DjangoFencer.objects.all(), write_only=True, required=False, allow_null=True)
 
     # 只读嵌套字段（用于输出）
     pool_info = serializers.SerializerMethodField(read_only=True)
@@ -116,11 +103,7 @@ class PoolBoutSerializer(serializers.ModelSerializer):
     def get_status_info(self, obj):
         """获取状态信息"""
         if obj.status:
-            return {
-                "id": str(obj.status.id),
-                "status_code": obj.status.status_code,
-                "description": obj.status.description,
-            }
+            return {"id": str(obj.status.id), "status_code": obj.status.status_code, "description": obj.status.description}
         return None
 
     def get_winner_info(self, obj):
@@ -158,10 +141,7 @@ class PoolBoutSerializer(serializers.ModelSerializer):
                         # 检查是否为平局
                         if data["fencer_a_score"] != data["fencer_b_score"]:
                             errors["winner"] = "比赛已完成且有胜负，必须指定胜者"
-                    elif data["winner"] not in [
-                        data.get("fencer_a"),
-                        data.get("fencer_b"),
-                    ]:
+                    elif data["winner"] not in [data.get("fencer_a"), data.get("fencer_b")]:
                         errors["winner"] = "胜者必须是比赛双方之一"
 
         if errors:
@@ -179,10 +159,7 @@ class PoolBoutSerializer(serializers.ModelSerializer):
             # 交换运动员
             validated_data["fencer_a"], validated_data["fencer_b"] = fencer_b, fencer_a
             # 如果有比分，也需要交换
-            if (
-                "fencer_a_score" in validated_data
-                and "fencer_b_score" in validated_data
-            ):
+            if "fencer_a_score" in validated_data and "fencer_b_score" in validated_data:
                 validated_data["fencer_a_score"], validated_data["fencer_b_score"] = (
                     validated_data["fencer_b_score"],
                     validated_data["fencer_a_score"],
@@ -194,12 +171,8 @@ class PoolBoutSerializer(serializers.ModelSerializer):
 class PoolBoutResultSerializer(serializers.Serializer):
     """比赛结果序列化器"""
 
-    fencer_a_score = serializers.IntegerField(
-        required=True, validators=[MinValueValidator(0)]
-    )
-    fencer_b_score = serializers.IntegerField(
-        required=True, validators=[MinValueValidator(0)]
-    )
+    fencer_a_score = serializers.IntegerField(required=True, validators=[MinValueValidator(0)])
+    fencer_b_score = serializers.IntegerField(required=True, validators=[MinValueValidator(0)])
     winner_id = serializers.UUIDField(required=False, allow_null=True)
     notes = serializers.CharField(required=False, allow_blank=True)
 

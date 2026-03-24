@@ -11,34 +11,17 @@ class DjangoPoolAssignment(models.Model):
 
     id = models.UUIDField(primary_key=True, default=uuid4, editable=False)
 
-    pool = models.ForeignKey(
-        DjangoPool,
-        on_delete=models.CASCADE,
-        db_column="pool_id",
-        related_name="assignments",
-        verbose_name="所属小组",
-    )
+    pool = models.ForeignKey(DjangoPool, on_delete=models.CASCADE, db_column="pool_id", related_name="assignments", verbose_name="所属小组")
 
     fencer = models.ForeignKey(
-        DjangoFencer,
-        on_delete=models.CASCADE,
-        db_column="fencer_id",
-        related_name="pool_assignments",
-        verbose_name="运动员",
+        DjangoFencer, on_delete=models.CASCADE, db_column="fencer_id", related_name="pool_assignments", verbose_name="运动员"
     )
 
-    final_pool_rank = models.IntegerField(
-        null=True,
-        blank=True,
-        validators=[MinValueValidator(1)],
-        verbose_name="最终排名",
-    )
+    final_pool_rank = models.IntegerField(null=True, blank=True, validators=[MinValueValidator(1)], verbose_name="最终排名")
 
     victories = models.IntegerField(default=0, verbose_name="胜场数(V)")
 
-    indicator = models.IntegerField(
-        default=0, verbose_name="得失分差(Ind)", help_text="TS - TR，不允许直接更新"
-    )
+    indicator = models.IntegerField(default=0, verbose_name="得失分差(Ind)", help_text="TS - TR，不允许直接更新")
 
     touches_scored = models.IntegerField(default=0, verbose_name="总得分(TS)")
 
@@ -48,9 +31,7 @@ class DjangoPoolAssignment(models.Model):
 
     is_qualified = models.BooleanField(default=False, verbose_name="是否晋级")
 
-    qualification_rank = models.IntegerField(
-        null=True, blank=True, verbose_name="晋级排名"
-    )
+    qualification_rank = models.IntegerField(null=True, blank=True, verbose_name="晋级排名")
 
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
@@ -61,20 +42,13 @@ class DjangoPoolAssignment(models.Model):
         verbose_name_plural = "小组分配"
         ordering = ["pool", "final_pool_rank"]
         constraints = [
+            models.UniqueConstraint(fields=["pool", "fencer"], name="unique_pool_fencer"),
             models.UniqueConstraint(
-                fields=["pool", "fencer"], name="unique_pool_fencer"
-            ),
-            models.UniqueConstraint(
-                fields=["pool", "final_pool_rank"],
-                condition=models.Q(final_pool_rank__isnull=False),
-                name="unique_pool_rank",
+                fields=["pool", "final_pool_rank"], condition=models.Q(final_pool_rank__isnull=False), name="unique_pool_rank"
             ),
         ]
         indexes = [
-            models.Index(
-                fields=["pool", "is_qualified", "final_pool_rank"],
-                name="idx_pool_assignment_qualified",
-            ),
+            models.Index(fields=["pool", "is_qualified", "final_pool_rank"], name="idx_pool_assignment_qualified"),
             models.Index(fields=["fencer"], name="idx_pool_assignment_fencer"),
             models.Index(fields=["final_pool_rank"], name="idx_pool_assignment_rank"),
         ]

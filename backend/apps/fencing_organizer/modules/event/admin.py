@@ -23,14 +23,7 @@ class EventAdmin(admin.ModelAdmin):
 
     search_fields = ("event_name", "tournament__tournament_name")
 
-    list_filter = (
-        "tournament",
-        "event_type",
-        "status",
-        "is_team_event",
-        "start_time",
-        "created_at",
-    )
+    list_filter = ("tournament", "event_type", "status", "is_team_event", "start_time", "created_at")
 
     ordering = ("-start_time", "event_name")
 
@@ -57,13 +50,8 @@ class EventAdmin(admin.ModelAdmin):
     def tournament_link(self, obj):
         """赛事链接"""
         if obj.tournament:
-            url = reverse(
-                "admin:fencing_organizer_djangotournament_change",
-                args=[obj.tournament.id],
-            )
-            return format_html(
-                '<a href="{}">{}</a>', url, obj.tournament.tournament_name
-            )
+            url = reverse("admin:fencing_organizer_djangotournament_change", args=[obj.tournament.id])
+            return format_html('<a href="{}">{}</a>', url, obj.tournament.tournament_name)
         return "-"
 
     tournament_link.short_description = "赛事"

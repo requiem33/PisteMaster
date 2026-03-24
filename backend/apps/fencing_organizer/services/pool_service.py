@@ -60,14 +60,10 @@ class PoolService:
 
         if not pool_data.get("pool_number"):
             pool_data["pool_number"] = self.pool_repository.get_next_pool_number(
-                pool_data["event_id"]
-                if "event_id" in pool_data
-                else pool_data["event"].id
+                pool_data["event_id"] if "event_id" in pool_data else pool_data["event"].id
             )
 
-        event_id = pool_data.get("event_id") or (
-            pool_data.get("event").id if pool_data.get("event") else None
-        )
+        event_id = pool_data.get("event_id") or (pool_data.get("event").id if pool_data.get("event") else None)
 
         pool = Pool(
             event_id=event_id,
@@ -85,9 +81,7 @@ class PoolService:
             return self.pool_repository.save_pool(pool)
         except IntegrityError as e:
             if "unique_pool_event_number" in str(e):
-                raise self.PoolServiceError(
-                    f"Pool number '{pool_data.get('pool_number')}' already exists in this event"
-                )
+                raise self.PoolServiceError(f"Pool number '{pool_data.get('pool_number')}' already exists in this event")
             raise self.PoolServiceError(f"Create pool failed: {str(e)}")
 
     def update_pool(self, pool_id: UUID, pool_data: dict) -> Pool:
@@ -114,9 +108,7 @@ class PoolService:
             return self.pool_repository.save_pool(existing_pool)
         except IntegrityError as e:
             if "unique_pool_event_number" in str(e):
-                raise self.PoolServiceError(
-                    f"Pool number '{pool_data.get('pool_number')}' already exists in this event"
-                )
+                raise self.PoolServiceError(f"Pool number '{pool_data.get('pool_number')}' already exists in this event")
             raise self.PoolServiceError(f"Update pool failed: {str(e)}")
 
     def delete_pool(self, pool_id: UUID) -> bool:
@@ -168,8 +160,7 @@ class PoolService:
         valid_transitions = STATUS_TRANSITIONS.get(current_status, [])
         if new_status not in valid_transitions:
             raise self.PoolServiceError(
-                f"Cannot transition from '{current_status}' to '{new_status}'. "
-                f"Allowed transitions: {', '.join(valid_transitions)}"
+                f"Cannot transition from '{current_status}' to '{new_status}'. " f"Allowed transitions: {', '.join(valid_transitions)}"
             )
 
     class PoolServiceError(Exception):

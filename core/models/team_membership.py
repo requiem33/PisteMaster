@@ -11,9 +11,7 @@ class TeamMembership:
     fencer_id: UUID = field(metadata={"foreign_key": "Fencer", "description": "队员"})
     role_id: UUID = field(metadata={"foreign_key": "Team_Role", "description": "角色"})
 
-    order_number: Optional[int] = field(
-        default=None, metadata={"description": "出场顺序"}
-    )
+    order_number: Optional[int] = field(default=None, metadata={"description": "出场顺序"})
     is_captain: bool = field(default=False, metadata={"description": "是否为队长"})
 
     # 组合主键 (team_id, fencer_id) 必须在 ORM 层面处理

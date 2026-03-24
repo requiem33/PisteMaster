@@ -9,9 +9,7 @@ from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework.response import Response
 
 from backend.apps.fencing_organizer.modules.event.models import DjangoEvent
-from backend.apps.fencing_organizer.modules.event_participant.models import (
-    DjangoEventParticipant,
-)
+from backend.apps.fencing_organizer.modules.event_participant.models import DjangoEventParticipant
 from backend.apps.fencing_organizer.modules.fencer.models import DjangoFencer
 from backend.apps.fencing_organizer.modules.pool.models import DjangoPool
 from backend.apps.fencing_organizer.services.event_service import EventService
@@ -31,11 +29,7 @@ class EventViewSet(viewsets.GenericViewSet):
     queryset = DjangoEvent.objects.all()
     serializer_class = EventSerializer
     service = EventService()
-    filter_backends = [
-        DjangoFilterBackend,
-        filters.SearchFilter,
-        filters.OrderingFilter,
-    ]
+    filter_backends = [DjangoFilterBackend, filters.SearchFilter, filters.OrderingFilter]
     filterset_fields = ["tournament", "event_type", "status", "is_team_event"]
     search_fields = ["event_name", "tournament__tournament_name"]
     ordering_fields = ["event_name", "start_time", "created_at"]
@@ -102,15 +96,11 @@ class EventViewSet(viewsets.GenericViewSet):
         try:
             event_id = UUID(pk)
         except (ValueError, TypeError):
-            return Response(
-                {"detail": "Invalid event ID"}, status=status.HTTP_400_BAD_REQUEST
-            )
+            return Response({"detail": "Invalid event ID"}, status=status.HTTP_400_BAD_REQUEST)
 
         event = self.service.get_event_by_id(event_id)
         if not event:
-            return Response(
-                {"detail": "Event not found"}, status=status.HTTP_404_NOT_FOUND
-            )
+            return Response({"detail": "Event not found"}, status=status.HTTP_404_NOT_FOUND)
 
         serializer = self.get_serializer(event)
         return Response(serializer.data)
@@ -124,18 +114,13 @@ class EventViewSet(viewsets.GenericViewSet):
             response_serializer = EventSerializer(event)
             return Response(response_serializer.data, status=status.HTTP_201_CREATED)
         except self.service.EventServiceError as e:
-            return Response(
-                {"detail": e.message, "errors": e.errors},
-                status=status.HTTP_400_BAD_REQUEST,
-            )
+            return Response({"detail": e.message, "errors": e.errors}, status=status.HTTP_400_BAD_REQUEST)
 
     def update(self, request, pk=None):
         try:
             event_id = UUID(pk)
         except (ValueError, TypeError):
-            return Response(
-                {"detail": "Invalid event ID"}, status=status.HTTP_400_BAD_REQUEST
-            )
+            return Response({"detail": "Invalid event ID"}, status=status.HTTP_400_BAD_REQUEST)
 
         serializer = EventSerializer(data=request.data, partial=True)
         serializer.is_valid(raise_exception=True)
@@ -145,10 +130,7 @@ class EventViewSet(viewsets.GenericViewSet):
             response_serializer = EventSerializer(event)
             return Response(response_serializer.data)
         except self.service.EventServiceError as e:
-            return Response(
-                {"detail": e.message, "errors": e.errors},
-                status=status.HTTP_400_BAD_REQUEST,
-            )
+            return Response({"detail": e.message, "errors": e.errors}, status=status.HTTP_400_BAD_REQUEST)
 
     def partial_update(self, request, pk=None):
         return self.update(request, pk)
@@ -157,16 +139,12 @@ class EventViewSet(viewsets.GenericViewSet):
         try:
             event_id = UUID(pk)
         except (ValueError, TypeError):
-            return Response(
-                {"detail": "Invalid event ID"}, status=status.HTTP_400_BAD_REQUEST
-            )
+            return Response({"detail": "Invalid event ID"}, status=status.HTTP_400_BAD_REQUEST)
 
         try:
             success = self.service.delete_event(event_id)
             if not success:
-                return Response(
-                    {"detail": "Event not found"}, status=status.HTTP_404_NOT_FOUND
-                )
+                return Response({"detail": "Event not found"}, status=status.HTTP_404_NOT_FOUND)
             return Response(status=status.HTTP_204_NO_CONTENT)
         except self.service.EventServiceError as e:
             return Response({"detail": e.message}, status=status.HTTP_400_BAD_REQUEST)
@@ -176,16 +154,11 @@ class EventViewSet(viewsets.GenericViewSet):
         try:
             event_id = UUID(pk)
         except (ValueError, TypeError):
-            return Response(
-                {"detail": "Invalid event ID"}, status=status.HTTP_400_BAD_REQUEST
-            )
+            return Response({"detail": "Invalid event ID"}, status=status.HTTP_400_BAD_REQUEST)
 
         live_ranking = request.data.get("live_ranking")
         if live_ranking is None:
-            return Response(
-                {"detail": "live_ranking parameter is required"},
-                status=status.HTTP_400_BAD_REQUEST,
-            )
+            return Response({"detail": "live_ranking parameter is required"}, status=status.HTTP_400_BAD_REQUEST)
 
         try:
             event = self.service.update_event(event_id, {"live_ranking": live_ranking})
@@ -199,42 +172,25 @@ class EventViewSet(viewsets.GenericViewSet):
         try:
             event_id = UUID(pk)
         except (ValueError, TypeError):
-            return Response(
-                {"detail": "Invalid event ID"}, status=status.HTTP_400_BAD_REQUEST
-            )
+            return Response({"detail": "Invalid event ID"}, status=status.HTTP_400_BAD_REQUEST)
 
-        from backend.apps.fencing_organizer.modules.event_participant.serializers import (
-            EventParticipantSerializer,
-        )
+        from backend.apps.fencing_organizer.modules.event_participant.serializers import EventParticipantSerializer
 
-        django_participants = DjangoEventParticipant.objects.filter(
-            event_id=event_id
-        ).select_related("fencer")
+        django_participants = DjangoEventParticipant.objects.filter(event_id=event_id).select_related("fencer")
         serializer = EventParticipantSerializer(django_participants, many=True)
 
-        return Response(
-            {
-                "event_id": pk,
-                "participant_count": django_participants.count(),
-                "participants": serializer.data,
-            }
-        )
+        return Response({"event_id": pk, "participant_count": django_participants.count(), "participants": serializer.data})
 
     @action(detail=True, methods=["put"], url_path="participants/sync")
     def sync_participants(self, request, pk=None):
         try:
             event_id = UUID(pk)
         except (ValueError, TypeError):
-            return Response(
-                {"detail": "Invalid event ID"}, status=status.HTTP_400_BAD_REQUEST
-            )
+            return Response({"detail": "Invalid event ID"}, status=status.HTTP_400_BAD_REQUEST)
 
         fencer_ids = request.data.get("fencer_ids")
         if not isinstance(fencer_ids, list):
-            return Response(
-                {"detail": "fencer_ids must be a list"},
-                status=status.HTTP_400_BAD_REQUEST,
-            )
+            return Response({"detail": "fencer_ids must be a list"}, status=status.HTTP_400_BAD_REQUEST)
 
         try:
             with transaction.atomic():
@@ -243,59 +199,34 @@ class EventViewSet(viewsets.GenericViewSet):
                 valid_fencers = DjangoFencer.objects.filter(id__in=fencer_ids)
                 valid_fencer_ids = [f.id for f in valid_fencers]
 
-                new_participants = [
-                    DjangoEventParticipant(event_id=event_id, fencer_id=f_id)
-                    for f_id in valid_fencer_ids
-                ]
+                new_participants = [DjangoEventParticipant(event_id=event_id, fencer_id=f_id) for f_id in valid_fencer_ids]
                 DjangoEventParticipant.objects.bulk_create(new_participants)
 
-            return Response(
-                {
-                    "message": f"Successfully synced {len(valid_fencer_ids)} participants",
-                    "synced_count": len(valid_fencer_ids),
-                }
-            )
+            return Response({"message": f"Successfully synced {len(valid_fencer_ids)} participants", "synced_count": len(valid_fencer_ids)})
         except Exception as e:
-            return Response(
-                {"detail": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR
-            )
+            return Response({"detail": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
-    @action(
-        detail=True,
-        methods=["post", "get"],
-        url_path="stages/(?P<stage_id>[^/.]+)/pools",
-    )
+    @action(detail=True, methods=["post", "get"], url_path="stages/(?P<stage_id>[^/.]+)/pools")
     def stage_pools(self, request, pk=None, stage_id=None):
         try:
             event_id = UUID(pk)
         except (ValueError, TypeError):
-            return Response(
-                {"detail": "Invalid event ID"}, status=status.HTTP_400_BAD_REQUEST
-            )
+            return Response({"detail": "Invalid event ID"}, status=status.HTTP_400_BAD_REQUEST)
 
         if request.method == "GET":
-            pools = DjangoPool.objects.filter(
-                event_id=event_id, stage_id=stage_id
-            ).order_by("pool_number")
-            from backend.apps.fencing_organizer.modules.pool.serializers import (
-                PoolSerializer,
-            )
+            pools = DjangoPool.objects.filter(event_id=event_id, stage_id=stage_id).order_by("pool_number")
+            from backend.apps.fencing_organizer.modules.pool.serializers import PoolSerializer
 
             return Response(PoolSerializer(pools, many=True).data)
 
         elif request.method == "POST":
             pools_data = request.data
             if not isinstance(pools_data, list):
-                return Response(
-                    {"detail": "Expected a list of pools"},
-                    status=status.HTTP_400_BAD_REQUEST,
-                )
+                return Response({"detail": "Expected a list of pools"}, status=status.HTTP_400_BAD_REQUEST)
 
             try:
                 with transaction.atomic():
-                    DjangoPool.objects.filter(
-                        event_id=event_id, stage_id=stage_id
-                    ).delete()
+                    DjangoPool.objects.filter(event_id=event_id, stage_id=stage_id).delete()
 
                     new_pools = []
                     for p_data in pools_data:
@@ -311,34 +242,21 @@ class EventViewSet(viewsets.GenericViewSet):
                     DjangoPool.objects.bulk_create(new_pools)
 
                 return Response(
-                    {
-                        "message": f"Successfully saved {len(new_pools)} pools to stage {stage_id}"
-                    },
-                    status=status.HTTP_201_CREATED,
+                    {"message": f"Successfully saved {len(new_pools)} pools to stage {stage_id}"}, status=status.HTTP_201_CREATED
                 )
             except Exception as e:
-                return Response(
-                    {"detail": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR
-                )
+                return Response({"detail": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
-    @action(
-        detail=True,
-        methods=["put", "get"],
-        url_path="stages/(?P<stage_id>[^/.]+)/detree",
-    )
+    @action(detail=True, methods=["put", "get"], url_path="stages/(?P<stage_id>[^/.]+)/detree")
     def stage_detree(self, request, pk=None, stage_id=None):
         try:
             event_id = UUID(pk)
         except (ValueError, TypeError):
-            return Response(
-                {"detail": "Invalid event ID"}, status=status.HTTP_400_BAD_REQUEST
-            )
+            return Response({"detail": "Invalid event ID"}, status=status.HTTP_400_BAD_REQUEST)
 
         event = self.service.get_event_by_id(event_id)
         if not event:
-            return Response(
-                {"detail": "Event not found"}, status=status.HTTP_404_NOT_FOUND
-            )
+            return Response({"detail": "Event not found"}, status=status.HTTP_404_NOT_FOUND)
 
         if request.method == "GET":
             tree_data = event.de_trees.get(stage_id) if event.de_trees else None
@@ -350,10 +268,7 @@ class EventViewSet(viewsets.GenericViewSet):
                 if isinstance(request.data, list):
                     tree_data = request.data
                 else:
-                    return Response(
-                        {"detail": "tree_data is required"},
-                        status=status.HTTP_400_BAD_REQUEST,
-                    )
+                    return Response({"detail": "tree_data is required"}, status=status.HTTP_400_BAD_REQUEST)
 
             current_trees = dict(event.de_trees) if event.de_trees else {}
             current_trees[stage_id] = tree_data
@@ -362,25 +277,18 @@ class EventViewSet(viewsets.GenericViewSet):
                 self.service.update_event(event_id, {"de_trees": current_trees})
                 return Response({"message": "Saved successfully"})
             except self.service.EventServiceError as e:
-                return Response(
-                    {"detail": e.message}, status=status.HTTP_400_BAD_REQUEST
-                )
+                return Response({"detail": e.message}, status=status.HTTP_400_BAD_REQUEST)
 
     @action(detail=False, methods=["get"], url_path="by_tournament")
     def by_tournament(self, request):
         tournament_id = request.query_params.get("tournament_id")
         if not tournament_id:
-            return Response(
-                {"detail": "tournament_id parameter is required"},
-                status=status.HTTP_400_BAD_REQUEST,
-            )
+            return Response({"detail": "tournament_id parameter is required"}, status=status.HTTP_400_BAD_REQUEST)
 
         try:
             tournament_uuid = UUID(tournament_id)
         except (ValueError, TypeError):
-            return Response(
-                {"detail": "Invalid tournament ID"}, status=status.HTTP_400_BAD_REQUEST
-            )
+            return Response({"detail": "Invalid tournament ID"}, status=status.HTTP_400_BAD_REQUEST)
 
         events = self.service.get_events_by_tournament(tournament_uuid)
 

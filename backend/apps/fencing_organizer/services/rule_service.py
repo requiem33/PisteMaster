@@ -7,17 +7,9 @@ from core.models.rule import Rule
 from core.models.elimination_type import EliminationType
 from core.models.ranking_type import RankingType
 from backend.apps.fencing_organizer.repositories.rule_repo import DjangoRuleRepository
-from backend.apps.fencing_organizer.repositories.elimination_type_repo import (
-    DjangoEliminationTypeRepository,
-)
-from backend.apps.fencing_organizer.repositories.ranking_type_repo import (
-    DjangoRankingTypeRepository,
-)
-from core.constants.rules import (
-    PREDEFINED_RULES,
-    PREDEFINED_ELIMINATION_TYPES,
-    PREDEFINED_RANKING_TYPES,
-)
+from backend.apps.fencing_organizer.repositories.elimination_type_repo import DjangoEliminationTypeRepository
+from backend.apps.fencing_organizer.repositories.ranking_type_repo import DjangoRankingTypeRepository
+from core.constants.rules import PREDEFINED_RULES, PREDEFINED_ELIMINATION_TYPES, PREDEFINED_RANKING_TYPES
 
 
 class RuleService:
@@ -31,9 +23,7 @@ class RuleService:
     ):
 
         self.rule_repository = rule_repository or DjangoRuleRepository()
-        self.elimination_type_repo = (
-            elimination_type_repo or DjangoEliminationTypeRepository()
-        )
+        self.elimination_type_repo = elimination_type_repo or DjangoEliminationTypeRepository()
         self.ranking_type_repo = ranking_type_repo or DjangoRankingTypeRepository()
 
     def get_rule_by_id(self, rule_id: UUID) -> Optional[Rule]:
@@ -115,15 +105,11 @@ class RuleService:
         # 初始化淘汰赛类型
         for type_data in PREDEFINED_ELIMINATION_TYPES:
             try:
-                existing = self.elimination_type_repo.get_by_code(
-                    type_data["type_code"]
-                )
+                existing = self.elimination_type_repo.get_by_code(type_data["type_code"])
                 if existing:
                     continue
 
-                elimination_type = self.elimination_type_repo.save(
-                    EliminationType(**type_data)
-                )
+                elimination_type = self.elimination_type_repo.save(EliminationType(**type_data))
                 results["elimination_types"] += 1
             except Exception:
                 continue
@@ -144,12 +130,8 @@ class RuleService:
         for rule_data in PREDEFINED_RULES:
             try:
                 # 获取外键ID
-                elimination_type = self.elimination_type_repo.get_by_code(
-                    rule_data["elimination_type_code"]
-                )
-                ranking_type = self.ranking_type_repo.get_by_code(
-                    rule_data["final_ranking_type_code"]
-                )
+                elimination_type = self.elimination_type_repo.get_by_code(rule_data["elimination_type_code"])
+                ranking_type = self.ranking_type_repo.get_by_code(rule_data["final_ranking_type_code"])
 
                 if not elimination_type or not ranking_type:
                     continue
@@ -170,9 +152,7 @@ class RuleService:
                     "match_duration": rule_data.get("match_duration"),
                     "match_score_pool": rule_data.get("match_score_pool"),
                     "match_score_elimination": rule_data.get("match_score_elimination"),
-                    "group_qualification_ratio": rule_data.get(
-                        "group_qualification_ratio"
-                    ),
+                    "group_qualification_ratio": rule_data.get("group_qualification_ratio"),
                     "description": rule_data.get("description"),
                 }
 
@@ -191,12 +171,7 @@ class RuleService:
 
         # 必填字段检查
         if is_create:
-            required_fields = [
-                "rule_name",
-                "total_qualified_count",
-                "elimination_type_id",
-                "final_ranking_type_id",
-            ]
+            required_fields = ["rule_name", "total_qualified_count", "elimination_type_id", "final_ranking_type_id"]
             for field in required_fields:
                 if not data.get(field):
                     errors[field] = f"{field} 不能为空"
@@ -243,22 +218,14 @@ class RuleService:
     def _validate_foreign_keys(self, data: dict) -> None:
         """验证外键存在性"""
         if "elimination_type_id" in data:
-            elimination_type = self.elimination_type_repo.get_by_id(
-                data["elimination_type_id"]
-            )
+            elimination_type = self.elimination_type_repo.get_by_id(data["elimination_type_id"])
             if not elimination_type:
-                raise self.RuleServiceError(
-                    f"淘汰赛类型 {data['elimination_type_id']} 不存在"
-                )
+                raise self.RuleServiceError(f"淘汰赛类型 {data['elimination_type_id']} 不存在")
 
         if "final_ranking_type_id" in data:
-            ranking_type = self.ranking_type_repo.get_by_id(
-                data["final_ranking_type_id"]
-            )
+            ranking_type = self.ranking_type_repo.get_by_id(data["final_ranking_type_id"])
             if not ranking_type:
-                raise self.RuleServiceError(
-                    f"排名类型 {data['final_ranking_type_id']} 不存在"
-                )
+                raise self.RuleServiceError(f"排名类型 {data['final_ranking_type_id']} 不存在")
 
     class RuleServiceError(Exception):
         """Service层异常"""

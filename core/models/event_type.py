@@ -10,12 +10,6 @@ class EventType:
     type_code: str = field(metadata={"max_length": 30, "description": "类型代码"})
 
     id: UUID = field(default_factory=uuid4, metadata={"description": "主键"})
-    display_name: Optional[str] = field(
-        default=None, metadata={"max_length": 50, "description": "显示名称"}
-    )
-    weapon_type: Optional[str] = field(
-        default=None, metadata={"max_length": 10, "description": "剑种"}
-    )
-    gender: Optional[str] = field(
-        default=None, metadata={"max_length": 10, "description": "性别"}
-    )
+    display_name: Optional[str] = field(default=None, metadata={"max_length": 50, "description": "显示名称"})
+    weapon_type: Optional[str] = field(default=None, metadata={"max_length": 10, "description": "剑种"})
+    gender: Optional[str] = field(default=None, metadata={"max_length": 10, "description": "性别"})

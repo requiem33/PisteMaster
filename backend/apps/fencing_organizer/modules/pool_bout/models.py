@@ -4,9 +4,7 @@ from django.db import models
 
 from backend.apps.fencing_organizer.modules.pool.models import DjangoPool
 from backend.apps.fencing_organizer.modules.fencer.models import DjangoFencer
-from backend.apps.fencing_organizer.modules.match_status.models import (
-    DjangoMatchStatusType,
-)
+from backend.apps.fencing_organizer.modules.match_status.models import DjangoMatchStatusType
 
 
 class DjangoPoolBout(models.Model):
@@ -16,28 +14,14 @@ class DjangoPoolBout(models.Model):
     id = models.UUIDField(primary_key=True, default=uuid4, editable=False)
 
     # 外键字段
-    pool = models.ForeignKey(
-        DjangoPool,
-        on_delete=models.CASCADE,
-        db_column="pool_id",
-        related_name="bouts",
-        verbose_name="所属小组",
-    )
+    pool = models.ForeignKey(DjangoPool, on_delete=models.CASCADE, db_column="pool_id", related_name="bouts", verbose_name="所属小组")
 
     fencer_a = models.ForeignKey(
-        DjangoFencer,
-        on_delete=models.CASCADE,
-        db_column="fencer_a_id",
-        related_name="pool_bouts_as_a",
-        verbose_name="运动员A",
+        DjangoFencer, on_delete=models.CASCADE, db_column="fencer_a_id", related_name="pool_bouts_as_a", verbose_name="运动员A"
     )
 
     fencer_b = models.ForeignKey(
-        DjangoFencer,
-        on_delete=models.CASCADE,
-        db_column="fencer_b_id",
-        related_name="pool_bouts_as_b",
-        verbose_name="运动员B",
+        DjangoFencer, on_delete=models.CASCADE, db_column="fencer_b_id", related_name="pool_bouts_as_b", verbose_name="运动员B"
     )
 
     winner = models.ForeignKey(
@@ -51,11 +35,7 @@ class DjangoPoolBout(models.Model):
     )
 
     status = models.ForeignKey(
-        DjangoMatchStatusType,
-        on_delete=models.PROTECT,
-        db_column="status_id",
-        related_name="pool_bouts",
-        verbose_name="比赛状态",
+        DjangoMatchStatusType, on_delete=models.PROTECT, db_column="status_id", related_name="pool_bouts", verbose_name="比赛状态"
     )
 
     # 比赛数据
@@ -63,21 +43,13 @@ class DjangoPoolBout(models.Model):
 
     fencer_b_score = models.IntegerField(default=0, verbose_name="B得分")
 
-    scheduled_time = models.DateTimeField(
-        null=True, blank=True, verbose_name="计划时间"
-    )
+    scheduled_time = models.DateTimeField(null=True, blank=True, verbose_name="计划时间")
 
-    actual_start_time = models.DateTimeField(
-        null=True, blank=True, verbose_name="实际开始时间"
-    )
+    actual_start_time = models.DateTimeField(null=True, blank=True, verbose_name="实际开始时间")
 
-    actual_end_time = models.DateTimeField(
-        null=True, blank=True, verbose_name="实际结束时间"
-    )
+    actual_end_time = models.DateTimeField(null=True, blank=True, verbose_name="实际结束时间")
 
-    duration_seconds = models.IntegerField(
-        null=True, blank=True, verbose_name="持续时间（秒）"
-    )
+    duration_seconds = models.IntegerField(null=True, blank=True, verbose_name="持续时间（秒）")
 
     notes = models.TextField(null=True, blank=True, verbose_name="备注")
 
@@ -91,21 +63,14 @@ class DjangoPoolBout(models.Model):
         verbose_name_plural = "小组赛单场"
         ordering = ["pool", "scheduled_time"]
         constraints = [
-            models.CheckConstraint(
-                check=models.Q(fencer_a_id__lt=models.F("fencer_b_id")),
-                name="chk_pool_bout_fencer_order",
-            ),
-            models.UniqueConstraint(
-                fields=["pool", "fencer_a", "fencer_b"], name="unique_pool_bout_pair"
-            ),
+            models.CheckConstraint(check=models.Q(fencer_a_id__lt=models.F("fencer_b_id")), name="chk_pool_bout_fencer_order"),
+            models.UniqueConstraint(fields=["pool", "fencer_a", "fencer_b"], name="unique_pool_bout_pair"),
         ]
         indexes = [
             models.Index(fields=["pool"], name="idx_pool_bout_pool"),
             models.Index(fields=["status"], name="idx_pool_bout_status"),
             models.Index(fields=["fencer_a", "fencer_b"], name="idx_pool_bout_fencers"),
-            models.Index(
-                fields=["scheduled_time"], name="idx_pool_bout_scheduled_time"
-            ),
+            models.Index(fields=["scheduled_time"], name="idx_pool_bout_scheduled_time"),
         ]
 
     def save(self, *args, **kwargs):
@@ -117,10 +82,7 @@ class DjangoPoolBout(models.Model):
         # 确保fencer_a_id < fencer_b_id（以满足唯一性约束）
         if self.fencer_a_id > self.fencer_b_id:
             self.fencer_a_id, self.fencer_b_id = self.fencer_b_id, self.fencer_a_id
-            self.fencer_a_score, self.fencer_b_score = (
-                self.fencer_b_score,
-                self.fencer_a_score,
-            )
+            self.fencer_a_score, self.fencer_b_score = self.fencer_b_score, self.fencer_a_score
 
         # 自动计算获胜者（如果比赛已完成且有比分）
         if self.status.status_code == "COMPLETED" and self.winner_id is None:
@@ -153,11 +115,7 @@ class DjangoPoolBout(models.Model):
     @property
     def is_forfeited(self) -> bool:
         """是否为弃权"""
-        return self.status.status_code in [
-            "FORFEITED",
-            "WITHDRAWAL",
-            "DISQUALIFICATION",
-        ]
+        return self.status.status_code in ["FORFEITED", "WITHDRAWAL", "DISQUALIFICATION"]
 
     @property
     def is_ready_to_start(self) -> bool:

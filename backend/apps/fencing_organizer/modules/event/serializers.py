@@ -27,22 +27,13 @@ class EventSerializer(DomainModelSerializer):
     id = serializers.UUIDField(read_only=True)
     event_name = serializers.CharField(max_length=200, required=True)
     tournament_id = serializers.PrimaryKeyRelatedField(
-        queryset=DjangoTournament.objects.all(),
-        source="tournament",
-        write_only=True,
-        required=True,
+        queryset=DjangoTournament.objects.all(), source="tournament", write_only=True, required=True
     )
     rule_id = serializers.PrimaryKeyRelatedField(
-        queryset=DjangoRule.objects.all(),
-        source="rule",
-        write_only=True,
-        required=False,
-        allow_null=True,
+        queryset=DjangoRule.objects.all(), source="rule", write_only=True, required=False, allow_null=True
     )
     event_type = serializers.CharField(max_length=50, required=False, default="")
-    status = serializers.CharField(
-        max_length=20, required=False, default="REGISTRATION"
-    )
+    status = serializers.CharField(max_length=20, required=False, default="REGISTRATION")
     current_step = serializers.IntegerField(required=False, default=0)
     live_ranking = serializers.JSONField(required=False, default=list)
     de_trees = serializers.JSONField(required=False, default=dict)
@@ -116,14 +107,7 @@ class EventSerializer(DomainModelSerializer):
         if custom_rule_config and isinstance(custom_rule_config, dict):
             stages = custom_rule_config.get("stages", [])
             if stages:
-                return {
-                    "id": None,
-                    "rule_name": "Custom",
-                    "is_preset": False,
-                    "preset_code": "custom",
-                    "stages": stages,
-                    "is_custom": True,
-                }
+                return {"id": None, "rule_name": "Custom", "is_preset": False, "preset_code": "custom", "stages": stages, "is_custom": True}
 
         rule = None
         rule_id = None
@@ -139,9 +123,7 @@ class EventSerializer(DomainModelSerializer):
                 rule = None
 
         if rule:
-            stages = (
-                rule.stages_config if rule.stages_config else DEFAULT_WORLD_CUP_STAGES
-            )
+            stages = rule.stages_config if rule.stages_config else DEFAULT_WORLD_CUP_STAGES
             return {
                 "id": str(rule.id),
                 "rule_name": rule.rule_name,
@@ -181,13 +163,9 @@ class EventSerializer(DomainModelSerializer):
                 if not isinstance(stage, dict):
                     raise serializers.ValidationError("Each stage must be an object")
                 if "type" not in stage:
-                    raise serializers.ValidationError(
-                        "Each stage must have a 'type' field"
-                    )
+                    raise serializers.ValidationError("Each stage must have a 'type' field")
                 if stage["type"] not in ["pool", "de"]:
-                    raise serializers.ValidationError(
-                        "Stage type must be 'pool' or 'de'"
-                    )
+                    raise serializers.ValidationError("Stage type must be 'pool' or 'de'")
         return value
 
 
@@ -197,39 +175,21 @@ class EventCreateSerializer(DomainModelSerializer):
     """
 
     tournament_id = serializers.PrimaryKeyRelatedField(
-        queryset=DjangoTournament.objects.all(),
-        source="tournament",
-        write_only=True,
-        required=True,
+        queryset=DjangoTournament.objects.all(), source="tournament", write_only=True, required=True
     )
     event_name = serializers.CharField(max_length=200, required=True)
     event_type = serializers.CharField(max_length=50, required=False, default="")
     rule_id = serializers.PrimaryKeyRelatedField(
-        queryset=DjangoRule.objects.all(),
-        source="rule",
-        write_only=True,
-        required=False,
-        allow_null=True,
+        queryset=DjangoRule.objects.all(), source="rule", write_only=True, required=False, allow_null=True
     )
     custom_rule_config = serializers.JSONField(required=False, default=dict)
     is_team_event = serializers.BooleanField(required=False, default=False)
-    status = serializers.CharField(
-        max_length=20, required=False, default="REGISTRATION"
-    )
+    status = serializers.CharField(max_length=20, required=False, default="REGISTRATION")
     start_time = serializers.DateTimeField(required=False, allow_null=True)
 
     class Meta:
         model = DjangoEvent
-        fields = [
-            "tournament_id",
-            "event_name",
-            "event_type",
-            "rule_id",
-            "start_time",
-            "custom_rule_config",
-            "is_team_event",
-            "status",
-        ]
+        fields = ["tournament_id", "event_name", "event_type", "rule_id", "start_time", "custom_rule_config", "is_team_event", "status"]
 
     def validate_event_name(self, value):
         if not value or len(value.strip()) == 0:
@@ -248,11 +208,7 @@ class EventCreateSerializer(DomainModelSerializer):
                 if not isinstance(stage, dict):
                     raise serializers.ValidationError("Each stage must be an object")
                 if "type" not in stage:
-                    raise serializers.ValidationError(
-                        "Each stage must have a 'type' field"
-                    )
+                    raise serializers.ValidationError("Each stage must have a 'type' field")
                 if stage["type"] not in ["pool", "de"]:
-                    raise serializers.ValidationError(
-                        "Stage type must be 'pool' or 'de'"
-                    )
+                    raise serializers.ValidationError("Stage type must be 'pool' or 'de'")
         return value

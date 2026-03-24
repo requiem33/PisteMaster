@@ -28,25 +28,10 @@ class RuleAdmin(admin.ModelAdmin):
     list_per_page = 25
 
     fieldsets = (
-        (
-            "基本信息",
-            {"fields": ("rule_name", "description", "is_preset", "preset_code")},
-        ),
-        (
-            "赛制设置",
-            {
-                "fields": (
-                    "elimination_type",
-                    "final_ranking_type",
-                    "total_qualified_count",
-                )
-            },
-        ),
+        ("基本信息", {"fields": ("rule_name", "description", "is_preset", "preset_code")}),
+        ("赛制设置", {"fields": ("elimination_type", "final_ranking_type", "total_qualified_count")}),
         ("阶段配置", {"fields": ("stages_config",)}),
-        (
-            "小组赛设置",
-            {"fields": ("pool_size", "match_score_pool", "group_qualification_ratio")},
-        ),
+        ("小组赛设置", {"fields": ("pool_size", "match_score_pool", "group_qualification_ratio")}),
         ("淘汰赛设置", {"fields": ("match_score_elimination",)}),
         ("比赛格式", {"fields": ("match_format", "match_duration")}),
         (
@@ -76,8 +61,4 @@ class RuleAdmin(admin.ModelAdmin):
 
     def get_queryset(self, request):
         """优化查询集"""
-        return (
-            super()
-            .get_queryset(request)
-            .select_related("elimination_type", "final_ranking_type")
-        )
+        return super().get_queryset(request).select_related("elimination_type", "final_ranking_type")

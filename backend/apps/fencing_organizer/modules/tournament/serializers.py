@@ -39,17 +39,13 @@ class TournamentSerializer(DomainModelSerializer):
         if not value or len(value.strip()) == 0:
             raise serializers.ValidationError("Tournament name cannot be empty")
         if len(value) > 200:
-            raise serializers.ValidationError(
-                "Tournament name cannot exceed 200 characters"
-            )
+            raise serializers.ValidationError("Tournament name cannot exceed 200 characters")
         return value.strip()
 
     def validate(self, attrs):
         if attrs.get("start_date") and attrs.get("end_date"):
             if attrs["end_date"] < attrs["start_date"]:
-                raise serializers.ValidationError(
-                    {"end_date": "End date cannot be earlier than start date"}
-                )
+                raise serializers.ValidationError({"end_date": "End date cannot be earlier than start date"})
         return attrs
 
 
@@ -82,12 +78,6 @@ class TournamentCreateSerializer(DomainModelSerializer):
         return value.strip()
 
     def validate(self, attrs):
-        if (
-            attrs.get("end_date")
-            and attrs.get("start_date")
-            and attrs["end_date"] < attrs["start_date"]
-        ):
-            raise serializers.ValidationError(
-                {"end_date": "End date cannot be earlier than start date"}
-            )
+        if attrs.get("end_date") and attrs.get("start_date") and attrs["end_date"] < attrs["start_date"]:
+            raise serializers.ValidationError({"end_date": "End date cannot be earlier than start date"})
         return attrs

@@ -4,9 +4,7 @@ from uuid import UUID
 
 from django.db import IntegrityError
 
-from backend.apps.fencing_organizer.repositories.tournament_repo import (
-    DjangoTournamentRepository,
-)
+from backend.apps.fencing_organizer.repositories.tournament_repo import DjangoTournamentRepository
 from core.models.tournament import Tournament
 
 
@@ -67,9 +65,7 @@ class TournamentService:
         except KeyError as e:
             raise self.TournamentServiceError(f"Missing required field: {str(e)}")
 
-    def update_tournament(
-        self, tournament_id: UUID, tournament_data: dict
-    ) -> Tournament:
+    def update_tournament(self, tournament_id: UUID, tournament_data: dict) -> Tournament:
         """
         Update tournament.
 

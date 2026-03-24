@@ -23,9 +23,7 @@ class FencerRepositoryInterface(ABC):
         pass
 
     @abstractmethod
-    def get_fencers_by_name(
-        self, first_name: Optional[str] = None, last_name: Optional[str] = None
-    ) -> List[Fencer]:
+    def get_fencers_by_name(self, first_name: Optional[str] = None, last_name: Optional[str] = None) -> List[Fencer]:
         """根据姓名获取运动员列表"""
         pass
 

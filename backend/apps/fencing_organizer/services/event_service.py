@@ -5,9 +5,7 @@ from uuid import UUID
 from django.db import IntegrityError
 
 from backend.apps.fencing_organizer.repositories.event_repo import DjangoEventRepository
-from backend.apps.fencing_organizer.repositories.tournament_repo import (
-    DjangoTournamentRepository,
-)
+from backend.apps.fencing_organizer.repositories.tournament_repo import DjangoTournamentRepository
 from backend.apps.fencing_organizer.repositories.rule_repo import DjangoRuleRepository
 from core.models.event import Event
 
@@ -28,9 +26,7 @@ class EventService:
     ):
 
         self.event_repository = event_repository or DjangoEventRepository()
-        self.tournament_repository = (
-            tournament_repository or DjangoTournamentRepository()
-        )
+        self.tournament_repository = tournament_repository or DjangoTournamentRepository()
         self.rule_repository = rule_repository or DjangoRuleRepository()
 
     def get_event_by_id(self, event_id: UUID) -> Optional[Event]:
@@ -68,17 +64,9 @@ class EventService:
         self._validate_foreign_keys(event_data)
 
         event = Event(
-            tournament_id=(
-                event_data["tournament"].id
-                if hasattr(event_data.get("tournament"), "id")
-                else event_data.get("tournament_id")
-            ),
+            tournament_id=event_data["tournament"].id if hasattr(event_data.get("tournament"), "id") else event_data.get("tournament_id"),
             event_name=event_data["event_name"],
-            rule_id=(
-                event_data.get("rule").id
-                if hasattr(event_data.get("rule"), "id")
-                else event_data.get("rule_id")
-            ),
+            rule_id=event_data.get("rule").id if hasattr(event_data.get("rule"), "id") else event_data.get("rule_id"),
             event_type=event_data.get("event_type", ""),
             status=event_data.get("status", "REGISTRATION"),
             is_team_event=event_data.get("is_team_event", False),
