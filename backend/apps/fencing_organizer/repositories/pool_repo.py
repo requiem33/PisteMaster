@@ -132,7 +132,7 @@ class DjangoPoolRepository(PoolRepositoryInterface):
                     "bout_count": pool.bout_count,
                     "completed_bout_count": pool.completed_bout_count,
                     "completion_percentage": (
-                            pool.completed_bout_count / pool.bout_count * 100) if pool.bout_count > 0 else 0
+                        pool.completed_bout_count / pool.bout_count * 100) if pool.bout_count > 0 else 0
                 }
             })
 

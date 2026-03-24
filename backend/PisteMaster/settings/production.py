@@ -6,7 +6,7 @@ Usage: DJANGO_SETTINGS_MODULE=PisteMaster.settings.production
 """
 
 import os
-from .base import *
+from .base import *  # noqa: F403
 
 DEBUG = False
 
@@ -28,7 +28,7 @@ DATABASES = {
     }
 }
 
-STATIC_ROOT = BASE_DIR / "staticfiles"
+STATIC_ROOT = BASE_DIR / "staticfiles"  # noqa: F405
 
 SECURE_SSL_REDIRECT = os.environ.get("SECURE_SSL_REDIRECT", "False").lower() == "true"
 SECURE_HSTS_SECONDS = int(os.environ.get("SECURE_HSTS_SECONDS", "0"))

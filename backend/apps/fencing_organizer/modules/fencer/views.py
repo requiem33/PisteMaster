@@ -67,11 +67,11 @@ class FencerViewSet(viewsets.GenericViewSet):
         search = request.query_params.get('search')
         if search:
             search_lower = search.lower()
-            fencers = [f for f in fencers if
-                      search_lower in f.first_name.lower() or
-                      search_lower in f.last_name.lower() or
-                      (f.display_name and search_lower in f.display_name.lower()) or
-                      (f.fencing_id and search_lower in f.fencing_id.lower())]
+            fencers = [f for f in fencers
+                       if search_lower in f.first_name.lower()
+                       or search_lower in f.last_name.lower()
+                       or (f.display_name and search_lower in f.display_name.lower())
+                       or (f.fencing_id and search_lower in f.fencing_id.lower())]
 
         ordering = request.query_params.get('ordering', 'last_name')
         reverse = ordering.startswith('-')

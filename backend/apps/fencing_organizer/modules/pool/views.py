@@ -150,7 +150,7 @@ class PoolViewSet(viewsets.GenericViewSet):
             update_data['is_locked'] = is_locked
 
         try:
-            pool = self.service.update_pool(pool_id, update_data)
+            self.service.update_pool(pool_id, update_data)
             response_data = {"message": "Updated successfully"}
             if is_locked is not None:
                 response_data["is_locked"] = is_locked

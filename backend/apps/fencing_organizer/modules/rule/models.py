@@ -117,8 +117,8 @@ class DjangoRule(models.Model):
             ),
             models.CheckConstraint(
                 check=models.Q(group_qualification_ratio__gte=0)
-                      & models.Q(group_qualification_ratio__lte=1)
-                      | models.Q(group_qualification_ratio__isnull=True),
+                & models.Q(group_qualification_ratio__lte=1)
+                | models.Q(group_qualification_ratio__isnull=True),
                 name='chk_rule_qualification_ratio'
             ),
         ]

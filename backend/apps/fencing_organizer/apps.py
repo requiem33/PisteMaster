@@ -1,5 +1,6 @@
 from django.apps import AppConfig
 
+
 class ApiConfig(AppConfig):
     default_auto_field = 'django.db.models.BigAutoField'
     name = 'backend.apps.fencing_organizer'  # 完整的Python路径
