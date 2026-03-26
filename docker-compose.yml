@@ -41,12 +41,12 @@ services:
       - static_files:/app/staticfiles
 
   frontend:
-    image: nginx:alpine
+    build:
+      context: .
+      dockerfile: web_frontend/Dockerfile
     container_name: pistemaster-frontend
     volumes:
-      - ./nginx.conf:/etc/nginx/nginx.conf:ro
       - static_files:/app/staticfiles:ro
-      - ./web_frontend/dist:/usr/share/nginx/html:ro
     depends_on:
       - backend
     ports:
