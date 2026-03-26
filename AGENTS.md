@@ -40,10 +40,10 @@ pytest -v tests/unit/test_models/test_tournament.py
 cd backend && python manage.py test
 
 # Lint with flake8
-flake8 backend/ core/ tests/ --exclude=venv,migrations,__pycache__
+flake8 backend/ core/ tests/ --exclude=venv,migrations,__pycache__,dist
 
 # Format with black
-black backend/ core/ tests/ --exclude="venv|migrations"
+black backend/ core/ tests/ --exclude="venv|migrations|dist"
 
 # Start Django development server
 cd backend && python manage.py runserver
@@ -353,3 +353,38 @@ PisteMaster/
 - Use Vitest with Vue Test Utils
 - Test files should be co-located or in a `__tests__` directory
 - Use `describe`/`it` (or `test`) blocks for organization
+
+---
+
+## Pre-commit Hooks
+
+The project uses Git pre-commit hooks to run lint checks before each commit, matching the GitHub Actions CI workflow.
+
+### Setup
+
+Run the setup script to install the pre-commit hook:
+
+```bash
+./scripts/setup-hooks.sh
+```
+
+This will install a pre-commit hook that runs:
+- Frontend lint (ESLint)
+- Python flake8
+- Python black --check
+
+### Bypassing the Hook
+
+If you need to commit without running the checks (not recommended), use:
+
+```bash
+git commit --no-verify
+```
+
+### Manual Execution
+
+To run the lint checks manually:
+
+```bash
+./scripts/pre-commit.sh
+```
