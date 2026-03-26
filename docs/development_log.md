@@ -9,6 +9,28 @@
 
 ---
 
+## 🗓️ 2026-03-26
+
+### 已完成事项
+
+* **Pre-commit Hooks**: 添加本地lint检查，与GitHub Actions CI保持一致
+  - 创建 `scripts/pre-commit.sh` 脚本，运行前端ESLint和Python flake8/black检查
+  - 创建 `scripts/setup-hooks.sh` 脚本，安装pre-commit git hook
+  - 支持自动检测 `venv/` 和 `.venv/` 虚拟环境
+  - 排除 `dist/` 构建产物目录
+  - 更新 `AGENTS.md` 添加使用文档
+
+### 技术决策 & 挑战
+
+* 使用脚本直接调用 `venv/bin/flake8` 而非激活虚拟环境，避免 `deactivate` 在失败时不执行的问题
+* Git hooks运行在 `.git/` 目录，脚本需自动定位项目根目录
+
+### 发现的问题
+
+* 无。
+
+---
+
 ## 🗓️ 2026-03-24
 
 ### 已完成事项
