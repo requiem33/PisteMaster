@@ -13,6 +13,12 @@
 
 ### 已完成事项
 
+* **Docker CI/CD修复**: 修复GitHub Actions构建流程
+  - 添加前端Dockerfile (`web_frontend/Dockerfile`)
+  - 配置.dockerignore排除不必要文件
+  - 修复Docker构建警告和GHCR权限错误
+  - 使用DOCKER_ACCESS_TOKEN密钥进行Docker Hub登录
+
 * **Pre-commit Hooks**: 添加本地lint检查，与GitHub Actions CI保持一致
   - 创建 `scripts/pre-commit.sh` 脚本，运行前端ESLint和Python flake8/black检查
   - 创建 `scripts/setup-hooks.sh` 脚本，安装pre-commit git hook
