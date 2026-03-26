@@ -16,6 +16,10 @@ on:
     branches: [main]
   workflow_dispatch:
 
+permissions:
+  contents: read
+  packages: write
+
 env:
   NODE_VERSION: '22'
   PYTHON_VERSION: '3.12'

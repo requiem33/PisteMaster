@@ -5,7 +5,7 @@ WORKDIR /app
 ENV PYTHONDONTWRITEBYTECODE=1
 ENV PYTHONUNBUFFERED=1
 ENV DJANGO_SETTINGS_MODULE=PisteMaster.settings.production
-ENV SECRET_KEY=build-time-secret-key
+ARG SECRET_KEY=build-time-secret-key
 
 RUN apt-get update && apt-get install -y --no-install-recommends \
     libpq-dev \
