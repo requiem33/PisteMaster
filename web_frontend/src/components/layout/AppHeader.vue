@@ -36,7 +36,7 @@
       </el-tooltip>
       <el-divider direction="vertical"/>
       <div class="user-slot">
-        <slot name="user"></slot>
+        <UserMenu />
         <el-button v-if="showCreate" type="primary" :icon="Plus" @click="$emit('create')">
           {{ $t('common.actions.create') }}
         </el-button>
@@ -46,11 +46,11 @@
 </template>
 
 <script setup lang="ts">
-// --- <script> 部分完全保持不变 ---
 import {useRouter} from 'vue-router'
 import {useDark, useToggle} from '@vueuse/core'
 import {useI18n} from 'vue-i18n'
 import {Trophy, Sunny, Moon, Plus} from '@element-plus/icons-vue'
+import UserMenu from './UserMenu.vue'
 
 interface Props {
   showCreate?: boolean

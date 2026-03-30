@@ -10,9 +10,11 @@ from rest_framework import viewsets
 from uuid import UUID
 
 from backend.apps.fencing_organizer.modules.tournament.models import DjangoTournament
+from backend.apps.fencing_organizer.permissions import IsSchedulerOrAdmin, IsTournamentEditor, IsTournamentCreatorOrAdmin
 from backend.apps.fencing_organizer.services.tournament_service import TournamentService
 from backend.apps.fencing_organizer.utils.pagination import get_paginated_response
-from .serializers import TournamentSerializer, TournamentCreateSerializer
+from backend.apps.users.models import User
+from .serializers import TournamentSerializer, TournamentCreateSerializer, TournamentSchedulerSerializer
 
 
 class TournamentViewSet(viewsets.GenericViewSet):
@@ -23,15 +25,18 @@ class TournamentViewSet(viewsets.GenericViewSet):
     Service returns Domain models (dataclasses).
     Serializer handles Domain model serialization via DomainModelSerializer.
 
-    list: Get tournament list
-    retrieve: Get single tournament
-    create: Create tournament
-    update: Update tournament
-    partial_update: Partial update tournament
-    destroy: Delete tournament
-    upcoming: Get upcoming tournaments
-    ongoing: Get ongoing tournaments
-    statistics: Get tournament statistics
+    list: Get tournament list (public)
+    retrieve: Get single tournament (public)
+    create: Create tournament (scheduler or admin only)
+    update: Update tournament (editor only - admin, creator, or scheduler)
+    partial_update: Partial update tournament (editor only)
+    destroy: Delete tournament (editor only)
+    upcoming: Get upcoming tournaments (public)
+    ongoing: Get ongoing tournaments (public)
+    statistics: Get tournament statistics (public)
+    timeline: Get tournament timeline (public)
+    add_scheduler: Add scheduler to tournament (admin or creator only)
+    remove_scheduler: Remove scheduler from tournament (admin or creator only)
     """
 
     queryset = DjangoTournament.objects.all()
@@ -44,13 +49,19 @@ class TournamentViewSet(viewsets.GenericViewSet):
     ordering = ["-start_date"]
 
     def get_permissions(self):
-        if self.action in ["create", "list", "retrieve", "update", "partial_update", "destroy"]:
-            return [AllowAny()]
-        return [IsAuthenticated()]
+        if self.action in ["create"]:
+            return [IsSchedulerOrAdmin()]
+        elif self.action in ["update", "partial_update", "destroy"]:
+            return [IsTournamentEditor()]
+        elif self.action in ["add_scheduler", "remove_scheduler"]:
+            return [IsTournamentCreatorOrAdmin()]
+        return [AllowAny()]
 
     def get_serializer_class(self):
         if self.action == "create":
             return TournamentCreateSerializer
+        elif self.action in ["add_scheduler", "remove_scheduler"]:
+            return TournamentSchedulerSerializer
         return TournamentSerializer
 
     def list(self, request):
@@ -96,7 +107,11 @@ class TournamentViewSet(viewsets.GenericViewSet):
         serializer.is_valid(raise_exception=True)
 
         try:
-            tournament = self.service.create_tournament(serializer.validated_data)
+            validated_data = serializer.validated_data.copy()
+            if request.user.is_authenticated:
+                validated_data['created_by_id'] = request.user.id
+            
+            tournament = self.service.create_tournament(validated_data)
             response_serializer = self.get_serializer(tournament)
             return Response(response_serializer.data, status=status.HTTP_201_CREATED)
         except self.service.TournamentServiceError as e:
@@ -107,6 +122,12 @@ class TournamentViewSet(viewsets.GenericViewSet):
             tournament_id = UUID(pk)
         except (ValueError, TypeError):
             return Response({"detail": "Invalid tournament ID"}, status=status.HTTP_400_BAD_REQUEST)
+
+        tournament = self.service.get_tournament_by_id(tournament_id)
+        if not tournament:
+            return Response({"detail": "Tournament not found"}, status=status.HTTP_404_NOT_FOUND)
+
+        self.check_object_permissions(request, tournament)
 
         serializer = self.get_serializer(data=request.data)
         serializer.is_valid(raise_exception=True)
@@ -119,26 +140,19 @@ class TournamentViewSet(viewsets.GenericViewSet):
             return Response({"detail": e.message, "errors": e.errors}, status=status.HTTP_400_BAD_REQUEST)
 
     def partial_update(self, request, pk=None):
-        try:
-            tournament_id = UUID(pk)
-        except (ValueError, TypeError):
-            return Response({"detail": "Invalid tournament ID"}, status=status.HTTP_400_BAD_REQUEST)
-
-        serializer = TournamentSerializer(data=request.data, partial=True)
-        serializer.is_valid(raise_exception=True)
-
-        try:
-            tournament = self.service.update_tournament(tournament_id, serializer.validated_data)
-            response_serializer = TournamentSerializer(tournament)
-            return Response(response_serializer.data)
-        except self.service.TournamentServiceError as e:
-            return Response({"detail": e.message, "errors": e.errors}, status=status.HTTP_400_BAD_REQUEST)
+        return self.update(request, pk)
 
     def destroy(self, request, pk=None):
         try:
             tournament_id = UUID(pk)
         except (ValueError, TypeError):
             return Response({"detail": "Invalid tournament ID"}, status=status.HTTP_400_BAD_REQUEST)
+
+        tournament = self.service.get_tournament_by_id(tournament_id)
+        if not tournament:
+            return Response({"detail": "Tournament not found"}, status=status.HTTP_404_NOT_FOUND)
+
+        self.check_object_permissions(request, tournament)
 
         try:
             success = self.service.delete_tournament(tournament_id)
@@ -203,3 +217,60 @@ class TournamentViewSet(viewsets.GenericViewSet):
             )
         except (ValueError, TypeError):
             return Response({"detail": "Invalid tournament ID"}, status=status.HTTP_400_BAD_REQUEST)
+
+    @action(detail=True, methods=["post"])
+    def add_scheduler(self, request, pk=None):
+        try:
+            tournament_id = UUID(pk)
+        except (ValueError, TypeError):
+            return Response({"detail": "Invalid tournament ID"}, status=status.HTTP_400_BAD_REQUEST)
+
+        serializer = self.get_serializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+
+        user_id = serializer.validated_data['user_id']
+        
+        try:
+            tournament = DjangoTournament.objects.get(pk=tournament_id)
+        except DjangoTournament.DoesNotExist:
+            return Response({"detail": "Tournament not found"}, status=status.HTTP_404_NOT_FOUND)
+
+        self.check_object_permissions(request, tournament)
+
+        try:
+            user = User.objects.get(pk=user_id)
+        except User.DoesNotExist:
+            return Response({"detail": "User not found"}, status=status.HTTP_404_NOT_FOUND)
+
+        if user.role not in ('ADMIN', 'SCHEDULER'):
+            return Response({"detail": "Only admins and schedulers can be assigned"}, status=status.HTTP_400_BAD_REQUEST)
+
+        tournament.schedulers.add(user)
+        return Response({"success": True, "message": f"User {user.username} added to schedulers"})
+
+    @action(detail=True, methods=["post"])
+    def remove_scheduler(self, request, pk=None):
+        try:
+            tournament_id = UUID(pk)
+        except (ValueError, TypeError):
+            return Response({"detail": "Invalid tournament ID"}, status=status.HTTP_400_BAD_REQUEST)
+
+        serializer = self.get_serializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+
+        user_id = serializer.validated_data['user_id']
+        
+        try:
+            tournament = DjangoTournament.objects.get(pk=tournament_id)
+        except DjangoTournament.DoesNotExist:
+            return Response({"detail": "Tournament not found"}, status=status.HTTP_404_NOT_FOUND)
+
+        self.check_object_permissions(request, tournament)
+
+        try:
+            user = User.objects.get(pk=user_id)
+        except User.DoesNotExist:
+            return Response({"detail": "User not found"}, status=status.HTTP_404_NOT_REQUEST)
+
+        tournament.schedulers.remove(user)
+        return Response({"success": True, "message": f"User {user.username} removed from schedulers"})

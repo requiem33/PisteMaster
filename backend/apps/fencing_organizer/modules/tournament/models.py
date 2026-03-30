@@ -1,5 +1,6 @@
 from django.db import models
 from django.core.validators import MinLengthValidator
+from django.conf import settings
 from uuid import uuid4
 
 
@@ -25,13 +26,29 @@ class DjangoTournament(models.Model):
 
     # 外键字段
     status = models.CharField(
-        max_length=20, choices=Status.choices, default=Status.PLANNING, verbose_name="赛事状态"  # 👈 默认状态为“计划中”
+        max_length=20, choices=Status.choices, default=Status.PLANNING, verbose_name="赛事状态"  # 👈 默认状态为"计划中"
     )
 
     # 可选字段
     organizer = models.CharField(max_length=200, null=True, blank=True, verbose_name="主办方")
 
     location = models.CharField(max_length=200, null=True, blank=True, verbose_name="赛事举办地")
+
+    # 用户关联字段
+    created_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='created_tournaments',
+        verbose_name="创建者"
+    )
+    schedulers = models.ManyToManyField(
+        settings.AUTH_USER_MODEL,
+        related_name='assigned_tournaments',
+        blank=True,
+        verbose_name="编排人员"
+    )
 
     # 时间戳字段
     created_at = models.DateTimeField(auto_now_add=True)

@@ -1,7 +1,6 @@
 import {createRouter, createWebHashHistory} from 'vue-router'
+import {useAuthStore} from '@/stores/authStore'
 
-// 导入你的视图组件
-// 注意：确保你的文件名和路径完全匹配
 const router = createRouter({
     history: createWebHashHistory(),
     routes: [
@@ -20,8 +19,8 @@ const router = createRouter({
         {
             path: '/tournament/create',
             name: 'TournamentCreate',
-            component: () => import('../views/TournamentCreate.vue'), // 👈 新建这个组件
-            meta: {titleKey: 'common.pageTitles.tournamentCreate'}
+            component: () => import('../views/TournamentCreate.vue'),
+            meta: {titleKey: 'common.pageTitles.tournamentCreate', requiresAuth: true}
         },
         {
             path: '/tournament/:id',
@@ -34,8 +33,35 @@ const router = createRouter({
             name: 'EventOrchestrator',
             component: () => import('../views/EventOrchestrator.vue'),
             meta: {titleKey: 'common.pageTitles.eventOrchestrator'}
+        },
+        {
+            path: '/login',
+            name: 'Login',
+            component: () => import('../views/Login.vue'),
+            meta: {titleKey: 'auth.login'}
         }
     ]
+})
+
+router.beforeEach(async (to, from, next) => {
+    const authStore = useAuthStore()
+
+    if (!authStore.user) {
+        await authStore.fetchCurrentUser()
+    }
+
+    if (to.path === '/login' && authStore.isAuthenticated) {
+        next('/')
+        return
+    }
+
+    const requiresAuth = to.meta.requiresAuth as boolean
+    if (requiresAuth && !authStore.isAuthenticated) {
+        next({path: '/login', query: {redirect: to.fullPath}})
+        return
+    }
+
+    next()
 })
 
 export default router
