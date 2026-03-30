@@ -12,6 +12,7 @@ from backend.apps.fencing_organizer.modules.event.models import DjangoEvent
 from backend.apps.fencing_organizer.modules.event_participant.models import DjangoEventParticipant
 from backend.apps.fencing_organizer.modules.fencer.models import DjangoFencer
 from backend.apps.fencing_organizer.modules.pool.models import DjangoPool
+from backend.apps.fencing_organizer.permissions import IsEventEditor
 from backend.apps.fencing_organizer.services.event_service import EventService
 from backend.apps.fencing_organizer.utils.pagination import get_paginated_response
 from .serializers import EventSerializer, EventCreateSerializer
@@ -36,21 +37,10 @@ class EventViewSet(viewsets.GenericViewSet):
     ordering = ["start_time"]
 
     def get_permissions(self):
-        if self.action in [
-            "create",
-            "list",
-            "retrieve",
-            "update",
-            "partial_update",
-            "destroy",
-            "by_tournament",
-            "update_live_ranking",
-            "get_participants",
-            "sync_participants",
-            "stage_pools",
-            "stage_detree",
-        ]:
+        if self.action in ["list", "retrieve", "by_tournament", "get_participants"]:
             return [AllowAny()]
+        elif self.action in ["create", "update", "partial_update", "destroy", "update_live_ranking", "sync_participants", "stage_pools", "stage_detree"]:
+            return [IsEventEditor()]
         return [IsAuthenticated()]
 
     def get_serializer_class(self):
@@ -121,6 +111,17 @@ class EventViewSet(viewsets.GenericViewSet):
             event_id = UUID(pk)
         except (ValueError, TypeError):
             return Response({"detail": "Invalid event ID"}, status=status.HTTP_400_BAD_REQUEST)
+        
+        event = self.service.get_event_by_id(event_id)
+        if not event:
+            return Response({"detail": "Event not found"}, status=status.HTTP_404_NOT_FOUND)
+        
+        # Use Django ORM object for permission check (has tournament relation)
+        try:
+            django_event = DjangoEvent.objects.get(pk=event_id)
+            self.check_object_permissions(request, django_event)
+        except DjangoEvent.DoesNotExist:
+            return Response({"detail": "Event not found"}, status=status.HTTP_404_NOT_FOUND)
 
         serializer = EventSerializer(data=request.data, partial=True)
         serializer.is_valid(raise_exception=True)
@@ -140,6 +141,17 @@ class EventViewSet(viewsets.GenericViewSet):
             event_id = UUID(pk)
         except (ValueError, TypeError):
             return Response({"detail": "Invalid event ID"}, status=status.HTTP_400_BAD_REQUEST)
+        
+        event = self.service.get_event_by_id(event_id)
+        if not event:
+            return Response({"detail": "Event not found"}, status=status.HTTP_404_NOT_FOUND)
+        
+        # Use Django ORM object for permission check (has tournament relation)
+        try:
+            django_event = DjangoEvent.objects.get(pk=event_id)
+            self.check_object_permissions(request, django_event)
+        except DjangoEvent.DoesNotExist:
+            return Response({"detail": "Event not found"}, status=status.HTTP_404_NOT_FOUND)
 
         try:
             success = self.service.delete_event(event_id)

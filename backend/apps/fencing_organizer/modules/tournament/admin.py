@@ -6,22 +6,25 @@ from .models import DjangoTournament
 class TournamentAdmin(admin.ModelAdmin):
     """赛事管理后台"""
 
-    list_display = ("tournament_name", "organizer", "location", "start_date", "end_date", "status", "duration_days_display", "created_at")
+    list_display = ("tournament_name", "organizer", "location", "start_date", "end_date", "status", "created_by", "duration_days_display", "created_at")
 
     list_display_links = ("tournament_name",)
 
     search_fields = ("tournament_name", "organizer", "location")
 
-    list_filter = ("status", "start_date", "end_date", "created_at")
+    list_filter = ("status", "start_date", "end_date", "created_at", "created_by")
 
     ordering = ("-start_date", "tournament_name")
 
     list_per_page = 25
 
+    filter_horizontal = ("schedulers",)
+
     fieldsets = (
         ("基本信息", {"fields": ("tournament_name", "organizer", "location")}),
         ("时间信息", {"fields": ("start_date", "end_date")}),
         ("状态管理", {"fields": ("status",)}),
+        ("用户管理", {"fields": ("created_by", "schedulers")}),
         (
             "系统信息",
             {
@@ -31,7 +34,7 @@ class TournamentAdmin(admin.ModelAdmin):
         ),
     )
 
-    readonly_fields = ("id", "created_at", "updated_at", "duration_days_display")
+    readonly_fields = ("id", "created_at", "updated_at", "duration_days_display", "created_by")
 
     def duration_days_display(self, obj):
         """持续时间显示"""
@@ -43,10 +46,9 @@ class TournamentAdmin(admin.ModelAdmin):
         """编辑时保护某些字段"""
         readonly = list(self.readonly_fields)
         if obj:  # 编辑现有对象时
-            # 可以添加更多只读字段
             pass
         return readonly
 
     def get_queryset(self, request):
         """优化查询集"""
-        return super().get_queryset(request)
+        return super().get_queryset(request).select_related("created_by").prefetch_related("schedulers")

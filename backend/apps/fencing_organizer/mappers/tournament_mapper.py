@@ -8,6 +8,12 @@ class TournamentMapper:
     @staticmethod
     def to_domain(django_tournament: DjangoTournament) -> Tournament:
         """Django ORM → Core Domain"""
+        created_by_id = None
+        if django_tournament.created_by:
+            created_by_id = django_tournament.created_by.id
+
+        scheduler_ids =list(django_tournament.schedulers.values_list('id', flat=True))
+
         return Tournament(
             id=django_tournament.id,
             tournament_name=django_tournament.tournament_name,
@@ -16,6 +22,8 @@ class TournamentMapper:
             status=django_tournament.status,
             organizer=django_tournament.organizer,
             location=django_tournament.location,
+            created_by_id=created_by_id,
+            scheduler_ids=scheduler_ids,
             created_at=django_tournament.created_at,
             updated_at=django_tournament.updated_at,
         )
@@ -31,5 +39,14 @@ class TournamentMapper:
             "status": tournament.status,
             "organizer": tournament.organizer,
             "location": tournament.location,
-            # 注意：created_at和updated_at不包含在这里，让Django自动处理
+            "created_by_id": tournament.created_by_id,
         }
+
+    @staticmethod
+    def apply_schedulers(django_tournament: DjangoTournament, scheduler_ids: list) -> None:
+        """Apply scheduler IDs to Django tournament (ManyToMany field)"""
+        if scheduler_ids is not None:
+            from backend.apps.users.models import User
+            django_tournament.schedulers.set(
+                User.objects.filter(id__in=scheduler_ids)
+            )

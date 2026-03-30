@@ -1,7 +1,7 @@
 from dataclasses import dataclass, field
 from uuid import UUID, uuid4
 from datetime import date, datetime
-from typing import Optional
+from typing import Optional, List
 
 
 @dataclass
@@ -35,6 +35,10 @@ class Tournament:
     # 可选字段
     organizer: Optional[str] = field(default=None, metadata={"max_length": 200, "description": "主办方"})
     location: Optional[str] = field(default=None, metadata={"max_length": 200, "description": "赛事举办地"})
+
+    # 用户关联字段
+    created_by_id: Optional[UUID] = field(default=None, metadata={"description": "创建者ID"})
+    scheduler_ids: List[UUID] = field(default_factory=list, metadata={"description": "编排人员ID列表"})
 
     # 时间戳字段
     created_at: datetime = field(default_factory=datetime.now, metadata={"description": "创建时间", "db_default": "NOW()"})

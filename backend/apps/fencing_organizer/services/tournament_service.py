@@ -56,6 +56,7 @@ class TournamentService:
                 organizer=tournament_data.get("organizer"),
                 location=tournament_data.get("location"),
                 status=tournament_data.get("status", "PLANNING"),
+                created_by_id=tournament_data.get("created_by_id"),
             )
 
             return self.repository.save_tournament(tournament_entity)
