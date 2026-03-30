@@ -1,14 +1,11 @@
 import type { User } from '@/types/user'
-import { getCsrfToken } from '@/utils/csrf'
+import { getApiHeaders, getCsrfHeaders } from '@/utils/csrf'
 
 export const AuthService = {
   async login(username: string, password: string): Promise<User> {
     const response = await fetch('/api/auth/login/', {
       method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'X-CSRFToken': getCsrfToken(),
-      },
+      headers: getApiHeaders(),
       credentials: 'include',
       body: JSON.stringify({ username, password }),
     })
@@ -25,9 +22,7 @@ export const AuthService = {
   async logout(): Promise<void> {
     await fetch('/api/auth/logout/', {
       method: 'POST',
-      headers: {
-        'X-CSRFToken': getCsrfToken(),
-      },
+      headers: getCsrfHeaders(),
       credentials: 'include',
     })
   },
