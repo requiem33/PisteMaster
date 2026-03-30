@@ -40,15 +40,10 @@ class DjangoTournament(models.Model):
         on_delete=models.SET_NULL,
         null=True,
         blank=True,
-        related_name='created_tournaments',
-        verbose_name="创建者"
+        related_name="created_tournaments",
+        verbose_name="创建者",
     )
-    schedulers = models.ManyToManyField(
-        settings.AUTH_USER_MODEL,
-        related_name='assigned_tournaments',
-        blank=True,
-        verbose_name="编排人员"
-    )
+    schedulers = models.ManyToManyField(settings.AUTH_USER_MODEL, related_name="assigned_tournaments", blank=True, verbose_name="编排人员")
 
     # 时间戳字段
     created_at = models.DateTimeField(auto_now_add=True)

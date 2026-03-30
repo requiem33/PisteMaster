@@ -39,7 +39,16 @@ class EventViewSet(viewsets.GenericViewSet):
     def get_permissions(self):
         if self.action in ["list", "retrieve", "by_tournament", "get_participants"]:
             return [AllowAny()]
-        elif self.action in ["create", "update", "partial_update", "destroy", "update_live_ranking", "sync_participants", "stage_pools", "stage_detree"]:
+        elif self.action in [
+            "create",
+            "update",
+            "partial_update",
+            "destroy",
+            "update_live_ranking",
+            "sync_participants",
+            "stage_pools",
+            "stage_detree",
+        ]:
             return [IsEventEditor()]
         return [IsAuthenticated()]
 
@@ -111,11 +120,11 @@ class EventViewSet(viewsets.GenericViewSet):
             event_id = UUID(pk)
         except (ValueError, TypeError):
             return Response({"detail": "Invalid event ID"}, status=status.HTTP_400_BAD_REQUEST)
-        
+
         event = self.service.get_event_by_id(event_id)
         if not event:
             return Response({"detail": "Event not found"}, status=status.HTTP_404_NOT_FOUND)
-        
+
         # Use Django ORM object for permission check (has tournament relation)
         try:
             django_event = DjangoEvent.objects.get(pk=event_id)
@@ -141,11 +150,11 @@ class EventViewSet(viewsets.GenericViewSet):
             event_id = UUID(pk)
         except (ValueError, TypeError):
             return Response({"detail": "Invalid event ID"}, status=status.HTTP_400_BAD_REQUEST)
-        
+
         event = self.service.get_event_by_id(event_id)
         if not event:
             return Response({"detail": "Event not found"}, status=status.HTTP_404_NOT_FOUND)
-        
+
         # Use Django ORM object for permission check (has tournament relation)
         try:
             django_event = DjangoEvent.objects.get(pk=event_id)

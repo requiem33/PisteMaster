@@ -12,7 +12,7 @@ class TournamentMapper:
         if django_tournament.created_by:
             created_by_id = django_tournament.created_by.id
 
-        scheduler_ids =list(django_tournament.schedulers.values_list('id', flat=True))
+        scheduler_ids = list(django_tournament.schedulers.values_list("id", flat=True))
 
         return Tournament(
             id=django_tournament.id,
@@ -47,6 +47,5 @@ class TournamentMapper:
         """Apply scheduler IDs to Django tournament (ManyToMany field)"""
         if scheduler_ids is not None:
             from backend.apps.users.models import User
-            django_tournament.schedulers.set(
-                User.objects.filter(id__in=scheduler_ids)
-            )
+
+            django_tournament.schedulers.set(User.objects.filter(id__in=scheduler_ids))

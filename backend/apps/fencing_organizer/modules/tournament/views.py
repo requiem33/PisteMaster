@@ -4,7 +4,7 @@ from django.db.models import Count, Q
 from django_filters.rest_framework import DjangoFilterBackend
 from rest_framework import filters, status
 from rest_framework.decorators import action
-from rest_framework.permissions import AllowAny, IsAuthenticated
+from rest_framework.permissions import AllowAny
 from rest_framework.response import Response
 from rest_framework import viewsets
 from uuid import UUID
@@ -109,8 +109,8 @@ class TournamentViewSet(viewsets.GenericViewSet):
         try:
             validated_data = serializer.validated_data.copy()
             if request.user.is_authenticated:
-                validated_data['created_by_id'] = request.user.id
-            
+                validated_data["created_by_id"] = request.user.id
+
             tournament = self.service.create_tournament(validated_data)
             response_serializer = self.get_serializer(tournament)
             return Response(response_serializer.data, status=status.HTTP_201_CREATED)
@@ -228,8 +228,8 @@ class TournamentViewSet(viewsets.GenericViewSet):
         serializer = self.get_serializer(data=request.data)
         serializer.is_valid(raise_exception=True)
 
-        user_id = serializer.validated_data['user_id']
-        
+        user_id = serializer.validated_data["user_id"]
+
         try:
             tournament = DjangoTournament.objects.get(pk=tournament_id)
         except DjangoTournament.DoesNotExist:
@@ -242,7 +242,7 @@ class TournamentViewSet(viewsets.GenericViewSet):
         except User.DoesNotExist:
             return Response({"detail": "User not found"}, status=status.HTTP_404_NOT_FOUND)
 
-        if user.role not in ('ADMIN', 'SCHEDULER'):
+        if user.role not in ("ADMIN", "SCHEDULER"):
             return Response({"detail": "Only admins and schedulers can be assigned"}, status=status.HTTP_400_BAD_REQUEST)
 
         tournament.schedulers.add(user)
@@ -258,8 +258,8 @@ class TournamentViewSet(viewsets.GenericViewSet):
         serializer = self.get_serializer(data=request.data)
         serializer.is_valid(raise_exception=True)
 
-        user_id = serializer.validated_data['user_id']
-        
+        user_id = serializer.validated_data["user_id"]
+
         try:
             tournament = DjangoTournament.objects.get(pk=tournament_id)
         except DjangoTournament.DoesNotExist:

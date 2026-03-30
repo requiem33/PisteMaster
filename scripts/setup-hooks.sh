@@ -1,7 +1,7 @@
 #!/bin/bash
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-PROJECT_ROOT="$(dirname "$SCRIPT_DIR")"
+PROJECT_ROOT="$(git rev-parse --show-toplevel)"
 GIT_HOOKS_DIR="$PROJECT_ROOT/.git/hooks"
 PRE_COMMIT_HOOK="$GIT_HOOKS_DIR/pre-commit"
 PRE_COMMIT_SCRIPT="$SCRIPT_DIR/pre-commit.sh"

@@ -6,7 +6,17 @@ from .models import DjangoTournament
 class TournamentAdmin(admin.ModelAdmin):
     """赛事管理后台"""
 
-    list_display = ("tournament_name", "organizer", "location", "start_date", "end_date", "status", "created_by", "duration_days_display", "created_at")
+    list_display = (
+        "tournament_name",
+        "organizer",
+        "location",
+        "start_date",
+        "end_date",
+        "status",
+        "created_by",
+        "duration_days_display",
+        "created_at",
+    )
 
     list_display_links = ("tournament_name",)
 

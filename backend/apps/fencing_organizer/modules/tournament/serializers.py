@@ -42,18 +42,14 @@ class TournamentSerializer(DomainModelSerializer):
         ]
 
     def get_created_by_info(self, obj):
-        if hasattr(obj, 'created_by') and obj.created_by:
-            return {
-                'id': str(obj.created_by.id),
-                'username': obj.created_by.username,
-                'role': obj.created_by.role
-            }
-        if hasattr(obj, 'created_by_id') and obj.created_by_id:
-            return {'id': str(obj.created_by_id)}
+        if hasattr(obj, "created_by") and obj.created_by:
+            return {"id": str(obj.created_by.id), "username": obj.created_by.username, "role": obj.created_by.role}
+        if hasattr(obj, "created_by_id") and obj.created_by_id:
+            return {"id": str(obj.created_by_id)}
         return None
 
     def get_scheduler_ids(self, obj):
-        if hasattr(obj, 'schedulers'):
+        if hasattr(obj, "schedulers"):
             return [str(s.id) for s in obj.schedulers.all()]
         return []
 
