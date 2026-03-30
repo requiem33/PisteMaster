@@ -9,6 +9,44 @@
 
 ---
 
+## 🗓️ 2026-03-30
+
+### 已完成事项
+
+* **用户认证系统**: 实现完整的用户认证和角色权限控制
+  - 自定义User模型，支持ADMIN和SCHEDULER两种角色
+  - 认证API端点: login、logout、me
+  - 权限类: IsAdmin、IsSchedulerOrAdmin、IsTournamentEditor、IsEventEditor
+  - 前端auth store、authService服务和登录页面
+  - UserMenu组件集成到AppHeader
+  - 桌面版本地auth service支持guest模式
+  - 数据迁移创建默认admin用户 (admin/admin)
+
+* **Tournament权限控制**: 扩展Tournament模型支持用户关联
+  - Tournament模型新增created_by和schedulers字段
+  - Tournament域模型同步新增created_by_id和scheduler_ids字段
+  - TournamentMapper处理用户字段转换
+  - IsTournamentEditor权限使用域模型字段
+  - IsEventEditor权限控制Event级别操作
+  - Django Admin显示User模型和Tournament用户字段
+
+* **Bug修复**: 多个代码质量问题
+  - 修复permissions.py重复类定义
+  - 修复pre-commit hook使用`git rev-parse --show-toplevel`定位项目根目录
+  - 修复TypeScript编译错误: router导航守卫未使用参数、authService类型不匹配
+
+### 技术决策 & 挑战
+
+* 桌面版支持离线使用，提供guest模式绕过认证
+* 权限设计: 管理员可创建比赛，编排员可编辑分配给自己的比赛
+* 域模型与ORM模型分离，Service层处理created_by_id转换
+
+### 发现的问题
+
+* 无。
+
+---
+
 ## 🗓️ 2026-03-26
 
 ### 已完成事项
