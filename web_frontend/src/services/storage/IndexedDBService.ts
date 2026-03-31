@@ -1,235 +1,263 @@
-import {openDB, IDBPDatabase} from 'idb';
-
-const DB_NAME = 'FencingAppDB';
-const TOURNAMENT_STORE = 'tournaments';
-const EVENT_STORE = 'events';
-
+import {openDB, IDBPDatabase} from 'idb'
+import type {PendingOperation, SyncQueueEntry, ConflictItem} from '@/types/cluster'
+const DB_NAME = 'FencingAppDB'
+const DB_VERSION = 7
+const TOURNAMENT_STORE = 'tournaments'
+const EVENT_STORE = 'events'
+const PENDING_OPS_STORE = 'pendingOperations'
+const CONFLICTS_STORE = 'conflicts'
+const SYNC_QUEUE_STORE = 'syncQueue'
 export const IndexedDBService = {
-    /**
-     * 获取数据库实例，处理版本升级逻辑
-     */
     async getDB(): Promise<IDBPDatabase> {
-        return openDB(DB_NAME, 6, {
+        return openDB(DB_NAME, DB_VERSION, {
             upgrade(db, oldVersion, _newVersion, transaction) {
-                // --- 版本 1 逻辑：创建赛事表 ---
                 if (oldVersion < 1) {
                     if (!db.objectStoreNames.contains(TOURNAMENT_STORE)) {
-                        db.createObjectStore(TOURNAMENT_STORE, {keyPath: 'id'});
+                        db.createObjectStore(TOURNAMENT_STORE, {keyPath: 'id'})
                     }
                 }
-
-                // --- 版本 2 逻辑：创建项目表及索引 ---
                 if (oldVersion < 2) {
                     if (!db.objectStoreNames.contains(EVENT_STORE)) {
-                        const eventStore = db.createObjectStore(EVENT_STORE, {keyPath: 'id'});
-
-                        // 关键：创建索引以便快速通过赛事 ID 查找其下属的所有项目
-                        // 第一个参数是索引名称，第二个参数是数据对象中的键名
-                        eventStore.createIndex('by_tournament', 'tournament_id');
+                        const eventStore = db.createObjectStore(EVENT_STORE, {keyPath: 'id'})
+                        eventStore.createIndex('by_tournament', 'tournament_id')
                     }
                 }
-
                 if (oldVersion < 3) {
                     if (!db.objectStoreNames.contains('fencers')) {
-                        const fencerStore = db.createObjectStore('fencers', {keyPath: 'id'});
-                        // 为搜索和校验创建索引
-                        fencerStore.createIndex('by_name', ['last_name', 'first_name']);
-                        fencerStore.createIndex('by_fencing_id', 'fencing_id', {unique: false});
+                        const fencerStore = db.createObjectStore('fencers', {keyPath: 'id'})
+                        fencerStore.createIndex('by_name', ['last_name', 'first_name'])
+                        fencerStore.createIndex('by_fencing_id', 'fencing_id', {unique: false})
                     }
                 }
-
                 if (oldVersion < 4) {
                     if (!db.objectStoreNames.contains('event_fencers')) {
                         const store = db.createObjectStore('event_fencers', {
-                            keyPath: ['event_id', 'fencer_id'] // 联合主键，防止同一个选手在一个项目里报名两次
-                        });
-                        // 创建索引，方便根据项目 ID 获取所有选手的 ID
-                        store.createIndex('by_event', 'event_id');
+                            keyPath: ['event_id', 'fencer_id']
+                        })
+                        store.createIndex('by_event', 'event_id')
                     }
                 }
-
                 if (oldVersion < 5) {
                     if (!db.objectStoreNames.contains('pools')) {
-                        const poolStore = db.createObjectStore('pools', {keyPath: 'id'});
-                        // 建立 event_id 索引，方便查询某个项目下的所有组
-                        poolStore.createIndex('by_event', 'event_id');
+                        const poolStore = db.createObjectStore('pools', {keyPath: 'id'})
+                        poolStore.createIndex('by_event', 'event_id')
                     }
                 }
-
                 if (oldVersion < 6) {
-                    const poolStore = transaction.objectStore('pools');
+                    const poolStore = transaction.objectStore('pools')
                     if (!poolStore.indexNames.contains('by_stage')) {
-                        poolStore.createIndex('by_stage', 'stage_id');
+                        poolStore.createIndex('by_stage', 'stage_id')
+                    }
+                }
+                if (oldVersion < 7) {
+                    if (!db.objectStoreNames.contains(PENDING_OPS_STORE)) {
+                        const pendingStore = db.createObjectStore(PENDING_OPS_STORE, {keyPath: 'id'})
+                        pendingStore.createIndex('by_table', 'table')
+                        pendingStore.createIndex('by_status', 'status')
+                        pendingStore.createIndex('by_created', 'createdAt')
+                    }
+                    if (!db.objectStoreNames.contains(CONFLICTS_STORE)) {
+                        const conflictStore = db.createObjectStore(CONFLICTS_STORE, {keyPath: 'id'})
+                        conflictStore.createIndex('by_table', 'table')
+                        conflictStore.createIndex('by_record', 'recordId')
+                        conflictStore.createIndex('by_created', 'createdAt')
+                    }
+                    if (!db.objectStoreNames.contains(SYNC_QUEUE_STORE)) {
+                        const queueStore = db.createObjectStore(SYNC_QUEUE_STORE, {keyPath: 'id'})
+                        queueStore.createIndex('by_status', 'status')
+                        queueStore.createIndex('by_created', 'createdAt')
                     }
                 }
             },
-        });
+        })
     },
-
-    // --- 赛事 (Tournaments) 相关操作 ---
-
-    async saveTournament(data: any) {
-        const db = await this.getDB();
-        // 强制脱敏，断开 Vue Proxy 引用并确保数据可克隆
-        const cleanData = JSON.parse(JSON.stringify(data));
-        return db.put(TOURNAMENT_STORE, cleanData);
+    async saveTournament(data: Record<string, unknown>) {
+        const db = await this.getDB()
+        const cleanData = JSON.parse(JSON.stringify(data))
+        return db.put(TOURNAMENT_STORE, cleanData)
     },
-
     async getAllTournaments() {
-        const db = await this.getDB();
-        return db.getAll(TOURNAMENT_STORE);
+        const db = await this.getDB()
+        return db.getAll(TOURNAMENT_STORE)
     },
-
     async getTournamentById(id: string) {
-        const db = await this.getDB();
-        return db.get(TOURNAMENT_STORE, id);
+        const db = await this.getDB()
+        return db.get(TOURNAMENT_STORE, id)
     },
-
-    // --- 项目 (Events) 相关操作 ---
-
-    /**
-     * 保存或更新比赛项目
-     */
-    async saveEvent(data: any) {
-        const db = await this.getDB();
-        const cleanData = JSON.parse(JSON.stringify(data));
-        return db.put(EVENT_STORE, cleanData);
+    async saveEvent(data: Record<string, unknown>) {
+        const db = await this.getDB()
+        const cleanData = JSON.parse(JSON.stringify(data))
+        return db.put(EVENT_STORE, cleanData)
     },
-
-    /**
-     * 利用索引高效获取指定赛事下的所有项目
-     */
     async getEventsByTournamentId(tournamentId: string) {
-        const db = await this.getDB();
-        // 使用在 upgrade 中创建的 'by_tournament' 索引
-        return db.getAllFromIndex(EVENT_STORE, 'by_tournament', tournamentId);
+        const db = await this.getDB()
+        return db.getAllFromIndex(EVENT_STORE, 'by_tournament', tournamentId)
     },
-
-    async saveEventFencerLink(link: any) {
-        const db = await this.getDB();
-        return db.put('event_fencers', link);
+    async saveEventFencerLink(link: Record<string, unknown>) {
+        const db = await this.getDB()
+        return db.put('event_fencers', link)
     },
-
     async getLinksByEvent(eventId: string) {
-        const db = await this.getDB();
-        return db.getAllFromIndex('event_fencers', 'by_event', eventId);
+        const db = await this.getDB()
+        return db.getAllFromIndex('event_fencers', 'by_event', eventId)
     },
-
     async getFencerById(id: string) {
-        const db = await this.getDB();
-        return db.get('fencers', id);
+        const db = await this.getDB()
+        return db.get('fencers', id)
     },
-
     async getFencerByFencingId(fencingId: string) {
-        const db = await this.getDB();
-        return db.getFromIndex('fencers', 'by_fencing_id', fencingId);
+        const db = await this.getDB()
+        return db.getFromIndex('fencers', 'by_fencing_id', fencingId)
     },
-
-    /**
-     * 保存或更新选手基本信息
-     */
-    async saveFencer(fencerData: any) {
-        const db = await this.getDB();
-        // 脱敏处理，确保是纯对象
-        const cleanData = JSON.parse(JSON.stringify(fencerData));
-        return db.put('fencers', cleanData);
+    async saveFencer(fencerData: Record<string, unknown>) {
+        const db = await this.getDB()
+        const cleanData = JSON.parse(JSON.stringify(fencerData))
+        return db.put('fencers', cleanData)
     },
-
-    /**
-     * 根据 ID 获取特定的比赛项目 (Event)
-     * 用于在关联选手后更新项目的 fencer_count
-     */
     async getEventById(eventId: string) {
-        const db = await this.getDB();
-        return db.get(EVENT_STORE, eventId);
+        const db = await this.getDB()
+        return db.get(EVENT_STORE, eventId)
     },
-
-    /**
-     * 删除特定的选手-项目关联
-     * @param eventId 项目ID
-     * @param fencerId 选手ID
-     */
     async deleteEventFencerLink(eventId: string, fencerId: string) {
-        const db = await this.getDB();
-        // 因为我们定义了 keyPath: ['event_id', 'fencer_id']
-        // 所以删除时需要传入对应的数组键
-        return db.delete('event_fencers', [eventId, fencerId]);
+        const db = await this.getDB()
+        return db.delete('event_fencers', [eventId, fencerId])
     },
-
-    /**
-     * 从 pools 表中根据项目 ID 查找所有分组
-     */
     async getPoolsByEvent(eventId: string) {
-        const db = await this.getDB();
-        // 使用我们在版本 6 中创建的 'by_event' 索引
-        return db.getAllFromIndex('pools', 'by_event', eventId);
+        const db = await this.getDB()
+        return db.getAllFromIndex('pools', 'by_event', eventId)
     },
-
     async deleteTournament(tournamentId: string) {
-        const db = await this.getDB();
-        return db.delete('tournaments', tournamentId);
+        const db = await this.getDB()
+        return db.delete(TOURNAMENT_STORE, tournamentId)
     },
-
-    /**
-     * 【新增】根据 stageId 高效获取所有分组
-     */
     async getPoolsByStage(stageId: string) {
-        const db = await this.getDB();
-        return db.getAllFromIndex('pools', 'by_stage', stageId);
+        const db = await this.getDB()
+        return db.getAllFromIndex('pools', 'by_stage', stageId)
     },
-
-    /**
-     * 保存单个分组
-     */
-    async savePool(poolData: any) {
-        const db = await this.getDB();
-        const cleanData = JSON.parse(JSON.stringify(poolData));
-        return db.put('pools', cleanData);
+    async savePool(poolData: Record<string, unknown>) {
+        const db = await this.getDB()
+        const cleanData = JSON.parse(JSON.stringify(poolData))
+        return db.put('pools', cleanData)
     },
-
-    /**
-     * 批量保存分组
-     */
-    async savePools(poolsData: any[]) {
-        const db = await this.getDB();
-        const tx = db.transaction('pools', 'readwrite');
+    async savePools(poolsData: Record<string, unknown>[]) {
+        const db = await this.getDB()
+        const tx = db.transaction('pools', 'readwrite')
         for (const pool of poolsData) {
-            const cleanData = JSON.parse(JSON.stringify(pool));
-            await tx.store.put(cleanData);
+            const cleanData = JSON.parse(JSON.stringify(pool))
+            await tx.store.put(cleanData)
         }
-        return tx.done;
+        return tx.done
     },
-
-    /**
-     * 根据 ID 获取单个分组
-     */
     async getPoolById(poolId: string) {
-        const db = await this.getDB();
-        return db.get('pools', poolId);
+        const db = await this.getDB()
+        return db.get('pools', poolId)
     },
-
-    /**
-     * 批量保存选手
-     */
-    async saveFencers(fencersData: any[]) {
-        const db = await this.getDB();
-        const tx = db.transaction('fencers', 'readwrite');
+    async saveFencers(fencersData: Record<string, unknown>[]) {
+        const db = await this.getDB()
+        const tx = db.transaction('fencers', 'readwrite')
         for (const fencer of fencersData) {
-            const cleanData = JSON.parse(JSON.stringify(fencer));
-            await tx.store.put(cleanData);
+            const cleanData = JSON.parse(JSON.stringify(fencer))
+            await tx.store.put(cleanData)
         }
-        return tx.done;
+        return tx.done
     },
-
-    /**
-     * 批量保存选手-项目关联
-     */
-    async saveEventFencerLinks(links: any[]) {
-        const db = await this.getDB();
-        const tx = db.transaction('event_fencers', 'readwrite');
+    async saveEventFencerLinks(links: Record<string, unknown>[]) {
+        const db = await this.getDB()
+        const tx = db.transaction('event_fencers', 'readwrite')
         for (const link of links) {
-            await tx.store.put(link);
+            await tx.store.put(link)
         }
-        return tx.done;
+        return tx.done
     },
-};
+    async addPendingOperation(operation: PendingOperation): Promise<string> {
+        const db = await this.getDB()
+        const id = operation.id || crypto.randomUUID()
+        const op = {...operation, id}
+        await db.put(PENDING_OPS_STORE, op)
+        return id
+    },
+    async getPendingOperations(): Promise<PendingOperation[]> {
+        const db = await this.getDB()
+        return db.getAll(PENDING_OPS_STORE)
+    },
+    async getPendingOperationsByTable(table: string): Promise<PendingOperation[]> {
+        const db = await this.getDB()
+        return db.getAllFromIndex(PENDING_OPS_STORE, 'by_table', table)
+    },
+    async updatePendingOperation(id: string, updates: Partial<PendingOperation>): Promise<void> {
+        const db = await this.getDB()
+        const op = await db.get(PENDING_OPS_STORE, id)
+        if (op) {
+            const updated = {...op, ...updates}
+            await db.put(PENDING_OPS_STORE, updated)
+        }
+    },
+    async removePendingOperation(id: string): Promise<void> {
+        const db = await this.getDB()
+        await db.delete(PENDING_OPS_STORE, id)
+    },
+    async clearPendingOperations(): Promise<void> {
+        const db = await this.getDB()
+        const tx = db.transaction(PENDING_OPS_STORE, 'readwrite')
+        await tx.store.clear()
+        return tx.done
+    },
+    async addConflict(conflict: ConflictItem): Promise<string> {
+        const db = await this.getDB()
+        const id = conflict.id || crypto.randomUUID()
+        const item = {...conflict, id}
+        await db.put(CONFLICTS_STORE, item)
+        return id
+    },
+    async getConflicts(): Promise<ConflictItem[]> {
+        const db = await this.getDB()
+        return db.getAll(CONFLICTS_STORE)
+    },
+    async getConflictByRecord(table: string, recordId: string): Promise<ConflictItem | undefined> {
+        const db = await this.getDB()
+        const conflicts = await db.getAllFromIndex(CONFLICTS_STORE, 'by_record', recordId)
+        return conflicts.find(c => c.table === table)
+    },
+    async removeConflict(id: string): Promise<void> {
+        const db = await this.getDB()
+        await db.delete(CONFLICTS_STORE, id)
+    },
+    async clearConflicts(): Promise<void> {
+        const db = await this.getDB()
+        const tx = db.transaction(CONFLICTS_STORE, 'readwrite')
+        await tx.store.clear()
+        return tx.done
+    },
+    async addToSyncQueue(entry: SyncQueueEntry): Promise<string> {
+        const db = await this.getDB()
+        const id = entry.id || crypto.randomUUID()
+        const item = {...entry, id}
+        await db.put(SYNC_QUEUE_STORE, item)
+        return id
+    },
+    async getSyncQueue(status?: 'pending' | 'processing' | 'completed' | 'failed'): Promise<SyncQueueEntry[]> {
+        const db = await this.getDB()
+        if (status) {
+            return db.getAllFromIndex(SYNC_QUEUE_STORE, 'by_status', status)
+        }
+        return db.getAll(SYNC_QUEUE_STORE)
+    },
+    async updateSyncQueueEntry(id: string, updates: Partial<SyncQueueEntry>): Promise<void> {
+        const db = await this.getDB()
+        const entry = await db.get(SYNC_QUEUE_STORE, id)
+        if (entry) {
+            const updated = {...entry, ...updates}
+            await db.put(SYNC_QUEUE_STORE, updated)
+        }
+    },
+    async removeSyncQueueEntry(id: string): Promise<void> {
+        const db = await this.getDB()
+        await db.delete(SYNC_QUEUE_STORE, id)
+    },
+    async clearSyncQueue(): Promise<void> {
+        const db = await this.getDB()
+        const tx = db.transaction(SYNC_QUEUE_STORE, 'readwrite')
+        await tx.store.clear()
+        return tx.done
+    },
+}
