@@ -2,46 +2,46 @@
   <div class="final-ranking-container">
     <div class="ranking-actions">
       <div class="buttons">
-        <el-button type="primary" icon="Download" @click="exportToExcel">导出成绩单 (Excel)</el-button>
-        <el-button type="warning" icon="Share" @click="publishResult">发布成绩至大屏幕</el-button>
+        <el-button type="primary" icon="Download" @click="exportToExcel">{{ $t('event.ranking.exportResults') }} (Excel)</el-button>
+        <el-button type="warning" icon="Share" @click="publishResult">{{ $t('event.ranking.exportResults') }}</el-button>
       </div>
     </div>
 
     <el-card shadow="never" class="table-card">
       <el-table :data="finalResults" border stripe style="width: 100%" v-loading="loading">
-        <el-table-column label="名次" width="100" align="center">
+        <el-table-column :label="$t('event.ranking.rank')" width="100" align="center">
           <template #default="scope">
-            <!-- 【修改】直接使用我们计算好的 displayRank -->
             <div :class="['rank-badge', getMedalClass(scope.row.displayRank)]">
               {{ scope.row.displayRank }}
             </div>
           </template>
         </el-table-column>
-        <el-table-column label="选手 (Fencers)" min-width="200">
+        <el-table-column :label="$t('event.ranking.name')" min-width="200">
           <template #default="scope">
             <div class="fencer-cell">
               <span class="full-name">{{ scope.row.last_name }} {{ scope.row.first_name }}</span>
             </div>
           </template>
         </el-table-column>
-        <el-table-column prop="country_code" label="地区/国籍" width="120" align="center"/>
-        <!-- "小组赛表现"和"最后轮次"列已被移除 -->
+        <el-table-column prop="country_code" :label="$t('event.ranking.country')" width="120" align="center"/>
       </el-table>
     </el-card>
 
     <div class="footer-note">
-      \* 最终排名计算规则：根据淘汰赛被淘汰轮次排序，同轮次淘汰者按照小组赛成绩排序。
+      * {{ $t('event.ranking.finalRankingNote') || 'Final ranking calculated based on elimination round progress and pool results.' }}
     </div>
   </div>
 </template>
 
 <script setup lang="ts">
 import {ref, watch, onMounted} from 'vue'
+import {useI18n} from 'vue-i18n'
 import {ElMessage} from 'element-plus'
 import {DataManager} from '@/services/DataManager'
 import type {Stage} from '@/types/tournament';
 
-// Props 保持不变
+const {t} = useI18n()
+
 const props = defineProps<{
   eventId: string,
   eventInfo: any
@@ -56,7 +56,6 @@ const calculateFinalRanking = async (eventData: any) => {
     const stages: Stage[] = eventData.rules?.stages || [];
     const dehydratedRanking = eventData.live_ranking;
 
-    // 1. 【注水】(不变)
     const liveRanking = await Promise.all(
         dehydratedRanking.map(async (state: any) => {
           const details = await DataManager.getFencerById(state.id);
@@ -64,14 +63,9 @@ const calculateFinalRanking = async (eventData: any) => {
         })
     );
 
-    // 2. 【读取配置】(不变)
     const lastStage = stages.length > 0 ? stages[stages.length - 1] : null;
     const hasBronzeMedalMatch = lastStage?.type === 'de' && lastStage.config?.final_stage === 'bronze_medal';
 
-    // 3.【"富集"逻辑】- detect fencers without final stage rank
-    // Calculate maxStageIndex from actual ranking data, not from stages array
-    // Stage 0 = seeding, Stage 1 = pool, Stage 2 = DE, etc.
-    // The stages array only contains pool/DE stages, not seeding, so its length doesn't match the stage indices
     let maxStageIndex = 0;
     liveRanking.forEach((fencer: any) => {
       const stageKeys = Object.keys(fencer.ranks).map(Number);
@@ -92,35 +86,23 @@ const calculateFinalRanking = async (eventData: any) => {
       console.warn('Fencers missing final stage rank:', fencersWithoutFinalRank.map(f => ({ id: f.id, name: f.display_name, ranks: f.ranks })));
     }
 
-    // 4.【核心改造：实现级联比较排序】
-    // 4.1. 比较 finalStageIndex: 检查选手 A 和 B 到达的最后一个阶段。如果 A 止步于淘汰赛（stage 2），B 止步于小组赛（stage 1），那么 A 的排名一定高于 B。排序结束。
-    // 4.2. 进入"级联比较": 如果 A 和 B 都止步于淘汰赛（finalStageIndex 相同），则进入 for 循环：
-    // i = 2 (淘汰赛阶段): 比较 a.ranks[2] 和 b.ranks[2]。如果他们被淘汰的名次不同（例如，一个第9，一个第11），则排序结束，第9名的选手胜出。
-    // i = 1 (小组赛阶段): 如果他们在淘汰赛阶段的名次也相同（例如，都是第9名），循环继续。现在比较 a.ranks[1] 和 b.ranks[1]，也就是他们的小组赛排名。如果 A 的小组排名是第3，B 是第5，则 A 胜出，排序结束。
-    // i = 0 (初始排名阶段): 如果他们连小组赛排名都完全一样，循环继续。比较 a.ranks[0] 和 b.ranks[0]，即他们的初始种子排名。
-    // 如果所有阶段的排名都完全相同，则返回 0，保持他们的相对位置。
     enrichedFencers.sort((a: any, b: any) => {
-      // 规则1: 比较最后达到的阶段 (越高越好)
       if (a.finalStageIndex !== b.finalStageIndex) {
         return b.finalStageIndex - a.finalStageIndex;
       }
 
-      // 规则2: 【级联比较】如果最终阶段相同，则从该阶段开始，逐级向上回溯比较排名
       for (let i = a.finalStageIndex; i >= 0; i--) {
         const rankA = a.ranks[i] ?? 999;
         const rankB = b.ranks[i] ?? 999;
 
         if (rankA !== rankB) {
-          // 在第 i 阶段找到了差异，以此为准，排名数字小者胜
           return rankA - rankB;
         }
       }
 
-      // 如果回溯到 stage 0 依然完全相同，则他们是真正意义上的平手
       return 0;
     });
 
-    // 5.【智能排名分配】(不变)
     finalResults.value = enrichedFencers.map((fencer, index) => {
       let displayRank = index + 1;
       if (!hasBronzeMedalMatch && index === 3) {
@@ -130,14 +112,13 @@ const calculateFinalRanking = async (eventData: any) => {
     });
 
   } catch (e) {
-    console.error("计算最终排名时出错:", e);
-    ElMessage.error("生成最终排名失败，请检查控制台。")
+    console.error("Error calculating final ranking:", e);
+    ElMessage.error(t('common.messages.operationFailed'))
   } finally {
     loading.value = false;
   }
 }
 
-// 辅助函数保持不变或简化
 const getMedalClass = (rank: number) => {
   if (rank === 1) {return 'gold'}
   if (rank === 2) {return 'silver'}
@@ -146,14 +127,13 @@ const getMedalClass = (rank: number) => {
 }
 
 const exportToExcel = () => {
-  ElMessage.info('导出功能开发中...')
+  ElMessage.info(t('common.messages.operationFailed'))
 }
 const publishResult = () => {
-  ElMessage.info('发布功能开发中...')
+  ElMessage.info(t('common.messages.operationFailed'))
 }
 
 watch(() => props.eventInfo, (newEventInfo) => {
-  // 当 eventInfo 变化时，检查它是否包含了我们需要的数据
   if (newEventInfo && newEventInfo.live_ranking && newEventInfo.live_ranking.length > 0) {
     calculateFinalRanking(newEventInfo);
   }
@@ -163,7 +143,6 @@ watch(() => props.eventInfo, (newEventInfo) => {
 });
 
 onMounted(async () => {
-  // 组件挂载时主动获取最新数据，避免依赖可能过期的 props
   if (props.eventId) {
     try {
       loading.value = true;

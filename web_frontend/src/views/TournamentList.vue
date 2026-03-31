@@ -32,16 +32,14 @@
               :key="item.id"
               :xs="24" :sm="12" :md="8" :lg="6"
           >
-            <!-- 【关键修复】将卡片包裹，分离点击区域 -->
             <el-card shadow="hover" class="event-card">
-              <!-- 1. 主要内容区域，负责点击跳转 -->
               <div class="card-main-content" @click="goToDashboard(item.id)">
                 <div class="card-status">
                   <el-tag :type="item.status === 'completed' ? 'info' : 'success'" size="small">
                     {{ item.status === 'completed' ? $t('common.completed') : $t('common.ongoing') }}
                   </el-tag>
                   <el-tag v-if="!item.is_synced" type="warning" size="small" effect="plain" class="ml-10">
-                    {{ $t('common.offline') || '离线' }}
+                    {{ $t('common.offline') }}
                   </el-tag>
                 </div>
                 <h3 class="event-name">{{ item.tournament_name }}</h3>
@@ -56,23 +54,21 @@
                     <el-icon>
                       <Tickets/>
                     </el-icon>
-                    项目总数: {{ item.eventCount || 0 }}
+                    {{ $t('common.totalEvents') }}: {{ item.eventCount || 0 }}
                   </p>
                   <p class="event-meta">
                     <el-icon>
                       <User/>
                     </el-icon>
-                    选手总数: {{ item.fencerCount || 0 }}
+                    {{ $t('common.totalFencers') }}: {{ item.fencerCount || 0 }}
                   </p>
                 </div>
               </div>
 
-              <!-- 2. 卡片底部，负责独立操作 -->
               <template #footer>
                 <div class="card-footer">
                   <span class="rule-type">{{ item.organizer }}</span>
                   <div class="footer-actions">
-                    <!-- 3. 【新增】删除按钮，并使用 .stop 阻止事件冒泡 -->
                     <el-button
                         type="danger"
                         icon="Delete"
@@ -102,22 +98,22 @@
 <script setup lang="ts">
 import {ref, computed, onMounted} from 'vue'
 import {useRouter} from 'vue-router'
+import {useI18n} from 'vue-i18n'
 import {Calendar, User, ArrowRight, Tickets} from '@element-plus/icons-vue'
 import AppHeader from '@/components/layout/AppHeader.vue'
 import {DataManager} from '@/services/DataManager';
 import {ElMessage, ElMessageBox} from "element-plus";
 
+const {t} = useI18n()
 const router = useRouter()
 const loading = ref(false)
 const searchQuery = ref('')
 const statusFilter = ref('all')
 const tournaments = ref<any[]>([])
 
-// 【关键修复】2. 更新数据加载函数
 const loadTournaments = async () => {
   loading.value = true;
   try {
-    // 调用我们新创建的、能获取完整信息的方法
     const result = await DataManager.getTournamentListWithDetails();
     tournaments.value = result ?? [];
   } catch (error) {
@@ -148,11 +144,11 @@ const createNewTournament = () => {
 const handleDeleteTournament = async (tournamentId: string, tournamentName: string) => {
   try {
     await ElMessageBox.confirm(
-        `确定要永久删除赛事 “<strong>${tournamentName}</strong>” 吗？<br/>此操作将同时删除该赛事下的所有项目和成绩，且不可恢复。`,
-        '危险操作确认',
+        t('tournament.confirm.deleteTournament', {name: tournamentName}),
+        t('tournament.confirm.DangerConfirm'),
         {
-          confirmButtonText: '确认删除',
-          cancelButtonText: '取消',
+          confirmButtonText: t('tournament.confirm.confirmDelete'),
+          cancelButtonText: t('common.actions.cancel'),
           type: 'warning',
           dangerouslyUseHTMLString: true,
         }
@@ -160,12 +156,12 @@ const handleDeleteTournament = async (tournamentId: string, tournamentName: stri
 
     loading.value = true;
     await DataManager.deleteTournament(tournamentId);
-    ElMessage.success('赛事已删除');
-    loadTournaments(); // 重新加载列表
+    ElMessage.success(t('tournament.messages.deleteSuccess'));
+    loadTournaments();
   } catch (error) {
     if (error !== 'cancel') {
       console.error("删除赛事失败:", error);
-      ElMessage.error('删除失败');
+      ElMessage.error(t('tournament.messages.deleteFailed'));
     }
   } finally {
     if (loading.value) {loading.value = false;}

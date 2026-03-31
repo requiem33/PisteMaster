@@ -1,61 +1,55 @@
 <!-- src/components/tournament/RuleSettings.vue -->
 <template>
   <div class="rule-settings-container">
-    <!-- 1. 预设选择 -->
-    <el-form-item label="赛制规则模板">
+    <el-form-item :label="$t('event.ruleSettings.template')">
       <el-radio-group v-model="localPreset" @change="applyPreset">
-        <el-radio-button label="world_cup">世界杯 (World Cup)</el-radio-button>
-        <el-radio-button label="olympics">奥运会 (Olympics)</el-radio-button>
-        <el-radio-button label="custom">自定义 (Custom)</el-radio-button>
+        <el-radio-button label="world_cup">{{ $t('event.ruleSettings.worldCup') }} (World Cup)</el-radio-button>
+        <el-radio-button label="olympics">{{ $t('event.ruleSettings.olympics') }} (Olympics)</el-radio-button>
+        <el-radio-button label="custom">{{ $t('event.ruleSettings.custom') }} (Custom)</el-radio-button>
       </el-radio-group>
     </el-form-item>
 
-    <!-- 2. 阶段配置列表 -->
     <div class="stages-container">
       <transition-group name="list">
         <div v-for="(stage, index) in modelValue.stages" :key="index" class="stage-card">
 
-          <!-- 阶段标题栏 -->
           <div class="stage-header">
             <div class="left">
               <el-tag :type="stage.type === 'pool' ? 'success' : 'danger'" effect="dark">
-                阶段 {{ index + 1 }}: {{ stage.type === 'pool' ? '小组循环赛' : '单败淘汰赛' }}
+                {{ $t('event.ruleSettings.stageN', {n: index + 1}) }}: {{ stage.type === 'pool' ? $t('event.ruleSettings.poolStage') : $t('event.ruleSettings.deStage') }}
               </el-tag>
             </div>
             <div class="right" v-if="localPreset === 'custom'">
               <el-button type="danger" link icon="Delete" @click="removeStage(index)"
-                         :disabled="modelValue.stages.length <= 1">移除
+                         :disabled="modelValue.stages.length <= 1">{{ $t('event.ruleSettings.removeStage') }}
               </el-button>
             </div>
           </div>
 
-          <!-- 阶段配置表单 -->
           <div class="stage-body">
-            <!-- A. 小组赛配置 -->
             <div v-if="stage.type === 'pool'" class="config-grid">
-              <el-form-item label="轮空人数" class="mini-item">
+              <el-form-item :label="$t('event.ruleSettings.byes')" class="mini-item">
                 <el-input-number v-model="stage.config.byes" :min="0" size="small"/>
               </el-form-item>
-              <el-form-item label="单场击中数" class="mini-item">
+              <el-form-item :label="$t('event.ruleSettings.hits')" class="mini-item">
                 <el-input-number v-model="stage.config.hits" :min="1" :max="15" size="small"/>
               </el-form-item>
-              <el-form-item label="淘汰比例 (%)" class="mini-item">
+              <el-form-item :label="$t('event.ruleSettings.eliminationRate')" class="mini-item">
                 <el-input-number v-model="stage.config.elimination_rate" :min="0" :max="100" size="small"/>
               </el-form-item>
             </div>
 
-            <!-- B. 淘汰赛配置 -->
             <div v-if="stage.type === 'de'" class="config-grid">
-              <el-form-item label="单场击中数" class="mini-item">
+              <el-form-item :label="$t('event.ruleSettings.hits')" class="mini-item">
                 <el-input-number v-model="stage.config.hits" :min="1" :max="15" size="small"/>
               </el-form-item>
-              <el-form-item label="决赛赛制" class="mini-item">
+              <el-form-item :label="$t('event.ruleSettings.finalStage')" class="mini-item">
                 <el-select v-model="stage.config.final_stage" size="small">
-                  <el-option label="仅冠亚军" value="final"/>
-                  <el-option label="含季军赛" value="bronze_medal"/>
+                  <el-option :label="$t('event.ruleSettings.finalOnly')" value="final"/>
+                  <el-option :label="$t('event.ruleSettings.bronzeMedal')" value="bronze_medal"/>
                 </el-select>
               </el-form-item>
-              <el-form-item label="决出名次至" class="mini-item">
+              <el-form-item :label="$t('event.ruleSettings.rankTo')" class="mini-item">
                 <el-input-number v-model="stage.config.rank_to" :min="1" :max="64" size="small"/>
               </el-form-item>
             </div>
@@ -63,19 +57,18 @@
         </div>
       </transition-group>
 
-      <!-- 3. 自定义模式下的添加按钮 -->
       <div v-if="localPreset === 'custom'" class="add-stage-bar">
         <el-dropdown @command="addStage">
           <el-button type="primary" plain style="width: 100%">
-            + 添加比赛阶段
+            + {{ $t('event.ruleSettings.addStage') }}
             <el-icon class="el-icon--right">
               <ArrowDown/>
             </el-icon>
           </el-button>
           <template #dropdown>
             <el-dropdown-menu>
-              <el-dropdown-item command="pool">添加 小组循环赛 (Pool)</el-dropdown-item>
-              <el-dropdown-item command="de">添加 单败淘汰赛 (DE)</el-dropdown-item>
+              <el-dropdown-item command="pool">{{ $t('event.ruleSettings.addPool') }}</el-dropdown-item>
+              <el-dropdown-item command="de">{{ $t('event.ruleSettings.addDE') }}</el-dropdown-item>
             </el-dropdown-menu>
           </template>
         </el-dropdown>
@@ -88,15 +81,14 @@
 import {ref, onMounted} from 'vue'
 import {ArrowDown} from '@element-plus/icons-vue'
 
-// 定义规则的数据结构
 export interface StageConfig {
   type: 'pool' | 'de';
   config: {
-    byes?: number; // 轮空
-    hits?: number; // 击中数
-    elimination_rate?: number; // 淘汰率 (Pool)
-    final_stage?: string; // 决赛类型 (DE)
-    rank_to?: number; // 决出名次 (DE)
+    byes?: number;
+    hits?: number;
+    elimination_rate?: number;
+    final_stage?: string;
+    rank_to?: number;
   }
 }
 
@@ -110,7 +102,6 @@ const emit = defineEmits(['update:modelValue'])
 
 const localPreset = ref(props.modelValue.preset || 'world_cup')
 
-// 预设模板生成器
 const getTemplate = (type: string): StageConfig[] => {
   if (type === 'world_cup') {
     return [
@@ -123,7 +114,6 @@ const getTemplate = (type: string): StageConfig[] => {
       {type: 'de', config: {hits: 15, final_stage: 'bronze_medal', rank_to: 8}}
     ];
   }
-  // 默认自定义初始状态
   return [
     {type: 'pool', config: {byes: 0, hits: 5, elimination_rate: 20}},
     {type: 'de', config: {hits: 15, final_stage: 'bronze_medal', rank_to: 4}}
@@ -131,7 +121,7 @@ const getTemplate = (type: string): StageConfig[] => {
 }
 
 const applyPreset = (val: string) => {
-  if (val === 'custom') {return;} // 切换到自定义时不重置，保留当前状态或给默认
+  if (val === 'custom') {return;}
 
   const newStages = getTemplate(val);
   emit('update:modelValue', {preset: val, stages: newStages});
@@ -152,7 +142,6 @@ const removeStage = (index: number) => {
   emit('update:modelValue', {preset: 'custom', stages: newStages});
 }
 
-// 初始化检查
 onMounted(() => {
   if (!props.modelValue.stages || props.modelValue.stages.length === 0) {
     applyPreset('world_cup');

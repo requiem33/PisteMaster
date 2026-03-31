@@ -2,11 +2,10 @@
 <template>
   <div class="orchestrator-layout">
     <AppHeader :showCreate="false">
-      <!-- Header 内容保持不变 -->
       <template #extra>
         <el-breadcrumb separator-class="el-icon-arrow-right" class="header-breadcrumb">
-          <el-breadcrumb-item :to="{ path: '/' }">首页</el-breadcrumb-item>
-          <el-breadcrumb-item :to="{ path: '/tournament' }">赛事列表</el-breadcrumb-item>
+          <el-breadcrumb-item :to="{ path: '/' }">{{ $t('tournament.dashboard.breadcrumb.home') }}</el-breadcrumb-item>
+          <el-breadcrumb-item :to="{ path: '/tournament' }">{{ $t('tournament.dashboard.breadcrumb.tournamentList') }}</el-breadcrumb-item>
           <el-breadcrumb-item :to="{ path: `/tournament/${eventInfo.tournament_id}` }">{{
               eventInfo.tournament_name
             }}
@@ -19,7 +18,7 @@
     <div class="main-content">
       <aside class="steps-aside">
         <div class="event-meta-card">
-          <p class="label">当前规则</p>
+          <p class="label">{{ $t('event.currentRule') }}</p>
           <el-tag size="small" type="warning" effect="light">{{ eventInfo.rule_name }}</el-tag>
         </div>
 
@@ -46,7 +45,6 @@
 
           <section class="step-body">
             <transition name="fade-transform" mode="out-in">
-              <!-- 【关键修复】确保 prop 和数据源的 key 一致 -->
               <component
                   :is="computedSteps[currentStep]?.component"
                   :key="computedSteps[currentStep]?.id"
@@ -67,11 +65,11 @@
 <script setup lang="ts">
 import {ref, onMounted, watch, computed} from 'vue'
 import {useRoute} from 'vue-router'
+import {useI18n} from 'vue-i18n'
 import {DataManager} from '@/services/DataManager'
 import {ElMessage} from 'element-plus'
 import AppHeader from '@/components/layout/AppHeader.vue'
 
-// 导入所有可能用到的子组件
 import FencerImport from '@/components/tournament/FencerImport.vue'
 import PoolGeneration from '@/components/tournament/PoolGeneration.vue'
 import PoolScoring from '@/components/tournament/PoolScoring.vue'
@@ -79,11 +77,12 @@ import PoolRanking from '@/components/tournament/PoolRanking.vue'
 import DETree from '@/components/tournament/DETree.vue'
 import FinalRanking from '@/components/tournament/FinalRanking.vue'
 
+const {t} = useI18n()
 const route = useRoute()
 const eventId = route.params.id as string
 
 const eventInfo = ref<any>({
-  event_name: '加载中...',
+  event_name: '',
   tournament_id: '',
   tournament_name: '',
   rules: {stages: []}
@@ -95,8 +94,8 @@ const computedSteps = computed(() => {
 
   steps.push({
     id: 'import',
-    title: '选手名单',
-    desc: '导入并确认参赛选手，设置初始种子排名',
+    title: t('event.steps.fencerList'),
+    desc: t('event.stepDescriptions.fencerList'),
     component: FencerImport,
     stageIndex: 0
   });
@@ -106,47 +105,45 @@ const computedSteps = computed(() => {
   stages.forEach((stage: any, index: number) => {
     const stageIndex = index + 1;
     const stageId = `stage_${index}_${stage.type}`;
-
-    // 【关键修复】将 stageData 对象本身命名为 stageConfig，保持与 prop 一致
     const stageConfigWithId = {...stage, id: stageId};
 
     if (stage.type === 'pool') {
       steps.push({
         id: `${stageId}_gen`,
-        title: `阶段${stageIndex}: 小组分组`,
-        desc: `为第 ${stageIndex} 阶段进行分组`,
+        title: t('event.stageN', {n: stageIndex}) + ': ' + t('event.steps.poolGeneration'),
+        desc: t('event.stepDescriptions.poolGeneration', {n: stageIndex}),
         component: PoolGeneration,
-        stageConfig: stageConfigWithId, stageIndex // 👈 使用 stageConfig
+        stageConfig: stageConfigWithId, stageIndex
       });
       steps.push({
         id: `${stageId}_score`,
-        title: `阶段${stageIndex}: 小组计分`,
-        desc: `录入第 ${stageIndex} 阶段小组赛比分`,
+        title: t('event.stageN', {n: stageIndex}) + ': ' + t('event.steps.poolScoring'),
+        desc: t('event.stepDescriptions.poolScoring', {n: stageIndex}),
         component: PoolScoring,
-        stageConfig: stageConfigWithId, stageIndex // 👈 使用 stageConfig
+        stageConfig: stageConfigWithId, stageIndex
       });
       steps.push({
         id: `${stageId}_rank`,
-        title: `阶段${stageIndex}: 小组排名`,
-        desc: `计算第 ${stageIndex} 阶段的晋级与淘汰`,
+        title: t('event.stageN', {n: stageIndex}) + ': ' + t('event.steps.poolRanking'),
+        desc: t('event.stepDescriptions.poolRanking', {n: stageIndex}),
         component: PoolRanking,
-        stageConfig: stageConfigWithId, stageIndex // 👈 使用 stageConfig
+        stageConfig: stageConfigWithId, stageIndex
       });
     } else if (stage.type === 'de') {
       steps.push({
         id: stageId,
-        title: `阶段${stageIndex}: 淘汰赛`,
-        desc: `进行第 ${stageIndex} 阶段的单败淘汰赛`,
+        title: t('event.stageN', {n: stageIndex}) + ': ' + t('event.steps.elimination'),
+        desc: t('event.stepDescriptions.elimination', {n: stageIndex}),
         component: DETree,
-        stageConfig: stageConfigWithId, stageIndex // 👈 使用 stageConfig
+        stageConfig: stageConfigWithId, stageIndex
       });
     }
   });
 
   steps.push({
     id: 'final_rank',
-    title: '最终排名',
-    desc: '查看并导出最终成绩',
+    title: t('event.steps.finalRanking'),
+    desc: t('event.ranking.exportResults'),
     component: FinalRanking,
     stageIndex: stages.length + 1
   });
@@ -173,7 +170,7 @@ onMounted(async () => {
       }
       currentStep.value = eventData.current_step || 0;
     } else {
-      ElMessage.error('未找到项目信息');
+      ElMessage.error(t('common.messages.notFound'));
     }
   }
 });

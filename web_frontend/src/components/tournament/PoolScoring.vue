@@ -5,23 +5,22 @@
 
         <div class="pool-header">
           <div class="left">
-            <span class="pool-tag">第 {{ pIndex + 1 }} 组</span>
-            <span class="pool-info">{{ pool.fencers.length }} 选手</span>
+            <span class="pool-tag">{{ $t('event.pool.group', {n: pIndex + 1}) }}</span>
+            <span class="pool-info">{{ $t('event.pool.fencerCountShort', {n: pool.fencers.length}) }}</span>
           </div>
-          <!-- 【已恢复】小组控制按钮 -->
           <div class="pool-actions">
             <el-button
                 size="small"
                 type="primary"
                 :disabled="!isPoolComplete(pIndex) || isLocked[pIndex]"
                 @click="handleConfirmPool(pIndex)"
-            >确定
+            >{{ $t('event.pool.confirm') }}
             </el-button>
             <el-button
                 size="small"
                 :disabled="!isLocked[pIndex]"
                 @click="handleUnlockPool(pIndex)"
-            >重新录入
+            >{{ $t('event.pool.reEnter') }}
             </el-button>
           </div>
         </div>
@@ -77,21 +76,24 @@
     </div>
 
     <div v-else-if="!loading" class="loading-state">
-      <el-empty description="当前阶段暂无分组信息"/>
+      <el-empty :description="$t('event.pool.noPoolData')"/>
     </div>
 
     <footer class="action-footer">
-      <el-button @click="$emit('prev')">返回</el-button>
-      <div class="summary-info">所有分数已实时同步至本地数据库</div>
-      <el-button type="success" size="large" @click="proceedToNextStep">进入本阶段排名</el-button>
+      <el-button @click="$emit('prev')">{{ $t('event.pool.return') }}</el-button>
+      <div class="summary-info">{{ $t('event.pool.allScoresSynced') }}</div>
+      <el-button type="success" size="large" @click="proceedToNextStep">{{ $t('event.pool.nextRanking') }}</el-button>
     </footer>
   </div>
 </template>
 
 <script setup lang="ts">
 import {ref, reactive, onMounted} from 'vue'
+import {useI18n} from 'vue-i18n'
 import {ElMessage, ElEmpty} from 'element-plus'
 import {DataManager} from '@/services/DataManager'
+
+const {t} = useI18n()
 
 const props = defineProps<{
   eventId: string,
@@ -103,18 +105,18 @@ const loading = ref(false)
 const poolGroups = ref<any[]>([])
 const results = reactive<any[]>([])
 const stats = reactive<any[]>([])
-const isLocked = ref<boolean[]>([]) // 【已恢复】锁定状态数组
+const isLocked = ref<boolean[]>([])
 
 const loadPoolData = async () => {
   loading.value = true;
   results.length = 0;
   stats.length = 0;
-  isLocked.value = []; // 初始化
+  isLocked.value = [];
   poolGroups.value = [];
 
   const stageId = props.stageConfig?.id;
   if (!stageId) {
-    ElMessage.error('阶段配置错误，无法加载计分表');
+    ElMessage.error(t('event.pool.stageConfigErrorScore'));
     loading.value = false;
     return;
   }
@@ -136,7 +138,6 @@ const loadPoolData = async () => {
 
       const size = validFencers.length;
       
-      // Validate that saved results have correct dimensions
       const savedResults = (Array.isArray(p.results) && p.results.length === size && 
                            p.results.every((row: unknown[]) => Array.isArray(row) && row.length === size))
           ? p.results 
@@ -154,13 +155,12 @@ const loadPoolData = async () => {
 
   } catch (e) {
     console.error('加载计分表数据失败', e);
-    ElMessage.error('加载计分数据失败');
+    ElMessage.error(t('event.pool.loadPoolFailed'));
   } finally {
     loading.value = false;
   }
 };
 
-// 【已恢复】检查小组比分是否全部录入
 const isPoolComplete = (pIdx: number) => {
   const poolResults = results[pIdx];
   if (!poolResults) {return false;}
@@ -205,7 +205,6 @@ const calculateStats = (pIdx: number) => {
 
 const parseScore = (s: string) => s === 'V' ? 5 : (parseInt(s) || 0)
 
-// 【已恢复】持久化到数据库（现在包含 isLocked 状态）
 const persistPoolData = async (pIdx: number) => {
   const pool = poolGroups.value[pIdx];
   if (!pool) {return;}
@@ -217,23 +216,20 @@ const persistPoolData = async (pIdx: number) => {
   );
 };
 
-// 【已恢复】确认锁定
 const handleConfirmPool = (pIdx: number) => {
   isLocked.value[pIdx] = true;
   persistPoolData(pIdx);
-  ElMessage.success(`第 ${pIdx + 1} 组比分已确认并锁定`);
+  ElMessage.success(t('event.pool.poolConfirmed', {n: pIdx + 1}));
 };
 
-// 【已恢复】解锁
 const handleUnlockPool = (pIdx: number) => {
   isLocked.value[pIdx] = false;
   persistPoolData(pIdx);
 };
 
-// 【已恢复】进入下一步前的检查
 const proceedToNextStep = () => {
   if (isLocked.value.some(locked => !locked)) {
-    ElMessage.warning('请先点击“确定”按钮，锁定所有小组的比分');
+    ElMessage.warning(t('event.pool.confirmAllScores'));
     return;
   }
   emit('next');

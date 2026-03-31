@@ -6,6 +6,7 @@ export default {
         tournamentStatus: 'Ongoing',
         editInfo: 'Edit Tournament Info',
         addEvent: 'Add Event',
+        enterOrchestration: 'Enter Orchestration',
         stats: {
             totalEvents: 'Total Events',
             totalFencers: 'Registered Fencers',
@@ -18,6 +19,7 @@ export default {
         filterIndividual: 'Individual',
         filterTeam: 'Team',
         noEvents: 'No events yet, click the top right button to create your first event',
+        defaultRule: 'Default Rule',
         breadcrumb: {
             home: 'Home',
             tournamentList: 'Tournament List',
@@ -75,10 +77,33 @@ export default {
         nameRequired: 'Tournament name is required',
         dateRequired: 'Please select a date',
         createSuccess: 'Tournament created successfully',
-        createFailed: 'Failed to create, please try again'
+        createFailed: 'Failed to create, please try again',
+        deleteSuccess: 'Tournament deleted',
+        deleteFailed: 'Delete failed',
+        notFound: 'Tournament info not found',
+        eventDeleteSuccess: 'Event deleted',
+        eventDeleteFailed: 'Delete failed',
+        eventCreateSuccess: 'Event created successfully',
+        eventCreateFailed: 'Creation failed'
     },
     actions: {
         cancel: 'Cancel',
         createAndEnter: 'Create & Enter'
+    },
+    editDrawer: {
+        title: 'Edit Tournament Info',
+        updateSuccess: 'Tournament info updated',
+        updateFailed: 'Update failed'
+    },
+    editEventDrawer: {
+        title: 'Edit Event Info',
+        updateSuccess: 'Updated successfully',
+        updateFailed: 'Update failed'
+    },
+    confirm: {
+        deleteTournament: 'Are you sure you want to permanently delete tournament "<strong>{name}</strong>"?<br/>This will also delete all events and results under this tournament, and cannot be undone.',
+        deleteEvent: 'Are you sure you want to delete event "<strong>{name}</strong>"?<br/>This action cannot be undone.',
+        confirmDelete: 'Confirm Delete',
+        DangerConfirm: 'Dangerous Operation Confirm'
     }
 }

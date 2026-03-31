@@ -2,11 +2,11 @@
   <div class="de-tree-container">
     <div class="tree-controls">
       <el-radio-group v-model="viewBracket" size="small">
-        <el-radio-button label="64">Table of 64</el-radio-button>
-        <el-radio-button label="32">Table of 32</el-radio-button>
-        <el-radio-button label="16">Table of 16</el-radio-button>
+        <el-radio-button label="64">{{ $t('event.de.tableOf', {n: 64}) }}</el-radio-button>
+        <el-radio-button label="32">{{ $t('event.de.tableOf', {n: 32}) }}</el-radio-button>
+        <el-radio-button label="16">{{ $t('event.de.tableOf', {n: 16}) }}</el-radio-button>
       </el-radio-group>
-      <el-button type="primary" icon="Printer" plain>打印对阵表</el-button>
+      <el-button type="primary" icon="Printer" plain>{{ $t('event.de.printBracket') }}</el-button>
     </div>
 
     <div v-loading="loading" class="bracket-viewport" ref="viewportRef">
@@ -82,9 +82,9 @@
     </div>
 
     <footer class="footer-actions">
-      <el-button @click="$emit('prev')">返回上一步</el-button>
+      <el-button @click="$emit('prev')">{{ $t('event.pool.return') }}</el-button>
       <el-button type="primary" size="large" @click="proceedToNextStage" :loading="isSaving">
-        完成淘汰赛并进入下一阶段
+        {{ $t('event.de.completeStage') }}
       </el-button>
     </footer>
   </div>
@@ -92,11 +92,13 @@
 
 <script setup lang="ts">
 import {ref, onMounted, onUnmounted, nextTick, defineProps, PropType} from 'vue'
+import {useI18n} from 'vue-i18n'
 import {DataManager} from '@/services/DataManager'
 import {ElMessage} from 'element-plus'
 import type {Stage} from '@/types/tournament';
 
-// --- 类型定义 ---
+const {t} = useI18n()
+
 interface Fencer {
   id: string | number
   last_name: string
@@ -119,13 +121,12 @@ interface Connection {
   isBye: boolean
 }
 
-// --- 状态与引用 ---
 const props = defineProps({
   eventId: {
     type: String,
     required: true
   },
-  stageConfig: { // 【修正】 prop 名称与父组件对齐
+  stageConfig: {
     type: Object as PropType<Stage>,
     required: true
   },
@@ -136,7 +137,7 @@ const props = defineProps({
 })
 
 const isSaving = ref(false)
-const emit = defineEmits(['next', 'prev']) // 确保 emit 已经定义
+const emit = defineEmits(['next', 'prev'])
 
 const viewBracket = ref('16')
 const bracketData = ref<Match[][]>([])
@@ -146,7 +147,6 @@ const viewportRef = ref<HTMLElement>()
 const matchRefs = new Map<string, HTMLElement>()
 let resizeObserver: ResizeObserver | null = null
 
-// --- 核心交互逻辑 (不变) ---
 const getSafeId = (fencer: Fencer | null): string | null => {
   return fencer && fencer.id !== undefined && fencer.id !== null ? String(fencer.id) : null;
 }
@@ -168,30 +168,25 @@ const updateMatchWinner = (rIdx: number, mIdx: number) => {
   const idA = getSafeId(match.fencerA);
   const idB = getSafeId(match.fencerB);
 
-  // 【核心修复】：“因轮空获胜”的逻辑只在第一轮 (rIdx === 0) 生效
   if (rIdx === 0) {
     if (match.fencerA && !match.fencerB) {
       match.winnerId = idA;
-      return; // 结束此函数的执行
+      return;
     }
-    // 理论上种子算法不会出现A轮空B不轮空的情况，但作为安全措施保留
     if (!match.fencerA && match.fencerB) {
       match.winnerId = idB;
       return;
     }
   }
 
-  // 对于后续轮次，或者双方都在的第一轮，必须比较分数
   const sA = parseScore(match.scoreA);
   const sB = parseScore(match.scoreB);
 
-  // 只有当两个分数都有效输入时才判断胜负
   if (sA !== -1 && sB !== -1) {
     if (sA > sB) {match.winnerId = idA;}
     else if (sB > sA) {match.winnerId = idB;}
-    else {match.winnerId = null;} // 平局或未完成
+    else {match.winnerId = null;}
   } else {
-    // 只要有一方分数不合法，就重置胜者
     match.winnerId = null;
   }
 }
@@ -234,12 +229,10 @@ const handleScoreChange = (rIdx: number, mIdx: number) => {
   nextTick(drawLines);
 };
 
-// --- 数据持久化 ---
 const saveProgress = async () => {
-  await DataManager.saveDETree(props.eventId, props.stageConfig.id, bracketData.value); // 【修正】
+  await DataManager.saveDETree(props.eventId, props.stageConfig.id, bracketData.value);
 };
 
-// --- 初始化与数据加载 ---
 const getSeedOrder = (size: number): number[] => {
   let order = [1];
   while (order.length < size) {
@@ -257,18 +250,18 @@ const getSeedOrder = (size: number): number[] => {
 const initRealDE = async () => {
   loading.value = true;
   try {
-    const savedTree = await DataManager.getDETree(props.eventId, props.stageConfig.id); // 【修正】
+    const savedTree = await DataManager.getDETree(props.eventId, props.stageConfig.id);
     if (savedTree && savedTree.length > 0) {
       bracketData.value = savedTree;
       nextTick(drawLines);
-      ElMessage.success(`已恢复阶段 [${props.stageConfig.name}] 的对阵图进度`); // 【修正】
+      ElMessage.success(t('event.de.stageProgressRestored', {name: props.stageConfig.name}));
       return;
     }
 
     const fencersFromPrevStage = await DataManager.getFencersForStage(props.eventId, props.stageIndex);
 
     if (fencersFromPrevStage.length === 0) {
-      ElMessage.warning(`无法为阶段 [${props.stageConfig.name}] 生成对阵表，因为没有从上一阶段晋级的选手。`); // 【修正】
+      ElMessage.warning(t('event.de.noFencersForDE', {name: props.stageConfig.name}));
       bracketData.value = [];
       return;
     }
@@ -321,13 +314,12 @@ const initRealDE = async () => {
 
   } catch (error) {
     console.error(error);
-    ElMessage.error(`初始化阶段 [${props.stageConfig.name}] 的对阵表失败`); // 【修正】
+    ElMessage.error(t('event.de.initDEFailed', {name: props.stageConfig.name}));
   } finally {
     loading.value = false;
   }
 };
 
-// --- 绘图与辅助函数 (不变) ---
 const getSlotClass = (match: Match, side: 'A' | 'B') => {
   const fencer = side === 'A' ? match.fencerA : match.fencerB;
   const isWinner = match.winnerId && fencer && String(match.winnerId) === String(fencer.id);
@@ -365,23 +357,20 @@ const proceedToNextStage = async () => {
   try {
     const finalRound = bracketData.value[bracketData.value.length - 1];
     if (!finalRound || finalRound[0].winnerId === null) {
-      ElMessage.warning('比赛尚未决出最终胜者，无法完成此阶段。');
+      ElMessage.warning(t('event.de.noWinner'));
       isSaving.value = false;
       return;
     }
 
-    // 核心：从 bracketData 推导出本阶段的最终排名
     const stageResults: { id: string, rank: number, is_eliminated: boolean }[] = [];
     const processedIds = new Set<string>();
 
-    // 倒序遍历每一轮，来确定名次
     for (let r = bracketData.value.length - 1; r >= 0; r--) {
       const round = bracketData.value[r];
-      const roundRankBase = Math.pow(2, bracketData.value.length - 1 - r); // 8强, 16强...
+      const roundRankBase = Math.pow(2, bracketData.value.length - 1 - r);
 
       for (const match of round) {
         if (match.winnerId && !processedIds.has(match.winnerId)) {
-          // 冠军特殊处理
           if (r === bracketData.value.length - 1) {
             stageResults.push({id: match.winnerId, rank: 1, is_eliminated: false});
             processedIds.add(match.winnerId);
@@ -394,7 +383,6 @@ const proceedToNextStage = async () => {
 
         if (loser && !processedIds.has(getSafeId(loser)!)) {
           const loserId = getSafeId(loser)!;
-          // 亚军特殊处理
           if (r === bracketData.value.length - 1) {
             stageResults.push({id: loserId, rank: 2, is_eliminated: false});
           } else {
@@ -405,28 +393,25 @@ const proceedToNextStage = async () => {
       }
     }
 
-    // 【重要】将所有参与了本阶段但未被处理的选手（通常是轮空的）也加入结果
     const allStageFencers = bracketData.value[0].flatMap(m => [m.fencerA, m.fencerB]).filter(Boolean);
     for (const fencer of allStageFencers) {
       if (fencer && !processedIds.has(getSafeId(fencer)!)) {
-        // 这种情况通常是首轮轮空直接晋级的，他们在本阶段并未被淘汰
         stageResults.push({id: getSafeId(fencer)!, rank: 1, is_eliminated: false});
       }
     }
 
     await DataManager.updateStageRanking(props.eventId, props.stageIndex, stageResults);
-    ElMessage.success('淘汰赛阶段排名已保存');
+    ElMessage.success(t('event.de.stageRankingSaved'));
     emit('next');
 
   } catch (error) {
     console.error(error);
-    ElMessage.error('操作失败，请重试');
+    ElMessage.error(t('common.messages.operationFailed'));
   } finally {
     isSaving.value = false;
   }
 }
 
-// --- 生命周期 ---
 onMounted(() => {
   initRealDE();
   if (viewportRef.value) {

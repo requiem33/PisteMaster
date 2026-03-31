@@ -2,7 +2,7 @@
 <template>
   <el-drawer
       :model-value="modelValue"
-      title="编辑赛事信息"
+      :title="$t('tournament.editDrawer.title')"
       direction="rtl"
       size="40%"
       @update:model-value="$emit('update:modelValue', $event)"
@@ -14,9 +14,9 @@
     />
     <template #footer>
       <div class="drawer-footer">
-        <el-button @click="$emit('update:modelValue', false)">取消</el-button>
+        <el-button @click="$emit('update:modelValue', false)">{{ $t('common.actions.cancel') }}</el-button>
         <el-button type="primary" :loading="isSubmitting" @click="submitForm">
-          保存更新
+          {{ $t('common.actions.save') }}
         </el-button>
       </div>
     </template>
@@ -25,9 +25,12 @@
 
 <script setup lang="ts">
 import {ref} from 'vue'
+import {useI18n} from 'vue-i18n'
 import {DataManager} from '@/services/DataManager'
 import {ElMessage} from 'element-plus'
 import TournamentForm from './TournamentForm.vue'
+
+const {t} = useI18n()
 
 defineProps<{
   modelValue: boolean,
@@ -42,18 +45,16 @@ const tournamentFormRef = ref<InstanceType<typeof TournamentForm>>()
 const submitForm = async () => {
   if (!tournamentFormRef.value) {return;}
 
-  // 【关键修改】4. 调用子组件的 validate
   const isValid = await tournamentFormRef.value.validate();
   if (isValid) {
     isSubmitting.value = true;
     try {
-      // 【关键修改】5. 获取子组件的 formData
       await DataManager.updateTournament(tournamentFormRef.value.formData);
-      ElMessage.success('赛事信息已更新');
+      ElMessage.success(t('tournament.editDrawer.updateSuccess'));
       emit('success');
       emit('update:modelValue', false);
     } catch (_error) {
-      ElMessage.error('更新失败');
+      ElMessage.error(t('tournament.editDrawer.updateFailed'));
     } finally {
       isSubmitting.value = false;
     }

@@ -9,24 +9,22 @@
       </div>
       <el-divider direction="vertical"/>
 
-      <!-- 移除 title, 让 slot 里的面包屑直接跟在后面 -->
       <slot name="extra"></slot>
     </div>
 
     <div class="actions-section">
-      <!-- ... (右侧操作区保持不变) ... -->
       <el-dropdown @command="handleLanguageCommand" trigger="click" class="tool-item">
         <el-button circle>
-          <span class="lang-text">{{ locale === 'zh-CN' ? '中' : 'EN' }}</span>
+          <span class="lang-text">{{ locale === 'zh-CN' ? $t('common.language.zh') : $t('common.language.en') }}</span>
         </el-button>
         <template #dropdown>
           <el-dropdown-menu>
-            <el-dropdown-item command="zh-CN" :disabled="locale === 'zh-CN'">简体中文</el-dropdown-item>
-            <el-dropdown-item command="en-US" :disabled="locale === 'en-US'">English</el-dropdown-item>
+            <el-dropdown-item command="zh-CN" :disabled="locale === 'zh-CN'">{{ $t('common.language.zhCN') }}</el-dropdown-item>
+            <el-dropdown-item command="en-US" :disabled="locale === 'en-US'">{{ $t('common.language.enUS') }}</el-dropdown-item>
           </el-dropdown-menu>
         </template>
       </el-dropdown>
-      <el-tooltip :content="isDark ? '切换到白天模式' : '切换到夜晚模式'" placement="bottom">
+      <el-tooltip :content="isDark ? $t('common.theme.switchToLight') : $t('common.theme.switchToDark')" placement="bottom">
         <el-button
             class="tool-item"
             :icon="isDark ? Sunny : Moon"

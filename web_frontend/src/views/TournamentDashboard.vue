@@ -16,7 +16,7 @@
           <el-dropdown>
             <span class="user-info">
               <el-avatar :size="24" src="https://cube.elemecdn.com/0/88/03b0d39583f48206768a7534e55bcpng.png"/>
-              <span class="username">管理员</span>
+              <span class="username">{{ $t('common.admin') }}</span>
               <el-icon><ArrowDown/></el-icon>
             </span>
             <template #dropdown>
@@ -43,7 +43,7 @@
               <span class="meta-item"><el-icon><Location/></el-icon> {{ tournamentInfo.location }}</span>
               <span class="meta-item">
                 <el-icon><Calendar/></el-icon>
-                {{ tournamentInfo.start_date }} 至 {{ tournamentInfo.end_date }}
+                {{ tournamentInfo.start_date }} {{ $t('tournament.form.rangeSeparator') }} {{ tournamentInfo.end_date }}
               </span>
             </div>
           </div>
@@ -59,11 +59,9 @@
         </div>
       </header>
 
-      <!-- ... (统计卡片行 stat-row 保持不变) ... -->
-
       <section class="events-grid">
         <div class="section-title">
-          <h2>{{ $t('tournament.dashboard.eventSection') }} (Events)</h2>
+          <h2>{{ $t('tournament.dashboard.eventSection') }}</h2>
           <el-radio-group v-model="filterType" size="small">
             <el-radio-button label="all">{{ $t('tournament.dashboard.filterAll') }}</el-radio-button>
             <el-radio-button label="individual">{{ $t('tournament.dashboard.filterIndividual') }}</el-radio-button>
@@ -83,9 +81,9 @@
                   </div>
                   <div class="event-details">
                     <h3>{{ event.event_name }}</h3>
-                    <p class="rule-text">{{ event.rule_name || '默认规则' }}</p>
+                    <p class="rule-text">{{ event.rule_name || $t('tournament.dashboard.defaultRule') }}</p>
                     <div class="event-tags">
-                      <el-tag size="small" type="info">{{ event.is_team_event ? '团体赛' : '个人赛' }}</el-tag>
+                      <el-tag size="small" type="info">{{ event.is_team_event ? $t('common.teamEvent') : $t('common.individualEvent') }}</el-tag>
                       <el-tag size="small" :type="getStatusType(event.status)">{{ event.status }}</el-tag>
                     </div>
                   </div>
@@ -99,7 +97,6 @@
                   <span>{{ event.fencer_count || 0 }}</span>
                 </div>
                 <div class="footer-actions">
-                  <!-- 【新增】编辑按钮 -->
                   <el-button
                       type="primary"
                       icon="Edit"
@@ -117,7 +114,7 @@
                       @click.stop="handleDeleteEvent(event.id, event.event_name)"
                   />
                   <el-button type="primary" link @click="goToOrchestrator(event.id)">
-                    进入编排
+                    {{ $t('tournament.dashboard.enterOrchestration') }}
                     <el-icon>
                       <Right/>
                     </el-icon>
@@ -130,21 +127,18 @@
       </section>
     </div>
 
-    <!-- 创建项目抽屉 -->
     <CreateEventDrawer
         v-model="eventDrawerVisible"
         :tournamentId="tournamentId"
         @success="handleEventCreated"
     />
 
-    <!-- 编辑赛事抽屉 -->
     <EditTournamentDrawer
         v-model="editTournamentDrawerVisible"
         :tournamentData="tournamentInfo"
         @success="handleTournamentUpdated"
     />
 
-    <!-- 【新增】编辑项目抽屉 -->
     <EditEventDrawer
         v-model="editEventDrawerVisible"
         :eventData="currentEditingEvent"
@@ -157,6 +151,7 @@
 <script setup lang="ts">
 import {onMounted, ref} from 'vue'
 import {useRoute, useRouter} from 'vue-router'
+import {useI18n} from 'vue-i18n'
 import {Location, Calendar, Trophy, User, Right, ArrowDown} from '@element-plus/icons-vue'
 import AppHeader from '@/components/layout/AppHeader.vue'
 import CreateEventDrawer from '@/components/tournament/CreateEventDrawer.vue'
@@ -165,6 +160,7 @@ import {ElMessage, ElMessageBox} from "element-plus";
 import EditTournamentDrawer from '@/components/tournament/EditTournamentDrawer.vue'
 import EditEventDrawer from '@/components/tournament/EditEventDrawer.vue'
 
+const {t} = useI18n()
 const route = useRoute()
 const router = useRouter()
 const tournamentId = route.params.id as string
@@ -177,7 +173,6 @@ const currentEditingEvent = ref<any>(null)
 const editEventDrawerVisible = ref(false)
 const filterType = ref('all')
 
-// 初始值设为空，等待加载
 const tournamentInfo = ref<any>({
   tournament_name: '',
   location: '',
@@ -187,11 +182,9 @@ const tournamentInfo = ref<any>({
 
 const events = ref<any[]>([])
 
-// --- 加载数据函数 ---
 const loadAllData = async () => {
   loading.value = true
   try {
-    // 并行获取赛事信息和下属项目
     const [info, eventList] = await Promise.all([
       DataManager.getTournamentById(tournamentId),
       DataManager.getEventsByTournamentId(tournamentId)
@@ -200,7 +193,7 @@ const loadAllData = async () => {
     if (info) {
       tournamentInfo.value = info
     } else {
-      ElMessage.error('未找到赛事信息')
+      ElMessage.error(t('common.messages.notFound'))
       router.push('/tournament')
     }
 
@@ -222,12 +215,12 @@ const getStatusType = (status: string) => {
 }
 
 const handleEventCreated = () => {
-  loadAllData() // 项目创建成功后刷新列表
+  loadAllData()
   eventDrawerVisible.value = false
 }
 
 const handleTournamentUpdated = () => {
-  loadAllData() // 核心：编辑成功后，重新加载所有数据以刷新页面
+  loadAllData()
   editDrawerVisible.value = false
 }
 
@@ -244,11 +237,11 @@ const handleEventUpdated = () => {
 const handleDeleteEvent = async (eventId: string, eventName: string) => {
   try {
     await ElMessageBox.confirm(
-        `确定要删除项目 “<strong>${eventName}</strong>” 吗？<br/>此操作不可恢复。`,
-        '确认删除',
+        t('tournament.confirm.deleteEvent', {name: eventName}),
+        t('tournament.confirm.confirmDelete'),
         {
-          confirmButtonText: '确认',
-          cancelButtonText: '取消',
+          confirmButtonText: t('common.actions.confirm'),
+          cancelButtonText: t('common.actions.cancel'),
           type: 'warning',
           dangerouslyUseHTMLString: true,
         }
@@ -256,12 +249,12 @@ const handleDeleteEvent = async (eventId: string, eventName: string) => {
 
     loading.value = true;
     await DataManager.deleteEvent(eventId);
-    ElMessage.success('项目已删除');
-    loadAllData(); // 重新加载数据
+    ElMessage.success(t('tournament.messages.eventDeleteSuccess'));
+    loadAllData();
   } catch (error) {
     if (error !== 'cancel') {
       console.error("删除项目失败:", error);
-      ElMessage.error('删除失败');
+      ElMessage.error(t('tournament.messages.eventDeleteFailed'));
     }
   } finally {
     if (loading.value) {loading.value = false;}

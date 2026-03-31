@@ -6,6 +6,7 @@ export default {
         tournamentStatus: '进行中',
         editInfo: '编辑赛事信息',
         addEvent: '新增竞赛项目',
+        enterOrchestration: '进入编排',
         stats: {
             totalEvents: '项目总数',
             totalFencers: '已报名选手',
@@ -18,6 +19,7 @@ export default {
         filterIndividual: '个人赛',
         filterTeam: '团体赛',
         noEvents: '暂无项目，点击右上角创建第一个单项',
+        defaultRule: '默认规则',
         breadcrumb: {
             home: '首页',
             tournamentList: '赛事列表',
@@ -75,10 +77,33 @@ export default {
         nameRequired: '赛事名称不能为空',
         dateRequired: '请选择比赛日期',
         createSuccess: '赛事创建成功',
-        createFailed: '创建失败，请重试'
+        createFailed: '创建失败，请重试',
+        deleteSuccess: '赛事已删除',
+        deleteFailed: '删除失败',
+        notFound: '未找到赛事信息',
+        eventDeleteSuccess: '项目已删除',
+        eventDeleteFailed: '删除失败',
+        eventCreateSuccess: '项目创建成功',
+        eventCreateFailed: '创建失败'
     },
     actions: {
         cancel: '取消',
         createAndEnter: '创建并进入编排'
+    },
+    editDrawer: {
+        title: '编辑赛事信息',
+        updateSuccess: '赛事信息已更新',
+        updateFailed: '更新失败'
+    },
+    editEventDrawer: {
+        title: '编辑项目信息',
+        updateSuccess: '更新成功',
+        updateFailed: '更新失败'
+    },
+    confirm: {
+        deleteTournament: '确定要永久删除赛事 "<strong>{name}</strong>" 吗？<br/>此操作将同时删除该赛事下的所有项目和成绩，且不可恢复。',
+        deleteEvent: '确定要删除项目 "<strong>{name}</strong>" 吗？<br/>此操作不可恢复。',
+        confirmDelete: '确认删除',
+        DangerConfirm: '危险操作确认'
     }
 }

@@ -20,9 +20,12 @@
 
 <script setup lang="ts">
 import {ref} from 'vue'
+import {useI18n} from 'vue-i18n'
 import {ElMessage} from 'element-plus'
 import {DataManager} from '@/services/DataManager'
 import EventForm from './EventForm.vue'
+
+const {t} = useI18n()
 
 const props = defineProps<{ tournamentId: string }>()
 const emit = defineEmits<{ (e: 'success'): void }>()
@@ -47,11 +50,11 @@ const handleConfirm = async () => {
         rule_id: data.rule_id,
         rules: data.rules
       })
-      ElMessage.success('项目创建成功')
+      ElMessage.success(t('tournament.messages.eventCreateSuccess'))
       visible.value = false
       emit('success')
     } catch (_e) {
-      ElMessage.error('创建失败')
+      ElMessage.error(t('tournament.messages.eventCreateFailed'))
     } finally {
       loading.value = false
     }

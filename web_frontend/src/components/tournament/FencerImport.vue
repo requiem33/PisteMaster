@@ -3,14 +3,14 @@
   <div class="fencer-import-container">
     <div class="action-bar">
       <div class="left">
-        <el-button type="primary" icon="Plus" @click="addRow">添加单行</el-button>
+        <el-button type="primary" icon="Plus" @click="addRow">{{ $t('event.fencer.addRow') }}</el-button>
         <el-button type="success" icon="Memo" @click="showPasteArea = !showPasteArea">
-          {{ showPasteArea ? '关闭粘贴窗' : '从 Excel 批量粘贴' }}
+          {{ showPasteArea ? $t('event.fencer.closePaste') : $t('event.fencer.pasteFromExcel') }}
         </el-button>
       </div>
       <div class="right">
         <el-button type="danger" plain icon="Delete" @click="clearAll" :disabled="!fencers.length">
-          清空全部
+          {{ $t('event.fencer.clearAll') }}
         </el-button>
       </div>
     </div>
@@ -21,46 +21,46 @@
             v-model="rawPasteData"
             type="textarea"
             :rows="8"
-            placeholder="操作指南：&#10;1. 在 Excel 或网页中选中数据区域（包含表头或不含均可）并复制。&#10;2. 在此处粘贴。&#10;3. 点击下方【开始解析】按钮。"
+            :placeholder="$t('event.fencer.pasteHint')"
         />
         <div class="paste-actions">
-          <el-button type="primary" @click="parseAndImport" :loading="isParsing">开始解析并导入</el-button>
-          <span class="hint">智能解析器会自动识别 姓、名、性别、国家/地区、排名 等信息。</span>
+          <el-button type="primary" @click="parseAndImport" :loading="isParsing">{{ $t('event.fencer.parseAndImport') }}</el-button>
+          <span class="hint">{{ $t('event.fencer.parseHint') }}</span>
         </div>
       </div>
     </el-collapse-transition>
 
     <el-table :data="fencers" border stripe class="fencer-table">
-      <el-table-column type="index" label="序号" width="60" align="center"/>
-      <el-table-column label="姓 (Last Name)">
+      <el-table-column type="index" :label="$t('event.fencer.index')" width="60" align="center"/>
+      <el-table-column :label="$t('event.fencer.lastName')">
         <template #default="scope">
-          <el-input v-model="scope.row.last_name" placeholder="必填"/>
+          <el-input v-model="scope.row.last_name" :placeholder="$t('event.fencer.required')"/>
         </template>
       </el-table-column>
-      <el-table-column label="名 (First Name)">
+      <el-table-column :label="$t('event.fencer.firstName')">
         <template #default="scope">
-          <el-input v-model="scope.row.first_name" placeholder="必填"/>
+          <el-input v-model="scope.row.first_name" :placeholder="$t('event.fencer.required')"/>
         </template>
       </el-table-column>
-      <el-table-column label="性别" width="100">
+      <el-table-column :label="$t('event.fencer.gender')" width="100">
         <template #default="scope">
           <el-select v-model="scope.row.gender">
-            <el-option label="男" value="M"/>
-            <el-option label="女" value="F"/>
+            <el-option :label="$t('event.fencer.male')" value="M"/>
+            <el-option :label="$t('event.fencer.female')" value="F"/>
           </el-select>
         </template>
       </el-table-column>
-      <el-table-column label="国家 (IOC)" width="120">
+      <el-table-column :label="$t('event.fencer.country')" width="120">
         <template #default="scope">
-          <el-input v-model="scope.row.country_code" placeholder="如 CHN" maxlength="3"/>
+          <el-input v-model="scope.row.country_code" :placeholder="$t('event.fencer.countryPlaceholder')" maxlength="3"/>
         </template>
       </el-table-column>
-      <el-table-column label="初始排名" width="120">
+      <el-table-column :label="$t('event.fencer.initialRanking')" width="120">
         <template #default="scope">
           <el-input-number v-model="scope.row.current_ranking" :min="0" controls-position="right" style="width: 100%"/>
         </template>
       </el-table-column>
-      <el-table-column label="操作" width="70" align="center">
+      <el-table-column :label="$t('event.fencer.actions')" width="70" align="center">
         <template #default="scope">
           <el-button type="danger" icon="Delete" circle @click="removeRow(scope.$index)"/>
         </template>
@@ -69,10 +69,10 @@
 
     <footer class="import-footer">
       <div class="info">
-        已就绪选手: <span class="count">{{ fencers.length }}</span> 名
+        {{ $t('event.pool.fencersReady', {n: fencers.length}) }}
       </div>
       <el-button type="primary" size="large" icon="Check" :loading="isSubmitting" @click="submitImport">
-        保存名单并进入下一步
+        {{ $t('event.pool.saveListAndNext') }}
       </el-button>
     </footer>
   </div>
@@ -80,8 +80,11 @@
 
 <script setup lang="ts">
 import {onMounted, ref} from 'vue'
+import {useI18n} from 'vue-i18n'
 import {ElMessage, ElMessageBox} from 'element-plus'
 import {DataManager} from '@/services/DataManager'
+
+const {t} = useI18n()
 
 const props = defineProps<{
   eventId: string
@@ -119,7 +122,7 @@ const removeRow = (index: number) => {
 }
 
 const clearAll = () => {
-  ElMessageBox.confirm('确定清空当前列表所有选手吗？', '确认', {type: 'warning'})
+  ElMessageBox.confirm(t('common.confirm.deleteTitle'), t('common.actions.confirm'), {type: 'warning'})
       .then(() => {
         fencers.value = []
       })
@@ -136,7 +139,7 @@ const parseAndImport = () => {
       const columns = line.split(/\t| {2,}/).map(col => col.trim());
       const lastName = columns[0] || '';
       const firstName = columns[1] || '';
-      const genderRaw = (columns.find(c => c.toUpperCase() === 'F' || c === '女') || 'M').toUpperCase();
+      const genderRaw = (columns.find(c => c.toUpperCase() === 'F' || c === '女' || c === 'Female') || 'M').toUpperCase();
       const gender = genderRaw.startsWith('F') ? 'F' : 'M';
       const countryCodeRaw = columns.find(c => /^[A-Z]{3}$/.test(c));
       const country_code = countryCodeRaw || 'CHN';
@@ -150,24 +153,21 @@ const parseAndImport = () => {
     });
     if (newFencers.length > 0) {
       fencers.value = [...fencers.value, ...newFencers];
-      ElMessage.success(`成功解析并添加了 ${newFencers.length} 位选手`);
+      ElMessage.success(t('event.pool.parseSuccess', {n: newFencers.length}));
       rawPasteData.value = '';
       showPasteArea.value = false;
     } else {
-      ElMessage.error('解析失败，请检查数据格式');
+      ElMessage.error(t('event.pool.parseFailed'));
     }
   } finally {
     isParsing.value = false;
   }
 };
 
-/**
- * 【关键修改】提交名单，并创建初始实时排名 (live_ranking)
- */
 const submitImport = async () => {
   const invalidFencer = fencers.value.find(f => !f.last_name || !f.first_name);
   if (invalidFencer) {
-    ElMessage.error('存在姓或名为空的选手，请填写完整');
+    ElMessage.error(t('event.pool.missingNameError'));
     return;
   }
 
@@ -177,14 +177,13 @@ const submitImport = async () => {
     const currentIds = savedFencers.map((f: any) => f.id);
     await DataManager.syncEventFencers(props.eventId, currentIds);
 
-    // 【核心修改】调用新方法，创建初始排名快照
     await DataManager.initializeLiveRanking(props.eventId, savedFencers);
 
-    ElMessage.success('名单已保存，初始排名已生成！');
+    ElMessage.success(t('event.pool.listSaved'));
     emit('next');
   } catch (error) {
     console.error(error);
-    ElMessage.error('保存失败');
+    ElMessage.error(t('event.pool.saveFailed'));
   } finally {
     isSubmitting.value = false;
   }
