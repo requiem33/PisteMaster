@@ -3,10 +3,14 @@ import { join } from 'path'
 import { electronApp, optimizer, is } from '@electron-toolkit/utils'
 import { setupPythonServer, shutdownPythonServer } from './python-server'
 import { setupIpcHandlers } from './ipc-handlers'
+import { setupClusterIpcHandlers, setClusterState, updateLastHeartbeat } from './ipc/cluster-handlers'
 import { restoreWindowState, saveWindowState } from './window-state'
+import { loadClusterConfig } from './config/cluster'
+import { udpBroadcastService } from './services/udp'
 
 let mainWindow: BrowserWindow | null = null
 let pythonProcess: ReturnType<typeof setupPythonServer> | null = null
+let clusterInitialized = false
 
 async function createWindow(): Promise<BrowserWindow> {
   const windowState = restoreWindowState()
@@ -76,6 +80,66 @@ async function setupAutoUpdater(): Promise<void> {
   }
 }
 
+async function initializeCluster(): Promise<void> {
+  if (clusterInitialized) {
+    return
+  }
+
+  try {
+    const config = loadClusterConfig()
+    
+    if (config.mode === 'cluster') {
+      console.log('[Cluster] Initializing cluster mode...')
+      
+      await udpBroadcastService.start(config)
+      
+      udpBroadcastService.on('heartbeat', (_message, _remoteIp) => {
+        updateLastHeartbeat()
+      })
+      
+      udpBroadcastService.on('master_announce', (message, remoteIp) => {
+        const masterUrl = `http://${message.ip || remoteIp}:${message.port || config.apiPort}`
+        setClusterState(false, masterUrl, message.nodeId)
+        console.log(`[Cluster] Master announced: ${message.nodeId} at ${masterUrl}`)
+      })
+
+      udpBroadcastService.on('peer_discovered', (peer) => {
+        console.log(`[Cluster] Peer discovered: ${peer.nodeId} at ${peer.ip}:${peer.port}`)
+      })
+
+      udpBroadcastService.on('peer_left', (nodeId, reason) => {
+        console.log(`[Cluster] Peer left: ${nodeId}, reason: ${reason || 'unknown'}`)
+      })
+      
+      clusterInitialized = true
+      console.log('[Cluster] Cluster mode initialized')
+    } else {
+      console.log('[Cluster] Running in single-node mode')
+      clusterInitialized = true
+    }
+  } catch (error) {
+    console.error('[Cluster] Failed to initialize cluster:', error)
+  }
+}
+
+async function shutdownCluster(): Promise<void> {
+  if (!clusterInitialized) {
+    return
+  }
+
+  try {
+    const config = loadClusterConfig()
+    
+    if (config.mode === 'cluster') {
+      console.log('[Cluster] Shutting down cluster services...')
+      await udpBroadcastService.stop()
+      console.log('[Cluster] Cluster services stopped')
+    }
+  } catch (error) {
+    console.error('[Cluster] Failed to shutdown cluster:', error)
+  }
+}
+
 app.whenReady().then(async () => {
   electronApp.setAppUserModelId('com.pistemaster.app')
 
@@ -84,6 +148,7 @@ app.whenReady().then(async () => {
   })
 
   setupIpcHandlers(ipcMain)
+  setupClusterIpcHandlers(ipcMain)
 
   mainWindow = await createWindow()
 
@@ -92,6 +157,7 @@ app.whenReady().then(async () => {
       .then((proc) => {
         pythonProcess = proc
         setupAutoUpdater()
+        initializeCluster()
       })
       .catch((err) => {
         console.error('Failed to start Python server:', err)
@@ -100,6 +166,8 @@ app.whenReady().then(async () => {
           'Failed to start the backend server. The application may not function correctly.'
         )
       })
+  } else {
+    initializeCluster()
   }
 
   app.on('activate', () => {
@@ -110,6 +178,7 @@ app.whenReady().then(async () => {
 })
 
 app.on('before-quit', async () => {
+  await shutdownCluster()
   await shutdownPythonServer(pythonProcess)
 })
 
