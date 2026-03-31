@@ -1,5 +1,12 @@
 export default {
     home: '首页',
+    landing: {
+        brandSubtitle: '专业击剑赛事编排与计分系统',
+        createEvent: '创建赛事',
+        createEventDesc: '开启一个新的击剑锦标赛或俱乐部比赛',
+        eventList: '赛事列表',
+        eventListDesc: '查看并管理正在进行中或已结束的历史赛事'
+    },
     login: '注册 / 登录',
     logout: '退出登录',
     userCenter: '个人中心',

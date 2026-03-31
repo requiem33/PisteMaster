@@ -3,17 +3,17 @@
     <AppHeader :showCreate="false">
       <template #user>
         <div class="header-user-area">
-          <el-button v-if="!isLoggedIn" type="primary" link @click="isLoggedIn = true">注册 / 登录</el-button>
+          <el-button v-if="!isLoggedIn" type="primary" link @click="isLoggedIn = true">{{ t('common.login') }}</el-button>
           <el-dropdown v-else>
             <span class="user-info">
               <el-avatar :size="24" src="https://cube.elemecdn.com/0/88/03b0d39583f48206768a7534e55bcpng.png"/>
-              <span class="username">管理员</span>
+              <span class="username">{{ t('common.admin') }}</span>
               <el-icon><ArrowDown/></el-icon>
             </span>
             <template #dropdown>
               <el-dropdown-menu>
-                <el-dropdown-item>个人中心</el-dropdown-item>
-                <el-dropdown-item divided @click="isLoggedIn = false">退出登录</el-dropdown-item>
+                <el-dropdown-item>{{ t('common.userCenter') }}</el-dropdown-item>
+                <el-dropdown-item divided @click="isLoggedIn = false">{{ t('common.logout') }}</el-dropdown-item>
               </el-dropdown-menu>
             </template>
           </el-dropdown>
@@ -29,7 +29,7 @@
             <Odometer/>
           </el-icon>
           <h1 class="brand-title">PisteMaster</h1>
-          <p class="brand-subtitle">专业击剑赛事编排与计分系统</p>
+          <p class="brand-subtitle">{{ t('common.landing.brandSubtitle') }}</p>
         </div>
       </el-col>
 
@@ -42,8 +42,8 @@
               </el-icon>
             </div>
             <div class="text-box">
-              <h3>创建赛事</h3>
-              <p>开启一个新的击剑锦标赛或俱乐部比赛</p>
+              <h3>{{ t('common.landing.createEvent') }}</h3>
+              <p>{{ t('common.landing.createEventDesc') }}</p>
             </div>
           </div>
 
@@ -54,8 +54,8 @@
               </el-icon>
             </div>
             <div class="text-box">
-              <h3>赛事列表</h3>
-              <p>查看并管理正在进行中或已结束的历史赛事</p>
+              <h3>{{ t('common.landing.eventList') }}</h3>
+              <p>{{ t('common.landing.eventListDesc') }}</p>
             </div>
           </div>
         </div>
@@ -67,9 +67,11 @@
 <script setup lang="ts">
 import {ref} from 'vue'
 import {useRouter} from 'vue-router'
+import {useI18n} from 'vue-i18n'
 import {Plus, List, Odometer, ArrowDown} from '@element-plus/icons-vue'
 import AppHeader from '@/components/layout/AppHeader.vue'
 
+const {t} = useI18n()
 const router = useRouter()
 const isLoggedIn = ref(false)
 

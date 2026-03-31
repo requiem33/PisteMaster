@@ -1,5 +1,12 @@
 export default {
     home: 'Home',
+    landing: {
+        brandSubtitle: 'Professional Fencing Tournament Orchestration and Scoring System',
+        createEvent: 'Create Event',
+        createEventDesc: 'Start a new fencing tournament or club competition',
+        eventList: 'Event List',
+        eventListDesc: 'View and manage ongoing or completed historical events'
+    },
     login: 'Sign Up / Login',
     logout: 'Logout',
     userCenter: 'User Center',
