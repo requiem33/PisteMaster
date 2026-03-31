@@ -9,6 +9,56 @@
 
 ---
 
+## 🗓️ 2026-03-31
+
+### 已完成事项
+
+* **分布式集群架构**: 实现完整的分布式集群支持，无需中心服务器
+  - Phase 1-3: 后端数据模型和同步系统
+    - SyncLog和SyncState模型记录变更历史和同步状态
+    - SyncManager管理变更记录和同步队列
+    - AckQueue实现同步写入确认机制
+  
+  - Phase 4: API路由中间件
+    - ApiRouterMiddleware根据节点角色路由请求
+    - MasterProxy/FollowerProxy代理写请求到主节点
+  
+  - Phase 5: 前端同步栈
+    - IndexedDBService扩展支持同步存储
+    - SyncQueueService离线队列服务
+    - ConflictResolver冲突解决
+    - NetworkService网络状态监控
+    - ClusterService集群协调
+  
+  - Phase 6: Electron集成
+    - UDP广播服务用于节点发现
+    - IPC处理器暴露集群API
+    - 集群配置管理
+  
+  - Phase 7: UI组件
+    - ClusterStatus组件显示集群状态
+    - SyncProgress同步进度指示器
+    - ConflictReview冲突解决面板
+    - 中英文国际化支持
+
+* **测试和文档**: Phase 8完成
+  - 单元测试: BullyElection算法测试
+  - 集成测试: SyncManager和AckQueue测试
+  - E2E测试: 多节点场景、选举、故障转移测试
+  - 部署指南: `docs/deployment/cluster-setup.md`
+  - 故障排查: `docs/deployment/troubleshooting.md`
+
+### 技术决策 & 挑战
+
+* **选举算法**: 使用Bully算法，节点ID决定优先级，高ID节点成为主节点
+* **数据同步**: 主节点记录所有写操作到SyncLog，从节点拉取并应用
+* **冲突解决**: 版本号+时间戳双保险，关键数据需人工审核
+* **离线支持**: 前端维护离线队列，网络恢复后自动同步
+
+### 发现的问题
+
+* 无。
+
 ## 🗓️ 2026-03-30
 
 ### 已完成事项
