@@ -1,3 +1,3 @@
-from .sync import SyncLogViewSet, SyncStateViewSet
+from .sync import SyncLogViewSet, SyncStateViewSet, SyncViewSet
 
-__all__ = ["SyncLogViewSet", "SyncStateViewSet"]
+__all__ = ["SyncLogViewSet", "SyncStateViewSet", "SyncViewSet"]

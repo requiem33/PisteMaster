@@ -2,6 +2,8 @@ from backend.apps.cluster.services.udp_broadcast import UDPBroadcastService
 from backend.apps.cluster.services.node_discovery import NodeDiscovery, NodeInfo, ClusterState
 from backend.apps.cluster.services.heartbeat import HeartbeatMonitor
 from backend.apps.cluster.services.election import BullyElection, ElectionState
+from backend.apps.cluster.services.ack_queue import AckQueue, PendingAck
+from backend.apps.cluster.services.sync_manager import SyncManager, sync_manager, SyncChange, SyncResult
 
 __all__ = [
     "UDPBroadcastService",
@@ -11,4 +13,10 @@ __all__ = [
     "HeartbeatMonitor",
     "BullyElection",
     "ElectionState",
+    "AckQueue",
+    "PendingAck",
+    "SyncManager",
+    "sync_manager",
+    "SyncChange",
+    "SyncResult",
 ]
