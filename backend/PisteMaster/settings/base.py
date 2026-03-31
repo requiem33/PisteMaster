@@ -21,6 +21,7 @@ INSTALLED_APPS = [
     "django.contrib.staticfiles",
     "backend.apps.users.apps.UsersConfig",
     "backend.apps.fencing_organizer.apps.ApiConfig",
+    "backend.apps.cluster.apps.ClusterConfig",
     "rest_framework",
     "django_filters",
 ]

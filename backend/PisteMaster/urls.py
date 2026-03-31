@@ -22,4 +22,5 @@ urlpatterns = [
     path("admin/", admin.site.urls),
     path("api/", include("backend.apps.users.urls")),
     path("api/", include("backend.apps.fencing_organizer.urls")),
+    path("api/cluster/", include("backend.apps.cluster.urls")),
 ]
