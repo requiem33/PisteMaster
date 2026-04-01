@@ -134,6 +134,7 @@ const isSyncing = ref(false)
 
 const clusterStatus = ref<ClusterStatus | null>(null)
 const isOnline = computed(() => syncStore.isOnline)
+const isMaster = computed(() => clusterStatus.value?.isMaster ?? false)
 
 const statusTagType = computed(() => {
   if (!isOnline.value) {return 'danger'}

@@ -1,5 +1,5 @@
 import type {PendingOperation} from '@/types/cluster'
-import {IndexedDBService} from './IndexedDBService'
+import {IndexedDBService} from '../storage/IndexedDBService'
 
 const MAX_RETRIES = 5
 const RETRY_DELAYS = [1000, 2000, 5000, 10000, 30000]
@@ -55,7 +55,7 @@ class SyncQueueServiceClass {
     this.isProcessing = true
     try {
       const operations = await IndexedDBService.getPendingOperations()
-      const pendingOps = operations.filter(op => op.retries < this.config.maxRetries)
+      const pendingOps = operations.filter((op: PendingOperation) => op.retries < this.config.maxRetries)
       for (const op of pendingOps.slice(0, this.config.batchSize)) {
         try {
           await this.executeOperation(op)

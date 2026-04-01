@@ -173,7 +173,7 @@ const conflicts = computed(() => {
   }))
 })
 
-function getConflictTypeTag(type: string): 'danger' | 'warning' | 'info' {
+function getConflictTypeTag(type: string | undefined): 'danger' | 'warning' | 'info' {
   switch (type) {
     case 'version_mismatch':
       return 'danger'

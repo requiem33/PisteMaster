@@ -5,19 +5,19 @@
 
 import { type Component } from 'vue'
 import { type Router } from 'vue-router'
-import { render, type RenderOptions } from '@vue/test-utils'
-import { createPinia, type Pinia } from 'pinia'
+import { mount, type MountingOptions } from '@vue/test-utils'
+import { createPinia, type Pinia, type StateTree } from 'pinia'
 import { createRouter, createWebHistory } from 'vue-router'
 import ElementPlus from 'element-plus'
 import 'element-plus/dist/index.css'
 
-export interface TestRenderOptions extends RenderOptions {
+export interface TestMountOptions extends MountingOptions<unknown> {
   pinia?: Pinia
   router?: Router
-  initialState?: Record<string, unknown>
+  initialState?: Record<string, StateTree>
 }
 
-export function createTestPinia(initialState?: Record<string, unknown>): Pinia {
+export function createTestPinia(initialState?: Record<string, StateTree>): Pinia {
   const pinia = createPinia()
 
   if (initialState) {
@@ -37,25 +37,23 @@ export function createTestRouter(routes: Array<{ path: string; component: Compon
 
 export function renderComponent(
   component: Component,
-  options: TestRenderOptions = {}
+  options: TestMountOptions = {}
 ) {
   const {
     pinia = createTestPinia(options.initialState),
     router = createTestRouter(),
-    global: globalOptions = {},
-    ...renderOptions
+    ...mountOptions
   } = options
 
-  return render(component, {
+  return mount(component, {
     global: {
       plugins: [
         [pinia],
         [router],
         [ElementPlus],
       ],
-      ...globalOptions,
     },
-    ...renderOptions,
+    ...mountOptions,
   })
 }
 
@@ -110,8 +108,11 @@ export function mockSessionStorage() {
 export const flushPromises = () => new Promise(resolve => setTimeout(resolve, 0))
 
 declare module 'vitest' {
-  interface AsymmetricMatchers {
-    toBeValidUUID(): any
+  interface Assertion {
+    toBeValidUUID(): void
+  }
+  interface AsymmetricMatchersContaining {
+    toBeValidUUID(): void
   }
 }
 

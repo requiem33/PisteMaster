@@ -4,7 +4,6 @@ import {NetworkService} from '../NetworkService'
 class ClusterServiceClass {
   private masterUrl: string | null = null
   private nodeId: string | null = null
-  private clusterStatus: ClusterStatus | null = null
   private onMasterChangeCallbacks: Set<(newMasterUrl: string | null) => void> = new Set()
   private syncInterval: ReturnType<typeof setInterval> | null = null
 
@@ -13,7 +12,6 @@ class ClusterServiceClass {
     try {
       const status = await this.fetchClusterStatus()
       if (status) {
-        this.clusterStatus = status
         if (status.masterUrl) {
           this.masterUrl = status.masterUrl
         } else if (status.isMaster) {
@@ -62,7 +60,6 @@ class ClusterServiceClass {
     try {
       const status = await this.fetchClusterStatus()
       if (status) {
-        this.clusterStatus = status
         if (status.isMaster) {
           this.masterUrl = window.location.origin
         } else if (status.masterUrl) {
