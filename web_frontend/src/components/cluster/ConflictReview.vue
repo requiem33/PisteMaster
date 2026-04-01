@@ -3,7 +3,7 @@
     <template #header>
       <div class="card-header">
         <div class="header-left">
-          <el-icon :size="20" color="#f56c6c">
+          <el-icon :size="20" class="warning-icon">
             <WarningFilled />
           </el-icon>
           <span>{{ $t('cluster.conflictReview') }}</span>
@@ -281,6 +281,10 @@ onMounted(() => {
       display: flex;
       align-items: center;
       gap: 8px;
+
+      .warning-icon {
+        color: var(--el-color-danger);
+      }
     }
   }
 

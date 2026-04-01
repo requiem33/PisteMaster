@@ -243,7 +243,7 @@ onMounted(() => {
 <style scoped lang="scss">
 .pool-scoring-wrapper {
   padding: 20px;
-  background-color: #f8f9fa;
+  background-color: var(--el-fill-color-light);
 
   .pools-flex-container {
     display: flex;
@@ -252,17 +252,17 @@ onMounted(() => {
   }
 
   .pool-card {
-    background: #fff;
-    border: 1px solid #ebeef5;
+    background: var(--el-bg-color);
+    border: 1px solid var(--el-border-color-light);
     border-radius: 8px;
     box-shadow: 0 2px 12px 0 rgba(0, 0, 0, 0.1);
     overflow: hidden;
   }
 
   .pool-header {
-    background: #f5f7fa;
+    background: var(--el-fill-color-light);
     padding: 12px 20px;
-    border-bottom: 1px solid #ebeef5;
+    border-bottom: 1px solid var(--el-border-color-light);
     display: flex;
     justify-content: space-between;
     align-items: center;
@@ -270,13 +270,13 @@ onMounted(() => {
     .pool-tag {
       font-weight: bold;
       font-size: 16px;
-      color: #303133;
+      color: var(--el-text-color-primary);
       margin-right: 15px;
     }
 
     .pool-info {
       font-size: 13px;
-      color: #909399;
+      color: var(--el-text-color-secondary);
     }
   }
 
@@ -289,17 +289,17 @@ onMounted(() => {
     border-collapse: collapse;
     width: auto;
     min-width: 600px;
-    border: 2px solid #303133; // 击剑表格通常外框较粗
+    border: 2px solid var(--el-border-color);
 
     th, td {
-      border: 1px solid #303133; // 内部实线
+      border: 1px solid var(--el-border-color);
       padding: 0;
       text-align: center;
       vertical-align: middle;
     }
 
     th {
-      background: #f5f7fa;
+      background: var(--el-fill-color-light);
       height: 40px;
       font-size: 13px;
     }
@@ -321,18 +321,18 @@ onMounted(() => {
 
     .col-stat {
       width: 50px;
-      background: #fafafa;
+      background: var(--el-fill-color-lighter);
       font-weight: bold;
     }
 
     .highlight {
-      background: #eef5fe;
-      color: #409eff;
+      background: var(--el-color-primary-light-9);
+      color: var(--el-color-primary);
     }
 
     .cell-index {
       font-weight: bold;
-      background: #f5f7fa;
+      background: var(--el-fill-color-light);
     }
 
     .name-box {
@@ -347,7 +347,7 @@ onMounted(() => {
 
       .country-tag {
         font-size: 11px;
-        color: #909399;
+        color: var(--el-text-color-secondary);
         margin-left: 8px;
       }
     }
@@ -358,11 +358,11 @@ onMounted(() => {
       position: relative;
 
       &.is-diagonal {
-        background-color: #606266 !important; // 对角线灰色
+        background-color: var(--el-fill-color-dark) !important;
       }
 
       &.is-locked-cell {
-        background-color: #f5f7fa;
+        background-color: var(--el-fill-color-light);
       }
     }
 
@@ -377,22 +377,22 @@ onMounted(() => {
       outline: none;
 
       &:focus {
-        background: #ecf5ff;
+        background: var(--el-color-primary-light-9);
       }
 
       &.disabled-input {
         cursor: not-allowed;
-        color: #606266;
+        color: var(--el-text-color-regular);
       }
     }
 
     .v-text {
-      color: #67c23a;
+      color: var(--el-color-success);
       font-size: 16px;
     }
 
     .ind-text {
-      color: #409eff;
+      color: var(--el-color-primary);
       font-size: 16px;
     }
   }
@@ -403,7 +403,7 @@ onMounted(() => {
     display: flex;
     justify-content: space-between;
     align-items: center;
-    border-top: 1px solid #dcdfe6;
+    border-top: 1px solid var(--el-border-color-lighter);
   }
 }
 </style>

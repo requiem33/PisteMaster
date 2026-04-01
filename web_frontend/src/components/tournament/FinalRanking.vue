@@ -219,7 +219,7 @@ onMounted(async () => {
   }
 
   .points {
-    color: #409eff;
+    color: var(--el-color-primary);
     font-weight: bold;
     font-family: 'Courier New', Courier, monospace;
   }
@@ -227,7 +227,7 @@ onMounted(async () => {
   .footer-note {
     margin-top: 20px;
     font-size: 12px;
-    color: #909399;
+    color: var(--el-text-color-secondary);
     font-style: italic;
   }
 }

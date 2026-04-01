@@ -25,7 +25,7 @@
     <el-row class="hero-section">
       <el-col :md="12" class="left-brand">
         <div class="logo-wrapper">
-          <el-icon class="main-logo" :size="120" color="#409eff">
+          <el-icon class="main-logo" :size="120">
             <Odometer/>
           </el-icon>
           <h1 class="brand-title">PisteMaster</h1>
@@ -122,7 +122,7 @@ const handleGoToList = () => router.push('/tournament')
   .brand-title {
     font-size: 4rem;
     margin: 10px 0;
-    background: linear-gradient(45deg, #409eff, #67c23a);
+    background: linear-gradient(45deg, var(--el-color-primary), var(--el-color-success));
     -webkit-background-clip: text;
     -webkit-text-fill-color: transparent;
     font-weight: 800;
@@ -131,6 +131,10 @@ const handleGoToList = () => router.push('/tournament')
   .brand-subtitle {
     font-size: 1.2rem;
     color: var(--el-text-color-secondary);
+  }
+
+  .main-logo {
+    color: var(--el-color-primary);
   }
 }
 
@@ -160,7 +164,7 @@ const handleGoToList = () => router.push('/tournament')
   &:hover {
     transform: translateX(10px); /* 首页特有的横向位移动效 */
     box-shadow: var(--el-box-shadow-light);
-    border-color: #409eff;
+    border-color: var(--el-color-primary);
   }
 
   .icon-box {
@@ -174,13 +178,13 @@ const handleGoToList = () => router.push('/tournament')
     margin-right: 20px;
 
     &.plus {
-      background-color: rgba(64, 158, 255, 0.1);
-      color: #409eff;
+      background-color: var(--el-color-primary-light-9);
+      color: var(--el-color-primary);
     }
 
     &.list {
-      background-color: rgba(103, 194, 58, 0.1);
-      color: #67c23a;
+      background-color: var(--el-color-success-light-9);
+      color: var(--el-color-success);
     }
   }
 

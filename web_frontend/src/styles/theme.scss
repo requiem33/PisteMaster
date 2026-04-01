@@ -16,14 +16,19 @@ html.dark {
   --el-bg-color: #141d29; /* 卡片背景色，稍微亮一点 */
 
   /* 边框和分割线 */
+  --el-border-color: #2a3544;
+  --el-border-color-darker: #3d4a5c; /* 用于虚线边框，在暗色模式下需要更亮 */
+  --el-border-color-dark: #32404f;
   --el-border-color-base: #2a3544;
   --el-border-color-light: #242f3e;
   --el-border-color-extra-light: #1b2635;
+  --el-border-color-lighter: #1e2a3a;
 
   /* 文字颜色 */
   --el-text-color-primary: #cbd5e0; /* 浅灰色文字，减少对比度疲劳 */
   --el-text-color-regular: #a0aec0;
   --el-text-color-secondary: #718096;
+  --el-text-color-placeholder: #6b7280; /* 改善 placeholder 文字对比度 */
 
   /* 品牌色微调：在暗色下稍微提高亮度 */
   --el-color-primary: #5daeff;
@@ -31,6 +36,11 @@ html.dark {
 
   /* 遮罩层 */
   --el-mask-color: rgba(0, 0, 0, 0.8);
+
+  /* 填充色 */
+  --el-fill-color-light: #1f2937; /* 用于卡片、表格等背景 */
+  --el-fill-color-lighter: #262f3d;
+  --el-fill-color-blank: #141d29;
 }
 
 /* 按钮和平滑过渡效果 */

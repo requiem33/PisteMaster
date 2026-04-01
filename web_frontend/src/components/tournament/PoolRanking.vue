@@ -213,13 +213,13 @@ onMounted(() => {
   font-family: 'Arial';
 
   &.top-three {
-    color: #e6a23c;
+    color: var(--el-color-warning);
     font-size: 1.2em;
   }
 }
 
 .fencer-name strong {
-  color: #303133;
+  color: var(--el-text-color-primary);
 }
 
 .ml-10 {
@@ -227,8 +227,8 @@ onMounted(() => {
 }
 
 :deep(.eliminated-row) {
-  background-color: #fef0f0 !important;
-  color: #f56c6c;
+  background-color: var(--el-color-danger-light-9) !important;
+  color: var(--el-color-danger);
   text-decoration: line-through;
   text-decoration-color: rgba(245, 108, 108, 0.4);
 }
@@ -239,7 +239,7 @@ onMounted(() => {
   justify-content: space-between;
   align-items: center;
   padding: 20px;
-  border-top: 1px solid #eee;
+  border-top: 1px solid var(--el-border-color-lighter);
 }
 
 .legend {
@@ -258,11 +258,11 @@ onMounted(() => {
       border-radius: 50%;
 
       &.success {
-        background: #67c23a;
+        background: var(--el-color-success);
       }
 
       &.danger {
-        background: #f56c6c;
+        background: var(--el-color-danger);
       }
     }
   }

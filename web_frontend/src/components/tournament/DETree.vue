@@ -425,10 +425,9 @@ onUnmounted(() => {
 </script>
 
 <style scoped lang="scss">
-/* 样式保持不变 */
-$border-color: #dcdfe6;
-$winner-color: #67c23a;
-$bg-color: #f8f9fa;
+$winner-color: var(--el-color-success);
+$border-color: var(--el-border-color);
+$bg-color: var(--el-fill-color-light);
 @mixin text-ellipsis {
   overflow: hidden;
   text-overflow: ellipsis;
@@ -486,7 +485,7 @@ $bg-color: #f8f9fa;
   .round-header {
     text-align: center;
     font-weight: bold;
-    color: #909399;
+    color: var(--el-text-color-secondary);
     margin-bottom: 20px;
     font-size: 12px;
     text-transform: uppercase;
@@ -510,7 +509,7 @@ $bg-color: #f8f9fa;
 
 .match-box {
   flex-grow: 1;
-  background: white;
+  background: var(--el-bg-color);
   border: 1px solid $border-color;
   border-radius: 4px;
   box-shadow: 0 1px 4px rgba(0, 0, 0, 0.04);
@@ -530,17 +529,17 @@ $bg-color: #f8f9fa;
   font-size: 13px;
 
   &.winner {
-    background: #f0f9eb;
+    background: var(--el-color-success-light-9);
     font-weight: bold;
 
     .name, .seed, .org {
-      color: #529b2e;
+      color: var(--el-color-success);
     }
   }
 
   &.bye-slot {
-    background: #fafafa;
-    color: #c0c4cc;
+    background: var(--el-fill-color-lighter);
+    color: var(--el-text-color-placeholder);
     font-style: italic;
   }
 
@@ -549,12 +548,12 @@ $bg-color: #f8f9fa;
     text-align: center;
     font-size: 14px;
     font-weight: bold;
-    color: #c0c4cc;
+    color: var(--el-text-color-placeholder);
   }
 
   .seed {
     width: 24px;
-    color: #999;
+    color: var(--el-text-color-secondary);
     font-size: 11px;
   }
 
@@ -578,8 +577,8 @@ $bg-color: #f8f9fa;
 
   .org {
     font-size: 10px;
-    color: #909399;
-    background: #f0f2f5;
+    color: var(--el-text-color-secondary);
+    background: var(--el-fill-color-light);
     padding: 1px 4px;
     border-radius: 3px;
     margin-left: 5px;
@@ -590,36 +589,36 @@ $bg-color: #f8f9fa;
     width: 35px;
     height: 100%;
     border: none;
-    border-left: 1px solid #f0f0f0;
+    border-left: 1px solid var(--el-border-color-lighter);
     text-align: center;
     font-weight: bold;
     background: transparent;
     outline: none;
 
     &:focus {
-      background: #e6f7ff;
+      background: var(--el-color-primary-light-9);
     }
 
     &:disabled {
-      background: #fafafa;
+      background: var(--el-fill-color-lighter);
       cursor: not-allowed;
-      color: #c0c4cc;
+      color: var(--el-text-color-placeholder);
     }
   }
 }
 
 .divider {
   height: 1px;
-  background: #f0f0f0;
+  background: var(--el-border-color-lighter);
 }
 
 .footer-actions {
   margin-top: 30px;
   padding: 20px;
-  border-top: 1px solid #eee;
+  border-top: 1px solid var(--el-border-color-lighter);
   display: flex;
   justify-content: space-between;
-  background: #fff;
+  background: var(--el-bg-color);
   position: sticky;
   bottom: 0;
 }

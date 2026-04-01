@@ -191,7 +191,7 @@ onMounted(() => loadDataForCurrentStage())
   .edit-hint {
     margin-left: 15px;
     font-size: 12px;
-    color: #E6A23C;
+    color: var(--el-color-warning);
   }
 
   .pool-body-draggable {
@@ -203,8 +203,8 @@ onMounted(() => loadDataForCurrentStage())
     display: flex;
     align-items: center;
     padding: 10px 15px;
-    background: #fff;
-    border-bottom: 1px solid #f0f0f0;
+    background: var(--el-bg-color);
+    border-bottom: 1px solid var(--el-border-color-lighter);
     transition: background 0.2s;
 
     &.draggable-cursor {
@@ -222,7 +222,7 @@ onMounted(() => loadDataForCurrentStage())
     .seed {
       width: 35px;
       font-weight: bold;
-      color: #409eff;
+      color: var(--el-color-primary);
     }
 
     .name {
@@ -231,12 +231,12 @@ onMounted(() => loadDataForCurrentStage())
 
     .ioc {
       font-size: 12px;
-      color: #999;
+      color: var(--el-text-color-secondary);
       margin-right: 10px;
     }
 
     .drag-handle {
-      color: #ccc;
+      color: var(--el-text-color-placeholder);
       opacity: 0;
       transition: 0.2s;
     }
@@ -248,15 +248,15 @@ onMounted(() => loadDataForCurrentStage())
 
   .ghost-item {
     opacity: 0.5;
-    background: #c8ebfb !important;
-    border: 1px dashed #409eff;
+    background: var(--el-color-primary-light-8) !important;
+    border: 1px dashed var(--el-color-primary);
   }
 
   .pool-card {
     border: 1px solid var(--el-border-color-light);
     border-radius: 8px;
     margin-bottom: 20px;
-    background: #fff;
+    background: var(--el-bg-color);
 
     .pool-header {
       padding: 10px 15px;
@@ -270,7 +270,7 @@ onMounted(() => loadDataForCurrentStage())
   .footer-actions {
     margin-top: 30px;
     padding: 20px;
-    border-top: 1px solid #eee;
+    border-top: 1px solid var(--el-border-color-lighter);
     display: flex;
     justify-content: space-between;
   }

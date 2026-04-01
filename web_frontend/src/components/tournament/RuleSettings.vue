@@ -166,7 +166,7 @@ onMounted(() => {
 .stage-card {
   border: 1px solid var(--el-border-color-light);
   border-radius: 6px;
-  background: #fff;
+  background: var(--el-bg-color);
   overflow: hidden;
   transition: all 0.3s;
 

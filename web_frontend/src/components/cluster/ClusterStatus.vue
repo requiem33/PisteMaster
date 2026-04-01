@@ -81,7 +81,7 @@
           </el-table-column>
           <el-table-column prop="isHealthy" :label="$t('cluster.health')" width="80">
             <template #default="{ row }">
-              <el-icon :color="row.isHealthy ? '#67c23a' : '#f56c6c'">
+              <el-icon :class="row.isHealthy ? 'healthy-icon' : 'unhealthy-icon'">
                 <SuccessFilled v-if="row.isHealthy" />
                 <CircleClose v-else />
               </el-icon>
@@ -240,6 +240,14 @@ onMounted(() => {
     .monospace {
       font-family: monospace;
       font-size: 12px;
+    }
+
+    .healthy-icon {
+      color: var(--el-color-success);
+    }
+
+    .unhealthy-icon {
+      color: var(--el-color-danger);
     }
   }
 
