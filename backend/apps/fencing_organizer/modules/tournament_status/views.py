@@ -52,11 +52,11 @@ class TournamentStatusViewSet(viewsets.ViewSet):
     def retrieve(self, request, pk=None):
         """获取单个状态"""
         try:
-            status = self.service.get_status_by_id(pk)
-            if not status:
+            status_obj = self.service.get_status_by_id(pk)
+            if not status_obj:
                 return Response({"detail": "状态不存在"}, status=status.HTTP_404_NOT_FOUND)
 
-            django_status = DjangoTournamentStatus.objects.get(id=status.id)
+            django_status = DjangoTournamentStatus.objects.get(id=status_obj.id)
             serializer = self.serializer_class(django_status)
             return Response(serializer.data)
 
@@ -69,8 +69,8 @@ class TournamentStatusViewSet(viewsets.ViewSet):
         serializer.is_valid(raise_exception=True)
 
         try:
-            status = self.service.create_status(serializer.validated_data)
-            django_status = DjangoTournamentStatus.objects.get(id=status.id)
+            status_obj = self.service.create_status(serializer.validated_data)
+            django_status = DjangoTournamentStatus.objects.get(id=status_obj.id)
             response_serializer = self.serializer_class(django_status)
 
             return Response(response_serializer.data, status=status.HTTP_201_CREATED)
@@ -87,8 +87,8 @@ class TournamentStatusViewSet(viewsets.ViewSet):
         serializer.is_valid(raise_exception=True)
 
         try:
-            status = self.service.update_status(pk, serializer.validated_data)
-            django_status = DjangoTournamentStatus.objects.get(id=status.id)
+            status_obj = self.service.update_status(pk, serializer.validated_data)
+            django_status = DjangoTournamentStatus.objects.get(id=status_obj.id)
             response_serializer = self.serializer_class(django_status)
 
             return Response(response_serializer.data)

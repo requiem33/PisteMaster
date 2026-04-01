@@ -6,9 +6,10 @@ from rest_framework import status
 @pytest.mark.django_db
 class TestTournamentStatusAPI:
 
-    def test_get_status_list(self, client):
+    def test_get_status_list(self, client, admin_user):
         """测试获取状态列表"""
         url = reverse("tournament-status-list")
+        client.force_login(admin_user)
         response = client.get(url)
 
         assert response.status_code == status.HTTP_200_OK

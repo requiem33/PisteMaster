@@ -1,4 +1,6 @@
 # tests/backend/test_tournament_api.py
+import json
+
 import pytest
 from django.urls import reverse
 from rest_framework import status
@@ -18,7 +20,7 @@ class TestTournamentAPI:
         assert response.status_code == status.HTTP_200_OK
         assert isinstance(response.data, dict) or isinstance(response.data, list)
 
-    def test_create_tournament(self, client, admin_user, planning_status):
+    def test_create_tournament(self, client, admin_user):
         """测试创建赛事"""
         url = reverse("tournament-list")
         client.force_login(admin_user)
@@ -29,26 +31,26 @@ class TestTournamentAPI:
             "location": "测试地点",
             "start_date": "2024-12-01",
             "end_date": "2024-12-05",
-            "status_id": str(planning_status.id),
+            "status": "PLANNING",
         }
 
         response = client.post(url, data, format="json")
 
         assert response.status_code == status.HTTP_201_CREATED
         assert response.data["tournament_name"] == "测试赛事"
-        assert response.data["status_code"] == "PLANNING"
+        assert response.data["status"] == "PLANNING"
 
-    def test_update_tournament_status(self, client, admin_user, sample_tournament, ongoing_status):
+    def test_update_tournament_status(self, client, admin_user, sample_tournament):
         """测试更新赛事状态"""
-        url = reverse("tournament-update-status", kwargs={"pk": str(sample_tournament.id)})
+        url = reverse("tournament-detail", kwargs={"pk": str(sample_tournament.id)})
         client.force_login(admin_user)
 
-        data = {"status_id": str(ongoing_status.id)}
+        data = {"status": "ONGOING"}
 
-        response = client.patch(url, data, format="json")
+        response = client.patch(url, json.dumps(data), content_type="application/json")
 
         assert response.status_code == status.HTTP_200_OK
-        assert response.data["status_code"] == "ONGOING"
+        assert response.data["status"] == "ONGOING"
 
     def test_get_upcoming_tournaments(self, client):
         """测试获取即将到来的赛事"""
@@ -60,18 +62,10 @@ class TestTournamentAPI:
     @pytest.fixture
     def planning_status(self):
         """计划中状态fixture"""
-        status, created = DjangoTournamentStatus.objects.get_or_create(
+        status_obj, created = DjangoTournamentStatus.objects.get_or_create(
             status_code="PLANNING", defaults={"display_name": "计划中", "description": "赛事正在计划阶段"}
         )
-        return status
-
-    @pytest.fixture
-    def ongoing_status(self):
-        """进行中状态fixture"""
-        status, created = DjangoTournamentStatus.objects.get_or_create(
-            status_code="ONGOING", defaults={"display_name": "进行中", "description": "赛事正在进行中"}
-        )
-        return status
+        return status_obj
 
     @pytest.fixture
     def sample_tournament(self, planning_status):
@@ -82,6 +76,6 @@ class TestTournamentAPI:
             location="示例地点",
             start_date=date.today() + timedelta(days=30),
             end_date=date.today() + timedelta(days=35),
-            status=planning_status,
+            status=planning_status.status_code,
         )
         return tournament

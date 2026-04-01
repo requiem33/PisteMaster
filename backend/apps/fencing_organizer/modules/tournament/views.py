@@ -117,7 +117,7 @@ class TournamentViewSet(viewsets.GenericViewSet):
         except self.service.TournamentServiceError as e:
             return Response({"detail": e.message, "errors": e.errors}, status=status.HTTP_400_BAD_REQUEST)
 
-    def update(self, request, pk=None):
+    def update(self, request, pk=None, partial=False):
         try:
             tournament_id = UUID(pk)
         except (ValueError, TypeError):
@@ -129,7 +129,7 @@ class TournamentViewSet(viewsets.GenericViewSet):
 
         self.check_object_permissions(request, tournament)
 
-        serializer = self.get_serializer(data=request.data)
+        serializer = self.get_serializer(data=request.data, partial=partial)
         serializer.is_valid(raise_exception=True)
 
         try:
@@ -140,7 +140,7 @@ class TournamentViewSet(viewsets.GenericViewSet):
             return Response({"detail": e.message, "errors": e.errors}, status=status.HTTP_400_BAD_REQUEST)
 
     def partial_update(self, request, pk=None):
-        return self.update(request, pk)
+        return self.update(request, pk, partial=True)
 
     def destroy(self, request, pk=None):
         try:
