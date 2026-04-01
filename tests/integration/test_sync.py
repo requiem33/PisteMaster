@@ -100,6 +100,7 @@ class TestAckQueue:
         assert ack_queue.get_pending_count() == 0
 
     def test_get_pending_details(self, ack_queue):
+        ack_queue.set_nodes_required(2)
         ack_queue.register(100)
         ack_queue.acknowledge(100, "node_001")
 
@@ -329,7 +330,7 @@ class TestSyncResult:
 class TestSyncWorkflow:
     def test_full_sync_workflow(self, sync_manager, ack_queue):
         sync_manager.ack_queue = ack_queue
-        sync_manager.set_nodes_required(1)
+        ack_queue.set_nodes_required(1)
         sync_manager.register_model(
             "tournament",
             MagicMock(),

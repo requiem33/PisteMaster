@@ -106,6 +106,11 @@ class SyncManager:
         """Get the ACK queue instance."""
         return self._ack_queue
 
+    @ack_queue.setter
+    def ack_queue(self, value: AckQueue) -> None:
+        """Set the ACK queue instance."""
+        self._ack_queue = value
+
     def record_change(
         self,
         table_name: str,
@@ -155,7 +160,7 @@ class SyncManager:
         """
         limit = min(limit, self.MAX_BATCH_SIZE)
 
-        queryset = DjangoSyncLog.objects.filter(id__gt=since_id).order_by("id")[:limit]
+        queryset = DjangoSyncLog.objects.filter(id__gt=since_id).order_by("id")[: limit + 1]
 
         changes = []
         for log in queryset:
@@ -171,8 +176,11 @@ class SyncManager:
                 )
             )
 
+        has_more = len(changes) > limit
+        if has_more:
+            changes = changes[:limit]
+
         last_id = changes[-1].id if changes else since_id
-        has_more = len(changes) == limit
 
         return SyncResult(last_id=last_id, has_more=has_more, changes=changes)
 
@@ -185,7 +193,7 @@ class SyncManager:
         """Get changes for specific tables since the given ID."""
         limit = min(limit, self.MAX_BATCH_SIZE)
 
-        queryset = DjangoSyncLog.objects.filter(id__gt=since_id, table_name__in=tables).order_by("id")[:limit]
+        queryset = DjangoSyncLog.objects.filter(id__gt=since_id, table_name__in=tables).order_by("id")[: limit + 1]
 
         changes = []
         for log in queryset:
@@ -201,8 +209,11 @@ class SyncManager:
                 )
             )
 
+        has_more = len(changes) > limit
+        if has_more:
+            changes = changes[:limit]
+
         last_id = changes[-1].id if changes else since_id
-        has_more = len(changes) == limit
 
         return SyncResult(last_id=last_id, has_more=has_more, changes=changes)
 

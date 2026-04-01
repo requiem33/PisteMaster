@@ -15,9 +15,9 @@ class MessageType(Enum):
 
 @dataclass
 class BaseMessage:
-    type: MessageType
-    node_id: str
-    timestamp: int
+    type: MessageType = MessageType.ANNOUNCE
+    node_id: str = ""
+    timestamp: int = 0
     seq_num: int = 1
     version: int = 1
 
