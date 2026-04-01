@@ -8,7 +8,7 @@
     "dev:backend": "cd backend && python manage.py runserver",
     "dev:frontend": "cd web_frontend && npm run dev",
     "dev:electron": "cd desktop && npm run dev",
-    "build": "npm run build:python && npm run build:electron",
+    "build": "npm run build:python && npm run build:frontend && npm run build:electron",
     "build:python": "powershell -ExecutionPolicy Bypass -File scripts/build-python.ps1",
     "build:electron": "cd desktop && npm run build:win",
     "build:frontend": "cd web_frontend && npm run build",

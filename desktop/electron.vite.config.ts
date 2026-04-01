@@ -29,12 +29,4 @@ export default defineConfig({
       },
     },
   },
-  renderer: {
-    plugins: [vue()],
-    resolve: {
-      alias: {
-        '@': resolve('src/renderer/src'),
-      },
-    },
-  },
 })
