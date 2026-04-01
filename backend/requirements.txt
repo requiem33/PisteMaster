@@ -9,5 +9,8 @@ psycopg2-binary==2.9.9  # PostgreSQL 数据库
 ipython==8.26.0
 pytest==8.3.2
 pytest-django==4.8.0
+pytest-cov==5.0.0
+factory-boy==3.3.0
+faker==26.0.0
 flake8==7.1.0
 black==26.3.1
