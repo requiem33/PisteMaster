@@ -19,6 +19,10 @@ export const AuthService = {
     return data.user
   },
 
+  async loginAsGuest(): Promise<User> {
+    return this.login('Guest', 'Guest')
+  },
+
   async logout(): Promise<void> {
     await fetch('/api/auth/logout/', {
       method: 'POST',

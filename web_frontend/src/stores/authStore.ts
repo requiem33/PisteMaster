@@ -1,40 +1,40 @@
 import { defineStore } from 'pinia'
 import { ref, computed } from 'vue'
-import type { GuestUser, AppUser } from '@/types/user'
-import { isGuestUser } from '@/types/user'
+import type { User } from '@/types/user'
 import { AuthService } from '@/services/authService'
-import { LocalAuthService } from '@/services/localAuthService'
 import { isElectron } from '@/utils/platform'
 
 export const useAuthStore = defineStore('auth', () => {
-  const user = ref<AppUser | null>(null)
+  const user = ref<User | null>(null)
   const loading = ref(false)
   const explicitLogout = ref(false)
 
-  const isAuthenticated = computed(() => !!user.value && !isGuestUser(user.value))
-  const isGuest = computed(() => isGuestUser(user.value))
+  const isAuthenticated = computed(() => !!user.value)
+  const isGuest = computed(() => user.value?.role === 'GUEST')
   const isDesktop = computed(() => isElectron())
-  const isAdmin = computed(() => !isGuestUser(user.value) && user.value?.role === 'ADMIN')
-  const isScheduler = computed(() => !isGuestUser(user.value) && user.value?.role === 'SCHEDULER')
+  const isAdmin = computed(() => user.value?.role === 'ADMIN')
+  const isScheduler = computed(() => user.value?.role === 'SCHEDULER')
   const username = computed(() => user.value?.username || '')
-
-  const initGuestUser = (): void => {
-    if (!isElectron()) {
-      return
-    }
-    const guestUser = LocalAuthService.getLocalUser()
-    if (guestUser) {
-      user.value = guestUser as GuestUser
-    }
-  }
 
   const login = async (usernameInput: string, password: string): Promise<boolean> => {
     loading.value = true
     try {
-      const authenticatedUser = await AuthService.login(usernameInput, password)
-      user.value = authenticatedUser
+      user.value = await AuthService.login(usernameInput, password)
       explicitLogout.value = false
-      LocalAuthService.clearLocalUser()
+      return true
+    } catch {
+      user.value = null
+      return false
+    } finally {
+      loading.value = false
+    }
+  }
+
+  const loginAsGuest = async (): Promise<boolean> => {
+    loading.value = true
+    try {
+      user.value = await AuthService.loginAsGuest()
+      explicitLogout.value = false
       return true
     } catch {
       user.value = null
@@ -53,18 +53,6 @@ export const useAuthStore = defineStore('auth', () => {
     }
   }
 
-  const updateGuestUsername = (newUsername: string): boolean => {
-    if (!isGuestUser(user.value)) {
-      return false
-    }
-    const updated = LocalAuthService.updateLocalUsername(newUsername)
-    if (updated) {
-      user.value = updated as GuestUser
-      return true
-    }
-    return false
-  }
-
   const fetchCurrentUser = async (): Promise<void> => {
     if (user.value || explicitLogout.value) {
       return
@@ -76,11 +64,11 @@ export const useAuthStore = defineStore('auth', () => {
       if (currentUser) {
         user.value = currentUser
       } else if (isElectron()) {
-        initGuestUser()
+        await loginAsGuest()
       }
     } catch {
       if (isElectron()) {
-        initGuestUser()
+        await loginAsGuest()
       } else {
         user.value = null
       }
@@ -99,9 +87,8 @@ export const useAuthStore = defineStore('auth', () => {
     isScheduler,
     username,
     login,
+    loginAsGuest,
     logout,
     fetchCurrentUser,
-    initGuestUser,
-    updateGuestUsername,
   }
 })

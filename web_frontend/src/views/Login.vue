@@ -82,10 +82,17 @@ const handleLogin = async () => {
   loading.value = false
 }
 
-const handleContinueAsGuest = () => {
-  authStore.initGuestUser()
-  const redirect = route.query.redirect as string
-  router.push(redirect || '/')
+const handleContinueAsGuest = async () => {
+  loading.value = true
+  const success = await authStore.loginAsGuest()
+  if (success) {
+    ElMessage.success(t('auth.loginSuccess'))
+    const redirect = route.query.redirect as string
+    router.push(redirect || '/')
+  } else {
+    ElMessage.error(t('auth.loginFailed'))
+  }
+  loading.value = false
 }
 </script>
 

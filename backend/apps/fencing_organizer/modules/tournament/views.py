@@ -10,7 +10,11 @@ from rest_framework import viewsets
 from uuid import UUID
 
 from backend.apps.fencing_organizer.modules.tournament.models import DjangoTournament
-from backend.apps.fencing_organizer.permissions import IsSchedulerOrAdmin, IsTournamentEditor, IsTournamentCreatorOrAdmin
+from backend.apps.fencing_organizer.permissions import (
+    IsSchedulerOrAdminOrGuest,
+    IsTournamentEditor,
+    IsTournamentCreatorOrAdmin,
+)
 from backend.apps.fencing_organizer.services.tournament_service import TournamentService
 from backend.apps.fencing_organizer.utils.pagination import get_paginated_response
 from backend.apps.users.models import User
@@ -50,7 +54,7 @@ class TournamentViewSet(viewsets.GenericViewSet):
 
     def get_permissions(self):
         if self.action in ["create"]:
-            return [IsSchedulerOrAdmin()]
+            return [IsSchedulerOrAdminOrGuest()]
         elif self.action in ["update", "partial_update", "destroy"]:
             return [IsTournamentEditor()]
         elif self.action in ["add_scheduler", "remove_scheduler"]:

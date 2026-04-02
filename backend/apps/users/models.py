@@ -6,6 +6,7 @@ class User(AbstractUser):
     class Role(models.TextChoices):
         ADMIN = "ADMIN", "Admin"
         SCHEDULER = "SCHEDULER", "Scheduler"
+        GUEST = "GUEST", "Guest"
 
     role = models.CharField(max_length=20, choices=Role.choices, default=Role.SCHEDULER, verbose_name="role")
 
@@ -24,3 +25,7 @@ class User(AbstractUser):
     @property
     def is_scheduler(self):
         return self.role == self.Role.SCHEDULER
+
+    @property
+    def is_guest(self):
+        return self.role == self.Role.GUEST

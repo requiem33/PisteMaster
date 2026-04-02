@@ -19,6 +19,22 @@ class IsSchedulerOrAdmin(permissions.BasePermission):
         return request.user.role in ("ADMIN", "SCHEDULER")
 
 
+class IsSchedulerOrAdminOrGuest(permissions.BasePermission):
+    """
+    Permission for actions that Guest users can also perform.
+    Guest users can create tournaments and edit their own tournaments.
+    """
+
+    message = "Scheduler, Admin, or Guest permission required."
+
+    def has_permission(self, request, view):
+        if not request.user.is_authenticated:
+            return False
+        if not hasattr(request.user, "role"):
+            return False
+        return request.user.role in ("ADMIN", "SCHEDULER", "GUEST")
+
+
 class IsTournamentEditor(permissions.BasePermission):
     message = "You do not have permission to edit this tournament."
 
@@ -38,15 +54,23 @@ class IsTournamentEditor(permissions.BasePermission):
         if request.user.role == "ADMIN":
             return True
 
-        # Check if user is the creator (domain model uses created_by_id)
-        if hasattr(obj, "created_by_id") and obj.created_by_id:
-            if obj.created_by_id == request.user.id:
-                return True
+        # Guest can only edit their own tournaments
+        if request.user.role == "GUEST":
+            if hasattr(obj, "created_by_id") and obj.created_by_id:
+                return obj.created_by_id == request.user.id
+            return False
 
-        # Check if user is in schedulers (domain model uses scheduler_ids)
-        if hasattr(obj, "scheduler_ids") and obj.scheduler_ids:
-            if request.user.id in obj.scheduler_ids:
-                return True
+        # Scheduler can edit their own tournaments or tournaments they're assigned to
+        if request.user.role == "SCHEDULER":
+            # Check if user is the creator (domain model uses created_by_id)
+            if hasattr(obj, "created_by_id") and obj.created_by_id:
+                if obj.created_by_id == request.user.id:
+                    return True
+
+            # Check if user is in schedulers (domain model uses scheduler_ids)
+            if hasattr(obj, "scheduler_ids") and obj.scheduler_ids:
+                if request.user.id in obj.scheduler_ids:
+                    return True
 
         return False
 
@@ -120,7 +144,10 @@ class IsEventEditor(permissions.BasePermission):
     def _check_tournament_editor(self, user, tournament_id):
         """Check if user is an editor of the tournament."""
         from uuid import UUID
-        from backend.apps.fencing_organizer.modules.tournament.models import DjangoTournament
+
+        from backend.apps.fencing_organizer.modules.tournament.models import (
+            DjangoTournament,
+        )
 
         try:
             if isinstance(tournament_id, str):
@@ -140,6 +167,11 @@ class IsEventEditor(permissions.BasePermission):
         except DjangoTournament.DoesNotExist:
             return False
 
+        # Guest can only edit their own tournaments' events
+        if user.role == "GUEST":
+            return tournament.created_by_id and tournament.created_by_id == user.id
+
+        # Scheduler can edit their own tournaments or tournaments they're assigned to
         # Check if user is tournament creator
         if tournament.created_by_id and tournament.created_by_id == user.id:
             return True

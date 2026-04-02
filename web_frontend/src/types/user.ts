@@ -1,4 +1,4 @@
-export type UserRole = 'ADMIN' | 'SCHEDULER'
+export type UserRole = 'ADMIN' | 'SCHEDULER' | 'GUEST'
 
 export interface User {
   id: string
@@ -7,23 +7,6 @@ export interface User {
   role: UserRole
   firstName: string
   lastName: string
-  isGuest?: false
-}
-
-export interface GuestUser {
-  id: string
-  username: string
-  isGuest: true
-}
-
-export type AppUser = User | GuestUser
-
-export function isGuestUser(user: AppUser | null): user is GuestUser {
-  return user !== null && 'isGuest' in user && user.isGuest === true
-}
-
-export function isAuthenticatedUser(user: AppUser | null): user is User {
-  return user !== null && !('isGuest' in user)
 }
 
 export interface LoginCredentials {

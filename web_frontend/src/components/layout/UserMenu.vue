@@ -4,14 +4,8 @@
       <span class="username">{{ authStore.username }}</span>
       <el-tag v-if="authStore.isAdmin" type="danger" size="small">Admin</el-tag>
       <el-tag v-else-if="authStore.isScheduler" type="success" size="small">Scheduler</el-tag>
+      <el-tag v-else-if="authStore.isGuest" type="info" size="small">{{ t('auth.guest') }}</el-tag>
       <el-button link @click="handleLogout">{{ t('auth.logout') }}</el-button>
-    </template>
-    <template v-else-if="authStore.isGuest">
-      <span class="username">{{ authStore.username }}</span>
-      <el-tag type="info" size="small">{{ t('auth.guest') }}</el-tag>
-      <el-button type="primary" size="small" @click="router.push('/login')">
-        {{ t('auth.login') }}
-      </el-button>
     </template>
     <template v-else>
       <el-button type="primary" @click="router.push('/login')">
