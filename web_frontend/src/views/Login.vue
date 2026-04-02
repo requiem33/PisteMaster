@@ -31,6 +31,15 @@
         >
           {{ t('auth.login') }}
         </el-button>
+        <el-button
+          v-if="authStore.isDesktop"
+          type="default"
+          @click="handleContinueAsGuest"
+          size="large"
+          style="width: 100%; margin-top: 12px"
+        >
+          {{ t('auth.continueAsGuest') }}
+        </el-button>
       </el-form>
     </el-card>
   </div>
@@ -71,6 +80,12 @@ const handleLogin = async () => {
   }
 
   loading.value = false
+}
+
+const handleContinueAsGuest = () => {
+  authStore.initGuestUser()
+  const redirect = route.query.redirect as string
+  router.push(redirect || '/')
 }
 </script>
 

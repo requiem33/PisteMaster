@@ -9,4 +9,6 @@ export default {
   enterCredentials: '请输入用户名和密码',
   welcome: '欢迎, {username}',
   adminPanel: '管理面板',
+  guest: '访客',
+  continueAsGuest: '以访客身份继续',
 }

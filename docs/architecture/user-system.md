@@ -36,49 +36,84 @@ PisteMaster implements a role-based access control (RBAC) system with three user
 └─────────────────────────────────────────────────────────────────┘
 ```
 
-### Frontend (Web)
+### Frontend (Web & Desktop Shared)
 
 ```
 ┌─────────────────────────────────────────────────────────────────┐
 │                        Vue 3 Frontend                            │
 ├─────────────────────────────────────────────────────────────────┤
+│  Platform Detection (src/utils/platform.ts):                    │
+│  - isElectron(): boolean - detects Electron environment         │
+│  - isDesktop = isElectron() - for conditional rendering         │
+├─────────────────────────────────────────────────────────────────┤
 │  Auth Store (Pinia):                                              │
-│  - user state, isAuthenticated, isAdmin, isScheduler            │
+│  - user state, isAuthenticated, isAdmin, isScheduler, isGuest   │
+│  - isDesktop: computed from platform detection                  │
 │  - login, logout, fetchCurrentUser actions                       │
+│  - initGuestUser(): called on desktop when not authenticated   │
 ├─────────────────────────────────────────────────────────────────┤
 │  Auth Service:                                                    │
 │  - login(username, password) → User                              │
 │  - logout() → void                                               │
 │  - getCurrentUser() → User | null                               │
 ├─────────────────────────────────────────────────────────────────┤
+│  Desktop Auth Service (Electron only):                          │
+│  - getLocalUser() → LocalUser (via Electron IPC)               │
+│  - clearLocalUser() → void                                       │
+│  - updateLocalUsername(username) → LocalUser                    │
+├─────────────────────────────────────────────────────────────────┤
 │  Route Guards:                                                    │
-│  - Redirect unauthenticated users to /login                     │
+│  - Web: Redirect unauthenticated users to /login                │
+│  - Desktop: Allow guest users for most routes                   │
 │  - Preserve redirect target in query params                      │
 │  - Admin-only routes check                                       │
 ├─────────────────────────────────────────────────────────────────┤
 │  Components:                                                      │
-│  - Login.vue: Login form                                         │
-│  - UserMenu.vue: User info + logout button (in AppHeader slot)  │
+│  - Login.vue: Login form + "Continue as Guest" on desktop      │
+│  - UserMenu.vue: User info + logout (or login for guests)       │
 └─────────────────────────────────────────────────────────────────┘
 ```
 
-### Desktop App
+### Desktop App vs Web App Behavior
+
+**Web App (Browser):**
+- Unauthenticated users can only **browse** public tournaments (read-only)
+- No "guest" user concept - users are either logged in or anonymous
+- All write operations require authentication via Django backend
+- User display: Shows username + role badge when logged in, "Login" button when not
+
+**Desktop App (Electron):**
+- Unauthenticated users become **guest users** automatically
+- Guest users can **create local tournaments** stored in local SQLite
+- Guest tournaments can later be synced to server after logging in
+- User display: Shows "Guest_abc123" badge with option to customize username or login
 
 ```
 ┌─────────────────────────────────────────────────────────────────┐
 │                      Electron Desktop App                         │
 ├─────────────────────────────────────────────────────────────────┤
+│  Environment Detection:                                           │
+│  - isElectron() returns true when running in Electron             │
+│  - Web app ignores guest user functionality                       │
+├─────────────────────────────────────────────────────────────────┤
 │  Local SQLite Database (always available):                       │
 │  - Offline tournament creation with guest user                   │
 │  - Local tournaments stored with localUser.id                    │
 ├─────────────────────────────────────────────────────────────────┤
-│  Local Auth Service:                                              │
-│  - getLocalUser(): Generate or retrieve guest user               │
-│  - clearLocalUser(): Clear on logout                             │
+│  Electron IPC API (main → preload → renderer):                   │
+│  - auth:getLocalUser(): Generate or retrieve guest user          │
+│  - auth:clearLocalUser(): Clear on login                         │
+│  - auth:updateLocalUsername(): Allow username customization      │
 ├─────────────────────────────────────────────────────────────────┤
-│  Sync Flow:                                                       │
+│  Frontend Auth Flow:                                              │
+│  - On app init: Check isElectron()                               │
+│  - If no authenticated user + isElectron: Use guest user        │
+│  - If no authenticated user + !isElectron: Show login prompt    │
+├─────────────────────────────────────────────────────────────────┤
+│  Sync Flow (after login):                                         │
 │  - Upload: Check login → check permission → upload               │
 │  - Download: Check login → fetch permitted tournaments → save    │
+│  - Guest tournaments become owned by authenticated user          │
 └─────────────────────────────────────────────────────────────────┘
 ```
 

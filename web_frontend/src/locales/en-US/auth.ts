@@ -9,4 +9,6 @@ export default {
   enterCredentials: 'Please enter username and password',
   welcome: 'Welcome, {username}',
   adminPanel: 'Admin Panel',
+  guest: 'Guest',
+  continueAsGuest: 'Continue as Guest',
 }

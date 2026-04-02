@@ -1,5 +1,6 @@
 import {createRouter, createWebHashHistory} from 'vue-router'
 import {useAuthStore} from '@/stores/authStore'
+import {isElectron} from '@/utils/platform'
 
 const router = createRouter({
     history: createWebHashHistory(),
@@ -57,6 +58,10 @@ router.beforeEach(async (to, _from, next) => {
 
     const requiresAuth = to.meta.requiresAuth as boolean
     if (requiresAuth && !authStore.isAuthenticated) {
+        if (isElectron() && authStore.isGuest) {
+            next()
+            return
+        }
         next({path: '/login', query: {redirect: to.fullPath}})
         return
     }
