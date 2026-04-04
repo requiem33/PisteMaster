@@ -1,5 +1,8 @@
 # Generated data migration for Guest user
 # This migration creates the default Guest user for desktop app
+# NOTE: This migration creates the Guest user WITHOUT a password.
+# The password is set by migration 0004_fix_guest_password.py
+# This approach ensures compatibility with both new and existing deployments.
 
 from django.db import migrations
 
