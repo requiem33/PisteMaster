@@ -85,6 +85,33 @@ npx vitest --ui
 
 ### Desktop App
 
+**Important:** The desktop app requires THREE services running in development:
+1. Django backend (port 8000)
+2. Vue frontend (port 3001)
+3. Electron app (loads from frontend dev server)
+
+```bash
+# Terminal 1 - Backend (from project root)
+cd backend
+python manage.py runserver
+
+# Terminal 2 - Frontend (from project root)
+cd web_frontend
+npm run dev
+
+# Terminal 3 - Desktop App (from project root)
+cd desktop
+ELECTRON_RENDERER_URL=http://localhost:3001 npm run dev
+
+# Alternative: Use root-level convenience scripts
+npm run dev              # Starts backend + frontend in one terminal
+npm run dev:electron     # Starts desktop (requires ELECTRON_RENDERER_URL)
+```
+
+**Note on ELECTRON_RENDERER_URL:** This environment variable is required because the desktop app shares the Vue frontend with the web version. It tells Electron where to load the frontend from in development mode.
+
+For detailed instructions, see `desktop/README.md`.
+
 ```bash
 # Navigate to desktop directory first
 cd desktop
@@ -92,8 +119,8 @@ cd desktop
 # Install dependencies
 npm install
 
-# Start development (Electron + Vite)
-npm run dev
+# Start development (requires ELECTRON_RENDERER_URL)
+ELECTRON_RENDERER_URL=http://localhost:3001 npm run dev
 
 # Build for production
 npm run build
