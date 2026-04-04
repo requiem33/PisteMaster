@@ -2,9 +2,9 @@ export default {
     home: 'Home',
     landing: {
         brandSubtitle: 'Professional Fencing Tournament Orchestration and Scoring System',
-        createEvent: 'Create Event',
+        createEvent: 'Create Tournament',
         createEventDesc: 'Start a new fencing tournament or club competition',
-        eventList: 'Event List',
+        eventList: 'Tournament List',
         eventListDesc: 'View and manage ongoing or completed historical events'
     },
     login: 'Sign Up / Login',
@@ -20,9 +20,9 @@ export default {
     enterOrchestration: 'Enter Orchestration',
     pageTitles: {
         index: 'Welcome to Event Orchestration System',
-        tournamentList: 'Event List',
-        tournamentCreate: 'Create New Event',
-        tournamentDashboard: 'Event Details',
+        tournamentList: 'Tournament List',
+        tournamentCreate: 'Create New Tournament',
+        tournamentDashboard: 'Tournament Details',
         eventOrchestrator: 'Event Orchestration'
     },
     actions: {

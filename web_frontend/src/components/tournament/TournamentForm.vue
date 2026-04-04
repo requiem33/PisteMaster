@@ -7,19 +7,19 @@
       label-position="top"
       size="large"
   >
-    <el-form-item label="赛事名称" prop="tournament_name">
-      <el-input v-model="formData.tournament_name" placeholder="例如：2024 全国击剑冠军赛"/>
+    <el-form-item :label="$t('tournament.form.name')" prop="tournament_name">
+      <el-input v-model="formData.tournament_name" :placeholder="$t('tournament.form.placeholder.name')"/>
     </el-form-item>
-    <el-form-item label="举办地点" prop="location">
-      <el-input v-model="formData.location" placeholder="例如：江苏省 南京市"/>
+    <el-form-item :label="$t('tournament.form.location')" prop="location">
+      <el-input v-model="formData.location" :placeholder="$t('tournament.form.placeholder.location')"/>
     </el-form-item>
-    <el-form-item label="举办日期" prop="date_range">
+    <el-form-item :label="$t('tournament.form.date')" prop="date_range">
       <el-date-picker
           v-model="formData.date_range"
           type="daterange"
-          range-separator="至"
-          start-placeholder="开始日期"
-          end-placeholder="结束日期"
+          :range-separator="$t('tournament.form.rangeSeparator')"
+          :start-placeholder="$t('tournament.form.startPlaceholder')"
+          :end-placeholder="$t('tournament.form.endPlaceholder')"
           style="width: 100%"
           value-format="YYYY-MM-DD"
       />
@@ -29,7 +29,10 @@
 
 <script setup lang="ts">
 import {ref, reactive, watch} from 'vue'
+import {useI18n} from 'vue-i18n'
 import type {FormInstance, FormRules} from 'element-plus'
+
+const {t} = useI18n()
 
 // --- 1. 定义 Props ---
 const props = defineProps<{
@@ -46,8 +49,8 @@ const formData = reactive({
   date_range: [] as string[]
 })
 const rules: FormRules = {
-  tournament_name: [{required: true, message: '赛事名称不能为空', trigger: 'blur'}],
-  date_range: [{required: true, message: '举办日期不能为空', trigger: 'change'}]
+  tournament_name: [{required: true, message: t('tournament.messages.nameRequired'), trigger: 'blur'}],
+  date_range: [{required: true, message: t('tournament.messages.dateRequired'), trigger: 'change'}]
 }
 
 // --- 3. 监听外部数据，填充表单 ---

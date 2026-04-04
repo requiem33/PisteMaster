@@ -26,12 +26,14 @@
 <script setup lang="ts">
 import {ref} from 'vue'
 import {useRouter} from 'vue-router'
+import {useI18n} from 'vue-i18n'
 import {ElMessage} from 'element-plus'
 import AppHeader from '@/components/layout/AppHeader.vue'
 import {DataManager} from '@/services/DataManager'
 import TournamentForm from '@/components/tournament/TournamentForm.vue'
 
 const router = useRouter()
+const {t} = useI18n()
 const loading = ref(false)
 
 const tournamentFormRef = ref<InstanceType<typeof TournamentForm>>()
@@ -47,11 +49,11 @@ const handleCreate = async () => {
     try {
       // 【关键修改】5. 获取子组件暴露的 formData
       const result = await DataManager.createTournament(tournamentFormRef.value.formData);
-      ElMessage.success('赛事创建成功！');
+      ElMessage.success(t('tournament.messages.createSuccess'));
       await router.push(`/tournament/${result.id}`); // 直接进入新创建的赛事
     } catch (error) {
       console.error(error);
-      ElMessage.error('创建失败');
+      ElMessage.error(t('tournament.messages.createFailed'));
     } finally {
       loading.value = false;
     }
