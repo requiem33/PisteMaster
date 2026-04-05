@@ -99,12 +99,12 @@ class ClusterStatusViewSet(viewsets.GenericViewSet):
 
         Returns:
         - mode: 'single' or 'cluster'
-        - is_master: whether this node is master
-        - node_id: current node identifier
-        - master_url: URL of master node (if known)
-        - sync_lag: number of sync log entries not yet applied
-        - pending_acks: number of pending ACKs (master only)
-        - last_sync_time: timestamp of last successful sync
+        - isMaster: whether this node is master
+        - nodeId: current node identifier
+        - masterUrl: URL of master node (if known)
+        - syncLag: number of sync log entries not yet applied
+        - pendingAcks: number of pending ACKs (master only)
+        - lastSyncTime: timestamp of last successful sync
         """
         config = self._get_config()
         node_id = self._get_node_id()
@@ -137,12 +137,12 @@ class ClusterStatusViewSet(viewsets.GenericViewSet):
 
         result = {
             "mode": mode,
-            "is_master": is_master,
-            "node_id": node_id,
-            "master_url": config.get("master_url"),
-            "sync_lag": sync_lag,
-            "pending_acks": pending_acks,
-            "last_sync_time": last_sync_time.isoformat() if last_sync_time else None,
+            "isMaster": is_master,
+            "nodeId": node_id,
+            "masterUrl": config.get("master_url"),
+            "syncLag": sync_lag,
+            "pendingAcks": pending_acks,
+            "lastSyncTime": last_sync_time.isoformat() if last_sync_time else None,
         }
 
         return Response(result)
@@ -154,10 +154,10 @@ class ClusterStatusViewSet(viewsets.GenericViewSet):
 
         Returns:
         - status: 'healthy' or 'unhealthy'
-        - node_id: current node identifier
+        - nodeId: current node identifier
         - mode: 'single' or 'cluster'
         - role: 'master' or 'follower' or 'single'
-        - last_sync_id: last applied sync log ID
+        - lastSyncId: last applied sync log ID
         """
         config = self._get_config()
         node_id = self._get_node_id()
@@ -190,10 +190,10 @@ class ClusterStatusViewSet(viewsets.GenericViewSet):
         return Response(
             {
                 "status": "healthy",
-                "node_id": node_id,
+                "nodeId": node_id,
                 "mode": mode,
                 "role": role,
-                "last_sync_id": last_sync_id,
+                "lastSyncId": last_sync_id,
             }
         )
 
@@ -218,9 +218,9 @@ class ClusterStatusViewSet(viewsets.GenericViewSet):
                 for state in states:
                     peers.append(
                         {
-                            "node_id": state.node_id,
-                            "last_sync_id": state.last_synced_id,
-                            "last_sync_time": state.last_sync_time.isoformat() if state.last_sync_time else None,
+                            "nodeId": state.node_id,
+                            "lastSyncId": state.last_synced_id,
+                            "lastSyncTime": (state.last_sync_time.isoformat() if state.last_sync_time else None),
                         }
                     )
 
@@ -231,7 +231,7 @@ class ClusterStatusViewSet(viewsets.GenericViewSet):
             {
                 "peers": peers,
                 "count": len(peers),
-                "is_master": is_master,
+                "isMaster": is_master,
             }
         )
 
@@ -241,25 +241,26 @@ class ClusterStatusViewSet(viewsets.GenericViewSet):
         Get detailed synchronization status.
 
         Query params:
-        - node_id: Filter by specific node (optional)
+        - nodeId: Filter by specific node (optional)
 
         Returns:
-        - current_node: Current node's last synced ID
+        - currentNode: Current node's last synced ID
+        - isMaster: whether this node is master
         - followers: List of followers with their sync status
-        - uncommitted_changes: Count of changes not yet ACKed by all followers
+        - uncommittedChanges: Count of changes not yet ACKed by all followers
         """
         config = self._get_config()
         node_id = self._get_node_id()
         is_master = config.get("is_master", False)
 
-        current_node = {"node_id": node_id, "last_sync_id": 0}
+        current_node = {"nodeId": node_id, "lastSyncId": 0}
 
         try:
             if is_master:
-                current_node["last_sync_id"] = DjangoSyncLog.objects.aggregate(max_id=models.Max("id"))["max_id"] or 0
+                current_node["lastSyncId"] = DjangoSyncLog.objects.aggregate(max_id=models.Max("id"))["max_id"] or 0
             else:
                 state = DjangoSyncState.objects.get(node_id=node_id)
-                current_node["last_sync_id"] = state.last_synced_id
+                current_node["lastSyncId"] = state.last_synced_id
         except Exception:
             pass
 
@@ -274,9 +275,9 @@ class ClusterStatusViewSet(viewsets.GenericViewSet):
             for state in query:
                 followers.append(
                     {
-                        "node_id": state.node_id,
-                        "last_sync_id": state.last_synced_id,
-                        "last_sync_time": state.last_sync_time.isoformat() if state.last_sync_time else None,
+                        "nodeId": state.node_id,
+                        "lastSyncId": state.last_synced_id,
+                        "lastSyncTime": (state.last_sync_time.isoformat() if state.last_sync_time else None),
                     }
                 )
 
@@ -287,17 +288,17 @@ class ClusterStatusViewSet(viewsets.GenericViewSet):
         if is_master and followers:
             try:
                 latest_id = DjangoSyncLog.objects.aggregate(max_id=models.Max("id"))["max_id"] or 0
-                min_follower_id = min(f["last_sync_id"] for f in followers) if followers else 0
+                min_follower_id = min(f["lastSyncId"] for f in followers) if followers else 0
                 uncommitted_changes = max(0, latest_id - min_follower_id)
             except Exception:
                 pass
 
         return Response(
             {
-                "current_node": current_node,
-                "is_master": is_master,
+                "currentNode": current_node,
+                "isMaster": is_master,
                 "followers": followers,
-                "uncommitted_changes": uncommitted_changes,
+                "uncommittedChanges": uncommitted_changes,
             }
         )
 
@@ -380,20 +381,20 @@ class ClusterStatusViewSet(viewsets.GenericViewSet):
 
         Returns:
         - mode: 'single' or 'cluster'
-        - is_master: whether this node is master
-        - node_id: current node identifier
-        - master_url: URL of master node (if configured)
+        - isMaster: whether this node is master
+        - nodeId: current node identifier
+        - masterUrl: URL of master node (if configured)
         """
         config = self._get_config()
 
         return Response(
             {
                 "mode": config.get("mode", "single"),
-                "is_master": config.get("is_master", False),
-                "node_id": config.get("node_id", "unknown"),
-                "master_url": config.get("master_url"),
-                "replica_ack_required": config.get("replica_ack_required", 1),
-                "ack_timeout_ms": config.get("ack_timeout_ms", 5000),
+                "isMaster": config.get("is_master", False),
+                "nodeId": config.get("node_id", "unknown"),
+                "masterUrl": config.get("master_url"),
+                "replicaAckRequired": config.get("replica_ack_required", 1),
+                "ackTimeoutMs": config.get("ack_timeout_ms", 5000),
             }
         )
 
@@ -402,7 +403,7 @@ class ClusterStatusViewSet(viewsets.GenericViewSet):
         """
         Update cluster configuration.
 
-        Request body:
+        Request body (snake_case for backward compatibility):
         - mode: 'single' or 'cluster'
         - node_id: Node identifier (optional)
         - udp_port: UDP port (optional)
@@ -411,7 +412,7 @@ class ClusterStatusViewSet(viewsets.GenericViewSet):
         - heartbeat_timeout: Heartbeat timeout in seconds (optional)
         - master_ip: Fixed master IP (optional)
 
-        Returns:
+        Returns (camelCase):
         - Updated configuration
         """
         try:
@@ -459,22 +460,22 @@ class ClusterStatusViewSet(viewsets.GenericViewSet):
 
             db_config.save()
 
-            logger.info(f"Cluster config updated: mode={db_config.mode}, is_master={db_config.is_master}, node_id={db_config.node_id}")
+            logger.info(f"Cluster config updated: mode={db_config.mode}, " f"is_master={db_config.is_master}, node_id={db_config.node_id}")
 
             return Response(
                 {
                     "mode": db_config.mode,
-                    "is_master": db_config.is_master,
-                    "node_id": db_config.node_id,
-                    "udp_port": db_config.udp_port,
-                    "api_port": db_config.api_port,
-                    "heartbeat_interval": db_config.heartbeat_interval,
-                    "heartbeat_timeout": db_config.heartbeat_timeout,
-                    "master_ip": db_config.master_ip,
-                    "master_url": db_config.master_url,
-                    "sync_interval": db_config.sync_interval,
-                    "replica_ack_required": db_config.replica_ack_required,
-                    "ack_timeout_ms": db_config.ack_timeout_ms,
+                    "isMaster": db_config.is_master,
+                    "nodeId": db_config.node_id,
+                    "udpPort": db_config.udp_port,
+                    "apiPort": db_config.api_port,
+                    "heartbeatInterval": db_config.heartbeat_interval,
+                    "heartbeatTimeout": db_config.heartbeat_timeout,
+                    "masterIp": db_config.master_ip,
+                    "masterUrl": db_config.master_url,
+                    "syncInterval": db_config.sync_interval,
+                    "replicaAckRequired": db_config.replica_ack_required,
+                    "ackTimeoutMs": db_config.ack_timeout_ms,
                 }
             )
 
