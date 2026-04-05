@@ -1,5 +1,19 @@
 import type {ClusterStatus, ClusterNode} from '@/types/cluster'
 import {NetworkService} from '../NetworkService'
+import { isElectron } from '@/utils/platform'
+
+export interface ClusterConfig {
+  mode: 'single' | 'cluster'
+  nodeId: string
+  udpPort: number
+  apiPort: number
+  heartbeatInterval: number
+  heartbeatTimeout: number
+  syncInterval: number
+  replicaAckRequired: number
+  ackTimeout: number
+  masterIp: string | null
+}
 
 class ClusterServiceClass {
   private masterUrl: string | null = null
@@ -110,6 +124,133 @@ class ClusterServiceClass {
       const response = await fetch('/api/cluster/status/health/')
       return response.ok
     } catch {
+      return false
+    }
+  }
+
+  async getConfig(): Promise<ClusterConfig | null> {
+    if (!isElectron()) {
+      console.warn('Cluster config is only available in desktop app')
+      return null
+    }
+
+    try {
+      const config = await window.electron.cluster.getConfig()
+      return config
+    } catch (error) {
+      console.error('Failed to get cluster config:', error)
+      return null
+    }
+  }
+
+  async updateConfig(updates: Partial<ClusterConfig>): Promise<ClusterConfig | null> {
+    if (!isElectron()) {
+      console.warn('Cluster config can only be updated in desktop app')
+      return null
+    }
+
+    try {
+      const config = await window.electron.cluster.updateConfig(updates)
+
+      try {
+        await NetworkService.fetchWithRetry<{ mode: string }>(
+          '/api/cluster/status/update_config/',
+          {
+            method: 'PUT',
+            headers: {
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+              mode: config.mode,
+              node_id: config.nodeId,
+              udp_port: config.udpPort,
+              api_port: config.apiPort,
+              heartbeat_interval: config.heartbeatInterval,
+              heartbeat_timeout: config.heartbeatTimeout,
+              master_ip: config.masterIp,
+            }),
+          },
+          3,
+          1000
+        )
+      } catch (backendError) {
+        console.warn('Failed to sync config with backend:', backendError)
+      }
+
+      return config
+    } catch (error) {
+      console.error('Failed to update cluster config:', error)
+      return null
+    }
+  }
+
+  async resetConfig(): Promise<ClusterConfig | null> {
+    if (!isElectron()) {
+      console.warn('Cluster config can only be reset in desktop app')
+      return null
+    }
+
+    try {
+      const config = await window.electron.cluster.resetConfig()
+
+      try {
+        await NetworkService.fetchWithRetry<{ mode: string }>(
+          '/api/cluster/status/update_config/',
+          {
+            method: 'PUT',
+            headers: {
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+              mode: config.mode,
+              node_id: config.nodeId,
+              udp_port: config.udpPort,
+              api_port: config.apiPort,
+              heartbeat_interval: config.heartbeatInterval,
+              heartbeat_timeout: config.heartbeatTimeout,
+              master_ip: config.masterIp,
+            }),
+          },
+          3,
+          1000
+        )
+      } catch (backendError) {
+        console.warn('Failed to sync config with backend:', backendError)
+      }
+
+      return config
+    } catch (error) {
+      console.error('Failed to reset cluster config:', error)
+      return null
+    }
+  }
+
+  async regenerateNodeId(): Promise<string | null> {
+    if (!isElectron()) {
+      console.warn('Node ID can only be regenerated in desktop app')
+      return null
+    }
+
+    try {
+      const nodeId = await window.electron.cluster.regenerateNodeId()
+      return nodeId
+    } catch (error) {
+      console.error('Failed to regenerate node ID:', error)
+      return null
+    }
+  }
+
+  async restartUdpService(): Promise<boolean> {
+    if (!isElectron()) {
+      console.warn('UDP service can only be restarted in desktop app')
+      return false
+    }
+
+    try {
+      const success = await window.electron.cluster.restartUdp()
+      return success
+    } catch (error) {
+      console.error('Failed to restart UDP service:', error)
       return false
     }
   }

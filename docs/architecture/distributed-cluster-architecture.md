@@ -851,8 +851,81 @@ Access via `/admin/cluster`:
 | Create ClusterStatus component | Low | `web_frontend/src/components/cluster/ClusterStatus.vue` |
 | Create ConflictReview panel | Low | `web_frontend/src/components/cluster/ConflictReview.vue` |
 | Create SyncProgress indicator | Low | `web_frontend/src/components/cluster/SyncProgress.vue` |
+| Create Settings page for cluster mode | Medium | `web_frontend/src/views/Settings.vue` |
 
-### Phase 8: Testing & Documentation
+### Phase 8: Settings Page for Cluster Mode
+
+The Settings page allows administrators and schedulers to configure cluster mode on a per-device basis. This is stored in the Electron app's user data directory and does not require backend restart.
+
+#### 8.1 Access Control
+
+- **Allowed Roles**: Admin (ADMIN) and Scheduler (SCHEDULER)
+- **Guest users**: Cannot access cluster settings
+- **Route Protection**: `meta.requiresAuth` with role check in router guard
+
+#### 8.2 Settings Stored
+
+| Setting | Type | Default | Description |
+|---------|------|---------|-------------|
+| `mode` | string | 'single' | 'single' or 'cluster' |
+| `nodeId` | string | auto-generated | Unique node identifier |
+| `udpPort` | number | 9000 | UDP broadcast port |
+| `apiPort` | number | 8000 | HTTP API port |
+| `heartbeatInterval` | number | 5 | Heartbeat interval in seconds |
+| `heartbeatTimeout` | number | 15 | Master timeout in seconds |
+| `syncInterval` | number | 3 | Follower sync interval in seconds |
+| `replicaAckRequired` | number | 1 | Minimum ACKs for write confirmation |
+| `ackTimeout` | number | 5000 | ACK timeout in milliseconds |
+| `masterIp` | string | null | Fixed master IP (optional) |
+
+#### 8.3 Mode Switching Flow
+
+```
+User toggles mode├── Check user permission (isAdmin || isScheduler)
+│   ├── DENY: Show error "Permission denied"
+│   └── ALLOW: Continue
+├── Show confirmation dialog
+│   ├── Cancel: Revert toggle
+│   └── Confirm:
+│       ├── Save config to cluster.json
+│       ├── Stop UDP service (if running)
+│       ├── Start UDP service (if cluster mode)
+│       ├── Refresh cluster status
+│       └── Show success toast
+```
+
+#### 8.4 Configuration File Location
+
+- **Windows**: `%APPDATA%/PisteMaster/config/cluster.json`
+- **macOS**: `~/Library/Application Support/PisteMaster/config/cluster.json`
+- **Linux**: `~/.local/share/PisteMaster/config/cluster.json`
+
+#### 8.5 Default Configuration
+
+```json
+{
+  "mode": "single",
+  "nodeId": null,
+  "udpPort": 9000,
+  "apiPort": 8000,
+  "heartbeatInterval": 5,
+  "heartbeatTimeout": 15,
+  "syncInterval": 3,
+  "replicaAckRequired": 1,
+  "ackTimeout": 5000,
+  "masterIp": null
+}
+```
+
+#### 8.6 Node ID Generation
+
+Node IDs are automatically generated using the format: `{hostname}_{random_8_chars}`
+
+Example: `PC01_a3f2b9c1`
+
+Users can regenerate the node ID if needed.
+
+### Phase 9: Testing & Documentation
 
 | Task | Priority | Files |
 |------|----------|-------|

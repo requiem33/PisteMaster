@@ -17,7 +17,7 @@ export interface ClusterConfig {
   masterIp: string | null
 }
 
-const DEFAULT_CONFIG: Omit<ClusterConfig, 'nodeId'> = {
+export const DEFAULT_CONFIG: Omit<ClusterConfig, 'nodeId'> = {
   mode: 'single',
   udpPort: 9000,
   apiPort: 8000,
@@ -29,7 +29,7 @@ const DEFAULT_CONFIG: Omit<ClusterConfig, 'nodeId'> = {
   masterIp: null,
 }
 
-function generateNodeId(): string {
+export function generateNodeId(): string {
   const host = hostname().replace(/[^a-zA-Z0-9]/g, '').slice(0, 20)
   const suffix = randomUUID().slice(0, 8)
   return `${host}_${suffix}`

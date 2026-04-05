@@ -4,6 +4,7 @@ Base Django settings for PisteMaster project.
 Common settings shared across all environments.
 """
 
+import os
 import sys
 from pathlib import Path
 
@@ -118,3 +119,19 @@ CORS_ALLOW_CREDENTIALS = True
 CSRF_COOKIE_SAMESITE = "Lax"
 CSRF_COOKIE_HTTPONLY = False
 SESSION_COOKIE_SAMESITE = "Lax"
+
+CLUSTER_CONFIG = {
+    "mode": os.environ.get("CLUSTER_MODE", "single"),
+    "udp_port": int(os.environ.get("CLUSTER_UDP_PORT", 9000)),
+    "api_port": int(os.environ.get("CLUSTER_API_PORT", 8000)),
+    "node_id": os.environ.get("NODE_ID"),
+    "heartbeat_interval": float(os.environ.get("CLUSTER_HEARTBEAT_INTERVAL", "5.0")),
+    "heartbeat_timeout": float(os.environ.get("CLUSTER_HEARTBEAT_TIMEOUT", "15.0")),
+    "election_timeout": float(os.environ.get("CLUSTER_ELECTION_TIMEOUT", "10.0")),
+    "node_expiry_timeout": float(os.environ.get("CLUSTER_NODE_EXPIRY_TIMEOUT", "30.0")),
+    "replica_ack_required": int(os.environ.get("CLUSTER_REPLICA_ACK", "1")),
+    "ack_timeout_ms": int(os.environ.get("CLUSTER_ACK_TIMEOUT", "5000")),
+    "is_master": False,
+    "master_url": None,
+    "proxy_writes": os.environ.get("CLUSTER_PROXY_WRITES", "true").lower() == "true",
+}

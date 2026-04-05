@@ -7,6 +7,8 @@ import {
   isClusterMode,
   getNodeInfo,
   getMasterInfo,
+  generateNodeId,
+  DEFAULT_CONFIG,
   type ClusterConfig,
 } from '../config/cluster'
 import { udpBroadcastService, type PeerInfo, type UdpMessage } from '../services/udp'
@@ -83,12 +85,41 @@ export function setupClusterIpcHandlers(_ipcMain: IpcMain): void {
     return config
   })
 
-  ipcMain.handle('cluster:update-config', (_event, updates: Partial<ClusterConfig>): ClusterConfig => {
-    return updateClusterConfig(updates)
+  ipcMain.handle('cluster:update-config', async (_event, updates: Partial<ClusterConfig>): Promise<ClusterConfig> => {
+    const currentConfig = loadClusterConfig()
+    const newConfig = { ...currentConfig, ...updates }
+    saveClusterConfig(newConfig)
+
+    if (updates.mode !== undefined && updates.mode !== currentConfig.mode) {
+      if (currentConfig.mode === 'cluster') {
+        await udpBroadcastService.stop()
+        console.log('[Cluster] UDP service stopped for mode change')
+      }
+      if (newConfig.mode === 'cluster') {
+        await udpBroadcastService.start(newConfig)
+        console.log('[Cluster] UDP service started for mode change')
+      }
+    }
+
+    return newConfig
   })
 
-  ipcMain.handle('cluster:reset-config', (): ClusterConfig => {
-    return resetClusterConfig()
+  ipcMain.handle('cluster:reset-config', async (): Promise<ClusterConfig> => {
+    const currentConfig = loadClusterConfig()
+    const wasCluster = currentConfig.mode === 'cluster'
+    
+    const newConfig: ClusterConfig = {
+      ...DEFAULT_CONFIG,
+      nodeId: generateNodeId(),
+    }
+    saveClusterConfig(newConfig)
+
+    if (wasCluster) {
+      await udpBroadcastService.stop()
+      console.log('[Cluster] UDP service stopped after reset')
+    }
+
+    return newConfig
   })
 
   ipcMain.handle('cluster:is-cluster-mode', (): boolean => {
@@ -145,6 +176,32 @@ export function setupClusterIpcHandlers(_ipcMain: IpcMain): void {
       console.error('[Cluster] Failed to stop UDP service:', error)
       return false
     }
+  })
+
+  ipcMain.handle('cluster:restart-udp', async (): Promise<boolean> => {
+    try {
+      const config = loadClusterConfig()
+      if (udpBroadcastService.isActive()) {
+        await udpBroadcastService.stop()
+      }
+      if (config.mode === 'cluster') {
+        await udpBroadcastService.start(config)
+      }
+      return true
+    } catch (error) {
+      console.error('[Cluster] Failed to restart UDP service:', error)
+      return false
+    }
+  })
+
+  ipcMain.handle('cluster:regenerate-node-id', (): string => {
+    const config = loadClusterConfig()
+    const newConfig = {
+      ...config,
+      nodeId: generateNodeId(),
+    }
+    saveClusterConfig(newConfig)
+    return newConfig.nodeId
   })
 
   ipcMain.handle('cluster:send-announce', (): void => {

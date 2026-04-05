@@ -13,6 +13,16 @@
         >
           {{ statusLabel }}
         </el-tag>
+        <el-button
+          v-if="canAccessSettings"
+          size="small"
+          text
+          @click="router.push('/settings')"
+          class="settings-btn"
+        >
+          <el-icon><Setting /></el-icon>
+          {{ $t('cluster.settings') }}
+        </el-button>
       </div>
     </template>
 
@@ -29,7 +39,10 @@
 
         <div class="status-row">
           <span class="label">{{ $t('cluster.role') }}:</span>
-          <el-tag size="small" :type="clusterStatus?.isMaster ? 'warning' : ''">
+          <el-tag v-if="clusterStatus?.mode === 'single'" size="small" type="info">
+            {{ $t('cluster.modeSingle') }}
+          </el-tag>
+          <el-tag v-else size="small" :type="clusterStatus?.isMaster ? 'warning' : ''">
             {{ clusterStatus?.isMaster ? $t('cluster.roleMaster') : $t('cluster.roleFollower') }}
           </el-tag>
         </div>
@@ -119,14 +132,19 @@
 
 <script setup lang="ts">
 import { ref, computed, onMounted } from 'vue'
+import { useRouter } from 'vue-router'
 import { useI18n } from 'vue-i18n'
 import { ElMessage } from 'element-plus'
-import { Monitor, Refresh, Connection, SuccessFilled, CircleClose } from '@element-plus/icons-vue'
+import { Monitor, Refresh, Connection, SuccessFilled, CircleClose, Setting } from '@element-plus/icons-vue'
 import { useSyncStore } from '@/stores/syncStore'
+import { useAuthStore } from '@/stores/authStore'
+import { isElectron } from '@/utils/platform'
 import type { ClusterStatus } from '@/types/cluster'
 
+const router = useRouter()
 const { t } = useI18n()
 const syncStore = useSyncStore()
+const authStore = useAuthStore()
 
 const isLoading = ref(true)
 const isRefreshing = ref(false)
@@ -135,6 +153,13 @@ const isSyncing = ref(false)
 const clusterStatus = ref<ClusterStatus | null>(null)
 const isOnline = computed(() => syncStore.isOnline)
 const isMaster = computed(() => clusterStatus.value?.isMaster ?? false)
+
+const canAccessSettings = computed(() => {
+  if (!isElectron()) {
+    return false
+  }
+  return authStore.isAdmin || authStore.isScheduler
+})
 
 const statusTagType = computed(() => {
   if (!isOnline.value) {return 'danger'}
@@ -200,6 +225,10 @@ onMounted(() => {
     
     .status-tag {
       margin-left: auto;
+    }
+
+    .settings-btn {
+      margin-left: 8px;
     }
   }
 

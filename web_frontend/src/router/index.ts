@@ -36,6 +36,12 @@ const router = createRouter({
             meta: {titleKey: 'common.pageTitles.eventOrchestrator'}
         },
         {
+            path: '/settings',
+            name: 'Settings',
+            component: () => import('../views/Settings.vue'),
+            meta: {titleKey: 'common.pageTitles.settings', requiresAuth: true, requiresAdminOrScheduler: true}
+        },
+        {
             path: '/login',
             name: 'Login',
             component: () => import('../views/Login.vue'),
@@ -64,6 +70,14 @@ router.beforeEach(async (to, _from, next) => {
         }
         next({path: '/login', query: {redirect: to.fullPath}})
         return
+    }
+
+    const requiresAdminOrScheduler = to.meta.requiresAdminOrScheduler as boolean
+    if (requiresAdminOrScheduler) {
+        if (!authStore.isAdmin && !authStore.isScheduler) {
+            next({path: '/'})
+            return
+        }
     }
 
     next()

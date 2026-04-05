@@ -11,8 +11,9 @@ from rest_framework.decorators import action
 from rest_framework.permissions import AllowAny
 from rest_framework.response import Response
 
-from backend.apps.cluster.models import DjangoSyncLog, DjangoSyncState
+from backend.apps.cluster.models import DjangoSyncLog, DjangoSyncState, DjangoClusterConfig
 from backend.apps.cluster.services.sync_manager import sync_manager
+from backend.apps.fencing_organizer.permissions import IsSchedulerOrAdmin
 
 logger = logging.getLogger(__name__)
 
@@ -58,8 +59,34 @@ class ClusterStatusViewSet(viewsets.GenericViewSet):
     permission_classes = [AllowAny]
 
     def _get_config(self) -> Dict[str, Any]:
-        """Get cluster configuration from settings."""
-        return getattr(settings, "CLUSTER_CONFIG", {})
+        """Get cluster configuration from database first, then fall back to settings."""
+        try:
+            db_config = DjangoClusterConfig.get_config()
+            mode = db_config.mode
+            is_master = db_config.is_master
+
+            if mode == "cluster" and not is_master and not db_config.master_url:
+                is_master = True
+                db_config.is_master = True
+                db_config.save()
+
+            return {
+                "mode": mode,
+                "node_id": db_config.node_id or "",
+                "udp_port": db_config.udp_port,
+                "api_port": db_config.api_port,
+                "heartbeat_interval": db_config.heartbeat_interval,
+                "heartbeat_timeout": db_config.heartbeat_timeout,
+                "sync_interval": db_config.sync_interval,
+                "replica_ack_required": db_config.replica_ack_required,
+                "ack_timeout_ms": db_config.ack_timeout_ms,
+                "master_ip": db_config.master_ip,
+                "is_master": is_master,
+                "master_url": db_config.master_url,
+            }
+        except Exception as e:
+            logger.warning(f"Failed to get config from database: {e}")
+            return getattr(settings, "CLUSTER_CONFIG", {})
 
     def _get_node_id(self) -> str:
         """Get current node ID."""
@@ -369,3 +396,91 @@ class ClusterStatusViewSet(viewsets.GenericViewSet):
                 "ack_timeout_ms": config.get("ack_timeout_ms", 5000),
             }
         )
+
+    @action(detail=False, methods=["put"], permission_classes=[IsSchedulerOrAdmin])
+    def update_config(self, request: HttpRequest) -> Response:
+        """
+        Update cluster configuration.
+
+        Request body:
+        - mode: 'single' or 'cluster'
+        - node_id: Node identifier (optional)
+        - udp_port: UDP port (optional)
+        - api_port: API port (optional)
+        - heartbeat_interval: Heartbeat interval in seconds (optional)
+        - heartbeat_timeout: Heartbeat timeout in seconds (optional)
+        - master_ip: Fixed master IP (optional)
+
+        Returns:
+        - Updated configuration
+        """
+        try:
+            db_config = DjangoClusterConfig.get_config()
+
+            if "mode" in request.data:
+                mode = request.data["mode"]
+                if mode not in ("single", "cluster"):
+                    return Response(
+                        {"detail": "Invalid mode. Must be 'single' or 'cluster'."},
+                        status=status.HTTP_400_BAD_REQUEST,
+                    )
+                db_config.mode = mode
+                if mode == "single":
+                    db_config.is_master = False
+                    db_config.master_url = None
+                    db_config.master_ip = None
+
+            if "node_id" in request.data:
+                db_config.node_id = request.data["node_id"]
+
+            if "udp_port" in request.data:
+                db_config.udp_port = request.data["udp_port"]
+
+            if "api_port" in request.data:
+                db_config.api_port = request.data["api_port"]
+
+            if "heartbeat_interval" in request.data:
+                db_config.heartbeat_interval = request.data["heartbeat_interval"]
+
+            if "heartbeat_timeout" in request.data:
+                db_config.heartbeat_timeout = request.data["heartbeat_timeout"]
+
+            if "master_ip" in request.data:
+                master_ip = request.data["master_ip"]
+                db_config.master_ip = master_ip
+                if master_ip:
+                    db_config.master_url = f"http://{master_ip}:{db_config.api_port}"
+                    db_config.is_master = False
+                else:
+                    db_config.master_url = None
+
+            if db_config.mode == "cluster" and not db_config.master_url and not db_config.master_ip:
+                db_config.is_master = True
+
+            db_config.save()
+
+            logger.info(f"Cluster config updated: mode={db_config.mode}, is_master={db_config.is_master}, node_id={db_config.node_id}")
+
+            return Response(
+                {
+                    "mode": db_config.mode,
+                    "is_master": db_config.is_master,
+                    "node_id": db_config.node_id,
+                    "udp_port": db_config.udp_port,
+                    "api_port": db_config.api_port,
+                    "heartbeat_interval": db_config.heartbeat_interval,
+                    "heartbeat_timeout": db_config.heartbeat_timeout,
+                    "master_ip": db_config.master_ip,
+                    "master_url": db_config.master_url,
+                    "sync_interval": db_config.sync_interval,
+                    "replica_ack_required": db_config.replica_ack_required,
+                    "ack_timeout_ms": db_config.ack_timeout_ms,
+                }
+            )
+
+        except Exception as e:
+            logger.error(f"Failed to update config: {e}")
+            return Response(
+                {"detail": "Failed to update configuration"},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            )

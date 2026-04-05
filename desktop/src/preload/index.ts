@@ -115,6 +115,8 @@ const api = {
     startUdp: (config: ClusterConfig): Promise<boolean> =>
       ipcRenderer.invoke('cluster:start-udp', config),
     stopUdp: (): Promise<boolean> => ipcRenderer.invoke('cluster:stop-udp'),
+    restartUdp: (): Promise<boolean> => ipcRenderer.invoke('cluster:restart-udp'),
+    regenerateNodeId: (): Promise<string> => ipcRenderer.invoke('cluster:regenerate-node-id'),
     sendAnnounce: (): Promise<void> => ipcRenderer.invoke('cluster:send-announce'),
     sendHeartbeat: (lastSyncId?: number): Promise<void> =>
       ipcRenderer.invoke('cluster:send-heartbeat', lastSyncId),
