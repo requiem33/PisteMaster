@@ -54,11 +54,83 @@
   - 修复sendAnnounce中isMaster字段使用config.isMaster而非硬编码false
   - 在stop()中清理announceInterval防止内存泄漏
 
+* **集群状态刷新修复**: 修复重置设置后集群状态不更新问题
+  - 修改ClusterStatus组件在reset后调用refreshStatus()刷新状态
+
+* **集群状态API响应修复**: 修复API响应使用camelCase字段名
+  - 后端/api/cluster/status/返回camelCase格式字段
+
+* **集群设置页面**: 实现集群模式配置UI
+  - 创建Settings.vue页面，提供Mode切换、节点配置、状态显示
+  - 支持UDP端口、API端口、心跳间隔、Master IP配置
+  - 集成ClusterService与Electron IPC进行配置管理
+
 ### 技术决策 & 挑战
 
 * 多实例开发需要每个组件（后端、前端、Electron）独立配置端口和数据目录
 * 集群角色设置需要前后端和Electron三端协调，字段命名需一致
 * UDP广播使用SO_REUSEADDR允许多进程绑定同一端口，但需要周期性广播维持发现
+
+### 发现的问题
+
+* 无。
+
+---
+
+## 🗓️ 2026-04-04
+
+### 已完成事项
+
+* **国际化字符串修复**: 替换硬编码中文字符串为i18n翻译
+  - 修复Settings.vue、ClusterStatus.vue等组件的硬编码中文
+
+* **Guest用户密码修复**: 设置Guest用户密码启用桌面版自动登录
+  - 创建数据迁移设置Guest用户默认密码
+
+* **桌面开发文档**: 记录Electron开发工作流和ELECTRON_RENDERER_URL配置需求
+
+### 技术决策 & 挑战
+
+* 无。
+
+### 发现的问题
+
+* 无。
+
+---
+
+## 🗓️ 2026-04-03
+
+### 已完成事项
+
+* **后端Guest用户认证**: 实现基于后端的Guest用户认证系统
+  - 后端User模型添加GUEST角色
+  - 创建数据迁移创建默认Guest用户（仅桌面版）
+  - 添加IsSchedulerOrAdminOrGuest权限
+  - 更新IsTournamentEditor和IsEventEditor支持GUEST角色
+  - 允许GUEST创建比赛
+
+* **前端Guest登录**: 实现前端Guest用户登录流程
+  - 移除localStorage的本地authService
+  - AuthService添加loginAsGuest()方法
+  - authStore支持后端Guest登录
+  - 添加GUEST角色到UserRole类型
+  - UserMenu显示GUEST角色标签
+  - 简化Guest用户流程
+
+* **Dark Mode支持**: 改善前端组件的深色模式支持
+
+* **桌面构建修复**: 移除错误的renderer配置
+
+* **前端TypeScript修复**: 解决前端构建错误
+
+* **后端测试修复**: 解决后端测试失败和变量遮蔽问题
+
+### 技术决策 & 挑战
+
+* 桌面版应用启动时自动以Guest用户登录
+* Guest被视为普通用户（基于会话的认证）
+* Guest可以创建/编辑自己的比赛
 
 ### 发现的问题
 
