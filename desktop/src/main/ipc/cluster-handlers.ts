@@ -46,11 +46,11 @@ function parseClusterStatus(statusStr: string): ClusterStatus | null {
 
 interface BackendClusterStatus {
   mode: 'single' | 'cluster'
-  node_id: string
-  is_master: boolean
-  master_url: string | null
+  nodeId: string
+  isMaster: boolean
+  masterUrl: string | null
   peers: PeerInfo[]
-  sync_lag: number
+  syncLag: number
 }
 
 async function fetchClusterStatusFromBackend(): Promise<ClusterStatus | null> {
@@ -59,15 +59,15 @@ async function fetchClusterStatusFromBackend(): Promise<ClusterStatus | null> {
     const response = await fetch(`http://127.0.0.1:${config.apiPort}/api/cluster/status/`)
     if (!response.ok) return null
     const data = await response.json() as BackendClusterStatus
-    clusterState.isMaster = data.is_master
-    clusterState.masterUrl = data.master_url
+    clusterState.isMaster = data.isMaster
+    clusterState.masterUrl = data.masterUrl
     return {
       mode: data.mode,
-      nodeId: data.node_id,
-      isMaster: data.is_master,
-      masterUrl: data.master_url,
+      nodeId: data.nodeId,
+      isMaster: data.isMaster,
+      masterUrl: data.masterUrl,
       peers: data.peers || [],
-      syncLag: data.sync_lag || 0,
+      syncLag: data.syncLag || 0,
       lastHeartbeat: clusterState.lastHeartbeat,
       isRunning: udpBroadcastService.isActive(),
     }
@@ -140,6 +140,18 @@ export function setupClusterIpcHandlers(_ipcMain: IpcMain): void {
     const backendStatus = await fetchClusterStatusFromBackend()
     
     if (backendStatus) {
+      // Merge UDP-discovered peers with backend peers
+      const udpPeers = udpBroadcastService.getPeers()
+      const backendPeers = backendStatus.peers || []
+      const allPeers = [...backendPeers]
+      
+      for (const udpPeer of udpPeers) {
+        if (!allPeers.find(p => p.nodeId === udpPeer.nodeId)) {
+          allPeers.push(udpPeer)
+        }
+      }
+      
+      backendStatus.peers = allPeers
       return backendStatus
     }
 
