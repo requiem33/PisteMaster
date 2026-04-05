@@ -308,6 +308,7 @@ async function confirmReset(): Promise<void> {
     if (config) {
       localConfig.value = { ...config }
       originalConfig.value = { ...config }
+      await syncStore.refreshStatus()
       ElMessage.success(t('cluster.settingsReset'))
     }
   } catch (error) {
