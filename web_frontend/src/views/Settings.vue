@@ -51,6 +51,32 @@
             <h3>{{ $t('cluster.nodeConfiguration') }}</h3>
 
             <el-form label-width="140px" :disabled="!canEdit || isSaving">
+              <el-form-item :label="$t('cluster.nodeRole')">
+                <el-radio-group
+                  v-model="localConfig.isMaster"
+                  :disabled="!canEdit || isSaving"
+                >
+                  <el-radio-button :value="true">
+                    {{ $t('cluster.roleMaster') }}
+                  </el-radio-button>
+                  <el-radio-button :value="false">
+                    {{ $t('cluster.roleFollower') }}
+                  </el-radio-button>
+                </el-radio-group>
+              </el-form-item>
+
+              <el-form-item
+                v-if="!localConfig.isMaster"
+                :label="$t('cluster.masterIp')"
+              >
+                <el-input
+                  v-model="localConfig.masterIp"
+                  :placeholder="$t('cluster.masterIpHint')"
+                  :disabled="!canEdit || isSaving"
+                  clearable
+                />
+              </el-form-item>
+
               <el-form-item :label="$t('cluster.nodeId')">
                 <div class="node-id-row">
                   <el-input v-model="localConfig.nodeId" disabled class="node-id-input" />
@@ -89,15 +115,6 @@
                   :disabled="!canEdit || isSaving"
                 />
                 <span class="unit"> {{ $t('cluster.seconds') }}</span>
-              </el-form-item>
-
-              <el-form-item :label="$t('cluster.masterIp')">
-                <el-input
-                  v-model="localConfig.masterIp"
-                  :placeholder="$t('cluster.masterIpHint')"
-                  :disabled="!canEdit || isSaving"
-                  clearable
-                />
               </el-form-item>
             </el-form>
           </div>
@@ -224,6 +241,7 @@ const localConfig = ref<ClusterConfig>({
   replicaAckRequired: 1,
   ackTimeout: 5000,
   masterIp: null,
+  isMaster: false,
 })
 
 const originalConfig = ref<ClusterConfig | null>(null)
@@ -332,7 +350,8 @@ async function handleSave(): Promise<void> {
       udpPort: localConfig.value.udpPort,
       apiPort: localConfig.value.apiPort,
       heartbeatInterval: localConfig.value.heartbeatInterval,
-      masterIp: localConfig.value.masterIp,
+      masterIp: localConfig.value.isMaster ? null : localConfig.value.masterIp,
+      isMaster: localConfig.value.isMaster,
     })
 
     if (config) {

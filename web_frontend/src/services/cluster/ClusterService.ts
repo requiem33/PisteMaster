@@ -13,6 +13,7 @@ export interface ClusterConfig {
   replicaAckRequired: number
   ackTimeout: number
   masterIp: string | null
+  isMaster: boolean
 }
 
 class ClusterServiceClass {
@@ -168,6 +169,7 @@ class ClusterServiceClass {
               heartbeat_interval: config.heartbeatInterval,
               heartbeat_timeout: config.heartbeatTimeout,
               master_ip: config.masterIp,
+              is_master: config.isMaster,
             }),
           },
           3,
@@ -209,6 +211,7 @@ class ClusterServiceClass {
               heartbeat_interval: config.heartbeatInterval,
               heartbeat_timeout: config.heartbeatTimeout,
               master_ip: config.masterIp,
+              is_master: config.isMaster,
             }),
           },
           3,

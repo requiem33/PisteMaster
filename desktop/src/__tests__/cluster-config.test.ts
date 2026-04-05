@@ -19,6 +19,7 @@ describe('ClusterConfig', () => {
         replicaAckRequired: 1,
         ackTimeout: 5000,
         masterIp: null,
+        isMaster: false,
       }
 
       expect(singleConfig.mode).toBe('single')
@@ -38,6 +39,7 @@ describe('ClusterConfig', () => {
         syncInterval: 3,
         replicaAckRequired: 1,
         ackTimeout: 5000,
+        isMaster: false,
       }
 
       expect(clusterConfig.mode).toBe('cluster')

@@ -34,6 +34,7 @@ interface ClusterConfig {
   replicaAckRequired: number
   ackTimeout: number
   masterIp: string | null
+  isMaster: boolean
 }
 
 interface PeerInfo {

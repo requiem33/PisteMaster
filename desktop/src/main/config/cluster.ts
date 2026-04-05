@@ -15,6 +15,7 @@ export interface ClusterConfig {
   replicaAckRequired: number
   ackTimeout: number
   masterIp: string | null
+  isMaster: boolean
 }
 
 export const DEFAULT_CONFIG: Omit<ClusterConfig, 'nodeId'> = {
@@ -27,6 +28,7 @@ export const DEFAULT_CONFIG: Omit<ClusterConfig, 'nodeId'> = {
   replicaAckRequired: 1,
   ackTimeout: 5000,
   masterIp: null,
+  isMaster: false,
 }
 
 function getEnvOverrides(): Partial<ClusterConfig> {

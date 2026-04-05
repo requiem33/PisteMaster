@@ -6,6 +6,7 @@ export default {
     role: '角色',
     roleMaster: '主节点',
     roleFollower: '从节点',
+    nodeRole: '节点角色',
     nodeId: '节点ID',
     masterUrl: '主节点地址',
     syncLag: '同步延迟',

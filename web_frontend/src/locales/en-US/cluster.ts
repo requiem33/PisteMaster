@@ -6,6 +6,7 @@ export default {
     role: 'Role',
     roleMaster: 'Master',
     roleFollower: 'Follower',
+    nodeRole: 'Node Role',
     nodeId: 'Node ID',
     masterUrl: 'Master URL',
     syncLag: 'Sync Lag',
