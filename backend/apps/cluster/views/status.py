@@ -458,10 +458,9 @@ class ClusterStatusViewSet(viewsets.GenericViewSet):
                         db_config.master_url = None
                         db_config.master_ip = None
 
-            if db_config.mode == "cluster" and not db_config.master_url and not db_config.master_ip:
-                # Node entering cluster mode without explicit master
-                # Default to follower; master role determined by election
-                db_config.is_master = False
+            if "is_master" not in request.data:
+                if db_config.mode == "cluster" and not db_config.master_url and not db_config.master_ip:
+                    db_config.is_master = False
 
             db_config.save()
 
