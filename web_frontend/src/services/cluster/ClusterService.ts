@@ -103,6 +103,35 @@ class ClusterServiceClass {
   }
 
   async getClusterStatus(): Promise<ClusterStatus | null> {
+    if (isElectron()) {
+      try {
+        const status = await window.electron.cluster.getStatus()
+        if (status) {
+          return {
+            mode: status.mode,
+            isMaster: status.isMaster,
+            nodeId: status.nodeId,
+            masterUrl: status.masterUrl,
+            syncLag: status.syncLag,
+            pendingAcks: 0,
+            lastSyncTime: null,
+            peers: (status.peers || []).map(peer => ({
+              nodeId: peer.nodeId,
+              role: peer.isMaster ? 'master' : 'follower',
+              ipAddress: peer.ip,
+              port: peer.port,
+              lastHeartbeat: peer.lastSeen ? new Date(peer.lastSeen) : null,
+              isHealthy: true,
+              lastSyncId: 0,
+            })),
+          }
+        }
+        return null
+      } catch (error) {
+        console.error('Failed to get cluster status from Electron:', error)
+        return null
+      }
+    }
     return this.fetchClusterStatus()
   }
 
