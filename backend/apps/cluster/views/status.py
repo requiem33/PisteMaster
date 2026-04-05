@@ -65,11 +65,6 @@ class ClusterStatusViewSet(viewsets.GenericViewSet):
             mode = db_config.mode
             is_master = db_config.is_master
 
-            if mode == "cluster" and not is_master and not db_config.master_url:
-                is_master = True
-                db_config.is_master = True
-                db_config.save()
-
             return {
                 "mode": mode,
                 "node_id": db_config.node_id or "",
@@ -123,7 +118,7 @@ class ClusterStatusViewSet(viewsets.GenericViewSet):
                     acked_id = sync_manager.ack_queue.get_min_confirmed_id()
                     sync_lag = latest_id - acked_id if latest_id and acked_id else latest_id
 
-                    pending_acks = len(sync_manager.ack_queue.pending_acks)
+                    pending_acks = sync_manager.ack_queue.get_pending_count()
                 else:
                     try:
                         state = DjangoSyncState.objects.get(node_id=node_id)
@@ -455,8 +450,18 @@ class ClusterStatusViewSet(viewsets.GenericViewSet):
                 else:
                     db_config.master_url = None
 
+            if "is_master" in request.data:
+                is_master = request.data["is_master"]
+                if isinstance(is_master, bool):
+                    db_config.is_master = is_master
+                    if is_master:
+                        db_config.master_url = None
+                        db_config.master_ip = None
+
             if db_config.mode == "cluster" and not db_config.master_url and not db_config.master_ip:
-                db_config.is_master = True
+                # Node entering cluster mode without explicit master
+                # Default to follower; master role determined by election
+                db_config.is_master = False
 
             db_config.save()
 

@@ -185,6 +185,83 @@ sudo apt-get install -y libnss3 libatk1.0-0 libatk-bridge2.0-0 libcups2 libdrm2 
 4. Frontend communicates with backend via HTTP on localhost:8000
 5. IPC handlers provide native OS integration (file dialogs, etc.)
 
+## Multi-Instance Development (Cluster Testing)
+
+To test distributed cluster mode with multiple Electron instances, each instance needs its own backend, frontend, and database.
+
+### Architecture for Cluster Testing
+
+| Component | Instance 1 (Master) | Instance 2 (Replica) |
+|-----------|---------------------|----------------------|
+| Django Backend | Port 8000 | Port 8001 |
+| Vue Frontend | Port 3001 | Port 3002 |
+| Electron userData | `/tmp/pistemaster-node1` | `/tmp/pistemaster-node2` |
+| SQLite Database | `db_node1.sqlite3` | `db_node2.sqlite3` |
+| UDP Discovery | Port 9000 | Port 9000 (shared) |
+
+### Setup Steps
+
+**1. Create databases for each instance:**
+```bash
+# From project root
+cd backend
+DJANGO_DB_PATH=db_node1.sqlite3 python manage.py migrate
+DJANGO_DB_PATH=db_node2.sqlite3 python manage.py migrate
+```
+
+**2. Start Backend Instances (separate terminals):**
+```bash
+# Terminal 1 - Backend Node 1
+cd backend
+DJANGO_DB_PATH=db_node1.sqlite3 python manage.py runserver 8000
+
+# Terminal 2 - Backend Node 2
+cd backend
+DJANGO_DB_PATH=db_node2.sqlite3 python manage.py runserver 8001
+```
+
+**3. Start Frontend Instances (separate terminals):**
+```bash
+# Terminal 3 - Frontend Node 1
+cd web_frontend
+VITE_PORT=3001 VITE_API_PROXY_TARGET=http://localhost:8000 npm run dev
+
+# Terminal 4 - Frontend Node 2
+cd web_frontend
+VITE_PORT=3002 VITE_API_PROXY_TARGET=http://localhost:8001 npm run dev
+```
+
+**4. Start Electron Instances (separate terminals):**
+```bash
+# Terminal 5 - Electron Node 1
+cd desktop
+PISTEMASTER_USER_DATA_DIR=/tmp/pistemaster-node1 \
+  PISTEMASTER_API_PORT=8000 \
+  ELECTRON_RENDERER_URL=http://localhost:3001 \
+  npm run dev
+
+# Terminal 6 - Electron Node 2
+cd desktop
+PISTEMASTER_USER_DATA_DIR=/tmp/pistemaster-node2 \
+  PISTEMASTER_API_PORT=8001 \
+  ELECTRON_RENDERER_URL=http://localhost:3002 \
+  npm run dev
+```
+
+### Configuration Notes
+
+- Each Electron instance stores its config in its own `PISTEMASTER_USER_DATA_DIR`, including unique `nodeId`
+- `PISTEMASTER_API_PORT` tells each instance which backend port to connect to
+- Both instances share UDP port 9000 for auto-discovery (via `SO_REUSEADDR`)
+- In cluster settings UI, configure Node 1 as Master and Node 2 as Replica
+
+### Cluster Mode Workflow
+
+1. Start both instances following the steps above
+2. In Node 1's cluster settings: Set mode to "cluster", mark as Master
+3. In Node 2's cluster settings: Set mode to "cluster", set Master IP to Node 1's IP
+4. Nodes will discover each other via UDP broadcast and sync data
+
 ## Building
 
 The build process:

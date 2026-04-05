@@ -46,7 +46,7 @@ class UdpBroadcastService extends EventEmitter {
     this.seqNum = 0
 
     return new Promise((resolve, reject) => {
-      this.socket = createSocket('udp4')
+      this.socket = createSocket({ type: 'udp4', reuseAddr: true })
 
       this.socket.on('error', (err) => {
         console.error('[UDP] Socket error:', err)

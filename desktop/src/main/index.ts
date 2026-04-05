@@ -1,5 +1,5 @@
 import { app, BrowserWindow, shell, ipcMain, dialog } from 'electron'
-import { join } from 'path'
+import { join, resolve } from 'path'
 import { electronApp, optimizer, is } from '@electron-toolkit/utils'
 import { setupPythonServer, shutdownPythonServer } from './python-server'
 import { setupIpcHandlers } from './ipc-handlers'
@@ -7,6 +7,10 @@ import { setupClusterIpcHandlers, setClusterState, updateLastHeartbeat } from '.
 import { restoreWindowState, saveWindowState } from './window-state'
 import { loadClusterConfig } from './config/cluster'
 import { udpBroadcastService } from './services/udp'
+
+if (process.env.PISTEMASTER_USER_DATA_DIR) {
+  app.setPath('userData', resolve(process.env.PISTEMASTER_USER_DATA_DIR))
+}
 
 let mainWindow: BrowserWindow | null = null
 let pythonProcess: ReturnType<typeof setupPythonServer> | null = null

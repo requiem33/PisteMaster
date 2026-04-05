@@ -29,6 +29,19 @@ export const DEFAULT_CONFIG: Omit<ClusterConfig, 'nodeId'> = {
   masterIp: null,
 }
 
+function getEnvOverrides(): Partial<ClusterConfig> {
+  const overrides: Partial<ClusterConfig> = {}
+  
+  if (process.env.PISTEMASTER_API_PORT) {
+    const port = parseInt(process.env.PISTEMASTER_API_PORT, 10)
+    if (!isNaN(port) && port > 0 && port < 65536) {
+      overrides.apiPort = port
+    }
+  }
+  
+  return overrides
+}
+
 export function generateNodeId(): string {
   const host = hostname().replace(/[^a-zA-Z0-9]/g, '').slice(0, 20)
   const suffix = randomUUID().slice(0, 8)
@@ -46,6 +59,7 @@ function getConfigPath(): string {
 
 export function loadClusterConfig(): ClusterConfig {
   const configPath = getConfigPath()
+  const envOverrides = getEnvOverrides()
   
   if (existsSync(configPath)) {
     try {
@@ -55,6 +69,7 @@ export function loadClusterConfig(): ClusterConfig {
       return {
         ...DEFAULT_CONFIG,
         ...loaded,
+        ...envOverrides,
         nodeId: loaded.nodeId || generateNodeId(),
       }
     } catch (error) {
@@ -64,6 +79,7 @@ export function loadClusterConfig(): ClusterConfig {
   
   const newConfig: ClusterConfig = {
     ...DEFAULT_CONFIG,
+    ...envOverrides,
     nodeId: generateNodeId(),
   }
   

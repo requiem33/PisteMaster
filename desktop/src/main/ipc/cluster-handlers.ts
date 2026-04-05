@@ -55,7 +55,8 @@ interface BackendClusterStatus {
 
 async function fetchClusterStatusFromBackend(): Promise<ClusterStatus | null> {
   try {
-    const response = await fetch('http://127.0.0.1:8000/api/cluster/status/')
+    const config = loadClusterConfig()
+    const response = await fetch(`http://127.0.0.1:${config.apiPort}/api/cluster/status/`)
     if (!response.ok) return null
     const data = await response.json() as BackendClusterStatus
     clusterState.isMaster = data.is_master

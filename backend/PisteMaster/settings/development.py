@@ -5,6 +5,8 @@ SQLite database, debug mode enabled.
 Usage: DJANGO_SETTINGS_MODULE=PisteMaster.settings.development
 """
 
+import os
+
 from .base import *  # noqa: F403
 
 DEBUG = True
@@ -20,7 +22,7 @@ ALLOWED_HOSTS = [
 DATABASES = {
     "default": {
         "ENGINE": "django.db.backends.sqlite3",
-        "NAME": BASE_DIR / "db.sqlite3",  # noqa: F405
+        "NAME": os.environ.get("DJANGO_DB_PATH", str(BASE_DIR / "db.sqlite3")),  # noqa: F405
     }
 }
 

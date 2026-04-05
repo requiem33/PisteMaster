@@ -108,6 +108,19 @@ class AckQueue:
         with self._lock:
             return len(self._pending)
 
+    def get_min_confirmed_id(self) -> int:
+        """
+        Get the minimum sync log ID that is confirmed (all pending ACKs resolved).
+
+        If no pending ACKs, returns 0 (all entries confirmed).
+        If pending ACKs exist, returns min(pending_ids) - 1 (last confirmed ID).
+        """
+        with self._lock:
+            if not self._pending:
+                return 0
+            min_pending = min(self._pending.keys())
+            return max(0, min_pending - 1)
+
     def get_pending_ids(self) -> List[int]:
         """Get all pending sync log IDs."""
         with self._lock:
