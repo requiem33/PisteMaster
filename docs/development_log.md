@@ -9,6 +9,63 @@
 
 ---
 
+## 🗓️ 2026-04-05
+
+### 已完成事项
+
+* **多实例集群开发支持**: 实现本地多节点集群测试环境
+  - 添加 `DJANGO_DB_PATH` 环境变量，支持每个后端实例独立数据库
+  - 添加 `VITE_PORT` 和 `VITE_API_PROXY_TARGET` 环境变量，支持多前端实例
+  - 添加 `PISTEMASTER_USER_DATA_DIR` 环境变量，支持多Electron实例独立配置
+  - 添加 `PISTEMASTER_API_PORT` 环境变量，指定各实例连接的后端端口
+  - 修复UDP socket使用 `reuseAddr: true`，允许多实例共享同一UDP端口
+  - 修复cluster-handlers使用config.apiPort而非硬编码8000
+  - 更新desktop/README.md添加多实例开发文档
+
+* **集群同步错误修复**: 修复后端集群服务的多个bug
+  - 为AckQueue添加get_min_confirmed_id()方法，解决同步状态获取错误
+  - 修复pending_acks属性访问，改用get_pending_count()
+  - 修复is_master自动设置逻辑：仅在未明确设置时默认followerr角色
+
+* **节点角色选择UI**: 在设置页面添加Master/Follower角色选择
+  - 为ClusterConfig接口添加isMaster字段
+  - 在Settings.vue添加角色选择单选按钮（Master/Follower）
+  - 仅在选择Follower时显示Master IP输入框
+  - 添加nodeRole中英文国际化翻译
+  - 更新后端API支持is_master参数
+
+* **is_master设置bug修复**: 修复保存Master角色后变成Follower的问题
+  - 修改update_config逻辑：仅在is_master未在请求中提供时才默认false
+  - 之前保存is_master=true时会因master_url/master_ip为空而被覆盖为false
+
+* **集群状态API字段映射修复**: 修复前端获取集群状态显示undefined
+  - 修复Electron端BackendClusterStatus接口使用camelCase而非snake_case
+  - 后端/api/cluster/status/返回camelCase字段（nodeId, isMaster, syncLag等）
+  - 合并UDP发现的peers与后端peers
+
+* **前端获取UDP peers修复**: 修复前端显示peers始终为0
+  - 在Electron环境下使用window.electron.cluster.getStatus()替代直接调用后端API
+  - 将Electron的PeerInfo[]映射为前端的ClusterNode[]类型
+  - 现在正确显示通过UDP发现的节点
+
+* **UDP节点发现增强**: 添加周期性广播确保节点重发现
+  - 添加announceInterval，每30秒周期性广播announce消息
+  - 确保新节点加入时被发现，之前丢失的节点重新发现
+  - 修复sendAnnounce中isMaster字段使用config.isMaster而非硬编码false
+  - 在stop()中清理announceInterval防止内存泄漏
+
+### 技术决策 & 挑战
+
+* 多实例开发需要每个组件（后端、前端、Electron）独立配置端口和数据目录
+* 集群角色设置需要前后端和Electron三端协调，字段命名需一致
+* UDP广播使用SO_REUSEADDR允许多进程绑定同一端口，但需要周期性广播维持发现
+
+### 发现的问题
+
+* 无。
+
+---
+
 ## 🗓️ 2026-03-31
 
 ### 已完成事项
