@@ -34,6 +34,7 @@ class UdpBroadcastService extends EventEmitter {
   private seqNum = 0
   private peers: Map<string, PeerInfo> = new Map()
   private heartbeatInterval: ReturnType<typeof setInterval> | null = null
+  private announceInterval: ReturnType<typeof setInterval> | null = null
   private announceRetries = 3
   private localIp: string | null = null
 
@@ -65,6 +66,12 @@ class UdpBroadcastService extends EventEmitter {
         console.log(`[UDP] Service started on port ${config.udpPort}`)
         
         this.sendAnnounce()
+        
+        // Periodic announce broadcast to rediscover nodes
+        this.announceInterval = setInterval(() => {
+          this.sendAnnounce()
+        }, 30000) // Every 30 seconds
+        
         resolve()
       })
     })
@@ -82,6 +89,11 @@ class UdpBroadcastService extends EventEmitter {
     if (this.heartbeatInterval) {
       clearInterval(this.heartbeatInterval)
       this.heartbeatInterval = null
+    }
+
+    if (this.announceInterval) {
+      clearInterval(this.announceInterval)
+      this.announceInterval = null
     }
 
     return new Promise((resolve) => {
@@ -217,7 +229,7 @@ class UdpBroadcastService extends EventEmitter {
       ip: this.localIp || '127.0.0.1',
       port: this.config.apiPort,
       timestamp: Date.now() / 1000,
-      isMaster: false,
+      isMaster: this.config.isMaster,
       version: 1,
     }
 
