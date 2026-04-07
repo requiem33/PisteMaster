@@ -38,6 +38,9 @@ MIDDLEWARE = [
     "django.contrib.auth.middleware.AuthenticationMiddleware",
     "django.contrib.messages.middleware.MessageMiddleware",
     "django.middleware.clickjacking.XFrameOptionsMiddleware",
+    # Cluster middleware - handles write proxying and ACK waiting
+    "backend.apps.cluster.middleware.api_router.ApiRouterMiddleware",
+    "backend.apps.cluster.middleware.write_sync.SyncWriteMiddleware",
 ]
 
 ROOT_URLCONF = "PisteMaster.urls"
@@ -133,5 +136,12 @@ CLUSTER_CONFIG = {
     "ack_timeout_ms": int(os.environ.get("CLUSTER_ACK_TIMEOUT", "5000")),
     "is_master": False,
     "master_url": None,
-    "proxy_writes": os.environ.get("CLUSTER_PROXY_WRITES", "true").lower() == "true",
+    "master_ip": None,
+    "proxy_writes": True,  # Always proxy writes (even to self in single mode)
+    "proxy_timeout": int(os.environ.get("PROXY_TIMEOUT", "10")),
 }
+
+# Proxy retry settings
+PROXY_RETRY_COUNT = int(os.environ.get("PROXY_RETRY_COUNT", "3"))
+PROXY_RETRY_DELAY = float(os.environ.get("PROXY_RETRY_DELAY", "1.0"))
+PROXY_WRITES_TO_MASTER = True  # Always enable proxy for cluster mode

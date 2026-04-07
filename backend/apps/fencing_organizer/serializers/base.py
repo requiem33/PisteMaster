@@ -41,3 +41,20 @@ class DomainModelSerializer(serializers.Serializer):
 
     def to_internal_value(self, data: dict) -> dict:
         return super().to_internal_value(data)
+
+
+class VersionedModelSerializer(DomainModelSerializer):
+    """
+    Base serializer for models with version tracking.
+    Includes version fields automatically.
+
+    Usage:
+        class TournamentSerializer(VersionedModelSerializer):
+            class Meta:
+                model = DjangoTournament
+                fields = '__all__'
+    """
+
+    version = serializers.IntegerField(read_only=True)
+    last_modified_node = serializers.CharField(read_only=True)
+    last_modified_at = serializers.DateTimeField(read_only=True)

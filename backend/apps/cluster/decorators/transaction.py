@@ -29,6 +29,7 @@ class SyncTransaction:
         self.using = using
         self._records: list = []
         self._atomic = None
+        self.last_sync_id: Optional[int] = None
 
     def __enter__(self) -> "SyncTransaction":
         self._atomic = transaction.atomic(using=self.using)
@@ -39,16 +40,24 @@ class SyncTransaction:
         if exc_type is None:
             for record in self._records:
                 try:
-                    sync_manager.record_change(
+                    sync_log = sync_manager.record_change(
                         table_name=record["table_name"],
                         record_id=record["record_id"],
                         operation=record["operation"],
                         data=record["data"],
                         version=record.get("version", 1),
                     )
-                    logger.debug(f"Sync recorded: {record['operation']} on " f"{record['table_name']}/{record['record_id']}")
+                    # Track the last sync log ID for middleware
+                    self.last_sync_id = sync_log.id
+
+                    logger.debug(
+                        f"Sync recorded: {record['operation']} on "
+                        f"{record['table_name']}/{record['record_id']}, "
+                        f"sync_log_id={sync_log.id}"
+                    )
                 except Exception as e:
                     logger.error(f"Failed to record sync: {e}")
+                    raise  # Re-raise to rollback transaction
 
         self._atomic.__exit__(exc_type, exc_val, exc_tb)
         return False
