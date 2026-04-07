@@ -1,12 +1,13 @@
-from rest_framework import viewsets, status
-from rest_framework.decorators import action
-from rest_framework.response import Response
-from rest_framework.permissions import IsAuthenticated, AllowAny
-from rest_framework.pagination import PageNumberPagination
-from django_filters.rest_framework import DjangoFilterBackend
-from rest_framework import filters
 from uuid import UUID
 
+from django_filters.rest_framework import DjangoFilterBackend
+from rest_framework import filters, status
+from rest_framework.decorators import action
+from rest_framework.pagination import PageNumberPagination
+from rest_framework.permissions import AllowAny, IsAuthenticated
+from rest_framework.response import Response
+
+from backend.apps.fencing_organizer.viewsets.base import SyncWriteModelViewSet
 from .models import DjangoEventParticipant
 from .serializers import (
     EventParticipantSerializer,
@@ -26,11 +27,12 @@ class StandardPagination(PageNumberPagination):
     max_page_size = 100
 
 
-class EventParticipantViewSet(viewsets.ModelViewSet):
+class EventParticipantViewSet(SyncWriteModelViewSet):
     """
     EventParticipant API视图集
     """
 
+    sync_table_name = "event_participant"
     queryset = DjangoEventParticipant.objects.all().order_by("event", "seed_rank")
     serializer_class = EventParticipantSerializer
     permission_classes = [IsAuthenticated]

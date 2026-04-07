@@ -3,9 +3,11 @@ from uuid import UUID, uuid4
 from datetime import datetime
 from typing import Optional, Dict, Any
 
+from core.models.versioning import VersionedModel
+
 
 @dataclass
-class Event:
+class Event(VersionedModel):
     """
     1.2. Event（比赛项目）
     """
@@ -14,7 +16,7 @@ class Event:
     # 必填字段
     # -----------------------------------------------------------
     tournament_id: UUID = field(metadata={"foreign_key": "Tournament", "description": "所属赛事"})
-    event_name: str = field(metadata={"max_length": 200, "description": "项目名称（如'男子个人佩剑'）"})
+    event_name: str = field(metadata={"max_length": 200, "description": "项目名称（如'男子个人佩剑')\""})
 
     # -----------------------------------------------------------
     # 有默认值的字段

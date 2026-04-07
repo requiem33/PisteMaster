@@ -33,6 +33,12 @@ class DjangoPoolAssignment(models.Model):
 
     qualification_rank = models.IntegerField(null=True, blank=True, verbose_name="晋级排名")
 
+    # 版本追踪字段
+    version = models.BigIntegerField(default=1)
+    last_modified_node = models.CharField(max_length=100, blank=True, default="")
+    last_modified_at = models.DateTimeField(auto_now=True)
+
+    # 时间戳字段
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 

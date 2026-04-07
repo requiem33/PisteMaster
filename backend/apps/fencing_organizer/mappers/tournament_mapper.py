@@ -1,3 +1,4 @@
+from core.models.mapper_base import versioned_fields_to_dict, versioned_fields_from_dict
 from backend.apps.fencing_organizer.modules.tournament.models import DjangoTournament
 from core.models.tournament import Tournament
 
@@ -13,6 +14,7 @@ class TournamentMapper:
             created_by_id = django_tournament.created_by.id
 
         scheduler_ids = list(django_tournament.schedulers.values_list("id", flat=True))
+        version_fields = versioned_fields_to_dict(django_tournament)
 
         return Tournament(
             id=django_tournament.id,
@@ -26,12 +28,13 @@ class TournamentMapper:
             scheduler_ids=scheduler_ids,
             created_at=django_tournament.created_at,
             updated_at=django_tournament.updated_at,
+            **version_fields
         )
 
     @staticmethod
     def to_orm_data(tournament: Tournament) -> dict:
         """Core Domain → ORM数据字典"""
-        return {
+        data = {
             "id": tournament.id,
             "tournament_name": tournament.tournament_name,
             "start_date": tournament.start_date,
@@ -41,6 +44,8 @@ class TournamentMapper:
             "location": tournament.location,
             "created_by_id": tournament.created_by_id,
         }
+        versioned_fields_from_dict(tournament.__dict__, data)
+        return data
 
     @staticmethod
     def apply_schedulers(django_tournament: DjangoTournament, scheduler_ids: list) -> None:

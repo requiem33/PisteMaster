@@ -18,9 +18,9 @@ class VersionedModel:
         last_modified_at: Timestamp of last modification
     """
 
-    version: int = field(default=1)
-    last_modified_node: str = field(default="")
-    last_modified_at: Optional[datetime] = field(default_factory=datetime.now)
+    version: int = field(default=1, kw_only=True)
+    last_modified_node: str = field(default="", kw_only=True)
+    last_modified_at: Optional[datetime] = field(default_factory=datetime.now, kw_only=True)
 
     def increment_version(self, node_id: str) -> None:
         """Increment version and update modification metadata."""

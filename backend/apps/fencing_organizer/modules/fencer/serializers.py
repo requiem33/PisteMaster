@@ -2,11 +2,11 @@ from datetime import date
 
 from rest_framework import serializers
 
-from backend.apps.fencing_organizer.serializers.base import DomainModelSerializer
+from backend.apps.fencing_organizer.serializers.base import VersionedModelSerializer
 from .models import DjangoFencer
 
 
-class FencerSerializer(DomainModelSerializer):
+class FencerSerializer(VersionedModelSerializer):
     """
     Fencer serializer - handles both Django ORM models and domain models (dataclasses).
 
@@ -126,7 +126,7 @@ class FencerSerializer(DomainModelSerializer):
         return attrs
 
 
-class FencerCreateSerializer(DomainModelSerializer):
+class FencerCreateSerializer(VersionedModelSerializer):
     """
     Fencer create serializer - for creating new fencers.
     """
@@ -166,7 +166,7 @@ class FencerCreateSerializer(DomainModelSerializer):
         return value.strip()
 
 
-class FencerUpdateSerializer(DomainModelSerializer):
+class FencerUpdateSerializer(VersionedModelSerializer):
     """
     Fencer update serializer - for updating existing fencers.
     """

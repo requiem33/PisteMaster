@@ -1,3 +1,4 @@
+from core.models.mapper_base import versioned_fields_to_dict, versioned_fields_from_dict
 from backend.apps.fencing_organizer.modules.rule.models import DjangoRule
 from core.models.rule import Rule
 
@@ -8,6 +9,7 @@ class RuleMapper:
     @staticmethod
     def to_domain(django_rule: DjangoRule) -> Rule:
         """Django ORM → Core Domain"""
+        version_fields = versioned_fields_to_dict(django_rule)
         return Rule(
             id=django_rule.id,
             rule_name=django_rule.rule_name,
@@ -21,12 +23,13 @@ class RuleMapper:
             match_score_elimination=django_rule.match_score_elimination,
             group_qualification_ratio=django_rule.group_qualification_ratio,
             description=django_rule.description,
+            **version_fields
         )
 
     @staticmethod
     def to_orm_data(rule: Rule) -> dict:
         """Core Domain → ORM数据字典"""
-        return {
+        data = {
             "id": rule.id,
             "rule_name": rule.rule_name,
             "total_qualified_count": rule.total_qualified_count,
@@ -40,3 +43,5 @@ class RuleMapper:
             "group_qualification_ratio": rule.group_qualification_ratio,
             "description": rule.description,
         }
+        versioned_fields_from_dict(rule.__dict__, data)
+        return data

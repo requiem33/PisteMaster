@@ -1,11 +1,11 @@
 from rest_framework import serializers
 
-from backend.apps.fencing_organizer.serializers.base import DomainModelSerializer
+from backend.apps.fencing_organizer.serializers.base import VersionedModelSerializer
 from .models import DjangoPool
 from ..event.models import DjangoEvent
 
 
-class PoolSerializer(DomainModelSerializer):
+class PoolSerializer(VersionedModelSerializer):
     """
     Pool serializer - handles both Django ORM models and domain models (dataclasses).
 
@@ -79,7 +79,7 @@ class PoolSerializer(DomainModelSerializer):
         return value
 
 
-class PoolCreateSerializer(DomainModelSerializer):
+class PoolCreateSerializer(VersionedModelSerializer):
     """
     Pool create serializer - for creating new pools.
     """
@@ -99,7 +99,7 @@ class PoolCreateSerializer(DomainModelSerializer):
         return value
 
 
-class PoolUpdateSerializer(DomainModelSerializer):
+class PoolUpdateSerializer(VersionedModelSerializer):
     """
     Pool update serializer - for updating existing pools.
     """

@@ -6,9 +6,9 @@ from rest_framework import filters, status
 from rest_framework.decorators import action
 from rest_framework.permissions import AllowAny
 from rest_framework.response import Response
-from rest_framework import viewsets
 from uuid import UUID
 
+from backend.apps.fencing_organizer.viewsets.base import SyncWriteModelViewSet
 from backend.apps.fencing_organizer.modules.tournament.models import DjangoTournament
 from backend.apps.fencing_organizer.permissions import (
     IsSchedulerOrAdminOrGuest,
@@ -21,7 +21,7 @@ from backend.apps.users.models import User
 from .serializers import TournamentSerializer, TournamentCreateSerializer, TournamentSchedulerSerializer
 
 
-class TournamentViewSet(viewsets.GenericViewSet):
+class TournamentViewSet(SyncWriteModelViewSet):
     """
     Tournament API - Clean Architecture Implementation
 
@@ -43,6 +43,7 @@ class TournamentViewSet(viewsets.GenericViewSet):
     remove_scheduler: Remove scheduler from tournament (admin or creator only)
     """
 
+    sync_table_name = "tournament"
     queryset = DjangoTournament.objects.all()
     serializer_class = TournamentSerializer
     service = TournamentService()

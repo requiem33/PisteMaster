@@ -2,29 +2,29 @@ from decimal import Decimal
 
 from rest_framework import serializers
 
-from backend.apps.fencing_organizer.serializers.base import DomainModelSerializer
+from backend.apps.fencing_organizer.serializers.base import VersionedModelSerializer
 from backend.apps.fencing_organizer.modules.elimination_type.models import DjangoEliminationType
 from backend.apps.fencing_organizer.modules.ranking_type.models import DjangoRankingType
 from .models import DjangoRule
 
 
-class EliminationTypeSerializer(serializers.ModelSerializer):
+class EliminationTypeSerializer(VersionedModelSerializer):
     """淘汰赛类型序列化器"""
 
     class Meta:
         model = DjangoEliminationType
-        fields = ["id", "type_code", "display_name"]
+        fields = "__all__"
 
 
-class RankingTypeSerializer(serializers.ModelSerializer):
+class RankingTypeSerializer(VersionedModelSerializer):
     """排名类型序列化器"""
 
     class Meta:
         model = DjangoRankingType
-        fields = ["id", "type_code", "display_name"]
+        fields = "__all__"
 
 
-class RuleSerializer(DomainModelSerializer):
+class RuleSerializer(VersionedModelSerializer):
     """
     Rule serializer - handles both Django ORM models and domain models (dataclasses).
 
@@ -119,7 +119,7 @@ class RuleSerializer(DomainModelSerializer):
         return value
 
 
-class RuleCreateSerializer(DomainModelSerializer):
+class RuleCreateSerializer(VersionedModelSerializer):
     """
     Rule create serializer - for creating new rules.
     Note: Only admins can create non-preset rules.

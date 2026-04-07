@@ -3,9 +3,11 @@ from datetime import datetime
 from typing import Optional, List, Dict, Any
 from uuid import UUID, uuid4
 
+from core.models.versioning import VersionedModel
+
 
 @dataclass
-class Pool:
+class Pool(VersionedModel):
     """4.1. Pool（小组）"""
 
     event_id: UUID = field(metadata={"foreign_key": "Event", "description": "所属项目"})

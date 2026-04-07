@@ -1,3 +1,4 @@
+from core.models.mapper_base import versioned_fields_to_dict, versioned_fields_from_dict
 from backend.apps.fencing_organizer.modules.fencer.models import DjangoFencer
 from core.models.fencer import Fencer
 
@@ -8,6 +9,7 @@ class FencerMapper:
     @staticmethod
     def to_domain(django_fencer: DjangoFencer) -> Fencer:
         """Django ORM → Core Domain"""
+        version_fields = versioned_fields_to_dict(django_fencer)
         return Fencer(
             id=django_fencer.id,
             first_name=django_fencer.first_name,
@@ -21,12 +23,13 @@ class FencerMapper:
             primary_weapon=django_fencer.primary_weapon,
             created_at=django_fencer.created_at,
             updated_at=django_fencer.updated_at,
+            **version_fields
         )
 
     @staticmethod
     def to_orm_data(fencer: Fencer) -> dict:
         """Core Domain → ORM数据字典"""
-        return {
+        data = {
             "id": fencer.id,
             "first_name": fencer.first_name,
             "last_name": fencer.last_name,
@@ -40,3 +43,5 @@ class FencerMapper:
             "created_at": fencer.created_at,
             "updated_at": fencer.updated_at,
         }
+        versioned_fields_from_dict(fencer.__dict__, data)
+        return data

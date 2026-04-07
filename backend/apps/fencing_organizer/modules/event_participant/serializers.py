@@ -1,11 +1,13 @@
 from rest_framework import serializers
 from django.core.validators import MinValueValidator
+
+from backend.apps.fencing_organizer.serializers.base import VersionedModelSerializer
 from .models import DjangoEventParticipant
 from ..event.models import DjangoEvent
 from ..fencer.models import DjangoFencer
 
 
-class EventParticipantSerializer(serializers.ModelSerializer):
+class EventParticipantSerializer(VersionedModelSerializer):
     """EventParticipant API序列化器"""
 
     # 嵌套序列化器字段（写操作）

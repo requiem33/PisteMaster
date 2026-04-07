@@ -1,13 +1,14 @@
 # backend/apps/fencing_organizer/modules/pool_assignment/views.py
-from rest_framework import viewsets, status
-from rest_framework.decorators import action
-from rest_framework.response import Response
-from rest_framework.permissions import IsAuthenticated, AllowAny
-from rest_framework.pagination import PageNumberPagination
-from django_filters.rest_framework import DjangoFilterBackend
-from rest_framework import filters
 from uuid import UUID
 
+from django_filters.rest_framework import DjangoFilterBackend
+from rest_framework import filters, status
+from rest_framework.decorators import action
+from rest_framework.pagination import PageNumberPagination
+from rest_framework.permissions import AllowAny, IsAuthenticated
+from rest_framework.response import Response
+
+from backend.apps.fencing_organizer.viewsets.base import SyncWriteModelViewSet
 from .models import DjangoPoolAssignment
 from .serializers import (
     PoolAssignmentSerializer,
@@ -28,11 +29,12 @@ class StandardPagination(PageNumberPagination):
     max_page_size = 100
 
 
-class PoolAssignmentViewSet(viewsets.ModelViewSet):
+class PoolAssignmentViewSet(SyncWriteModelViewSet):
     """
     PoolAssignment API视图集
     """
 
+    sync_table_name = "pool_assignment"
     queryset = DjangoPoolAssignment.objects.all().order_by("pool", "final_pool_rank")
     serializer_class = PoolAssignmentSerializer
     permission_classes = [IsAuthenticated]

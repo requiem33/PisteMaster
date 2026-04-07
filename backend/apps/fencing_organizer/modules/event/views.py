@@ -3,11 +3,12 @@ from uuid import UUID
 
 from django.db import transaction
 from django_filters.rest_framework import DjangoFilterBackend
-from rest_framework import filters, status, viewsets
+from rest_framework import filters, status
 from rest_framework.decorators import action
 from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework.response import Response
 
+from backend.apps.fencing_organizer.viewsets.base import SyncWriteModelViewSet
 from backend.apps.fencing_organizer.modules.event.models import DjangoEvent
 from backend.apps.fencing_organizer.modules.event_participant.models import DjangoEventParticipant
 from backend.apps.fencing_organizer.modules.fencer.models import DjangoFencer
@@ -18,7 +19,7 @@ from backend.apps.fencing_organizer.utils.pagination import get_paginated_respon
 from .serializers import EventSerializer, EventCreateSerializer
 
 
-class EventViewSet(viewsets.GenericViewSet):
+class EventViewSet(SyncWriteModelViewSet):
     """
     Event API - Clean Architecture Implementation
 
@@ -27,6 +28,7 @@ class EventViewSet(viewsets.GenericViewSet):
     Serializer handles Domain model serialization via DomainModelSerializer.
     """
 
+    sync_table_name = "event"
     queryset = DjangoEvent.objects.all()
     serializer_class = EventSerializer
     service = EventService()

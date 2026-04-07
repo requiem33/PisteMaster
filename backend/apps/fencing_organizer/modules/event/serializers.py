@@ -1,6 +1,6 @@
 from rest_framework import serializers
 
-from backend.apps.fencing_organizer.serializers.base import DomainModelSerializer
+from backend.apps.fencing_organizer.serializers.base import VersionedModelSerializer
 from .models import DjangoEvent
 from ..tournament.models import DjangoTournament
 from ..rule.models import DjangoRule
@@ -11,7 +11,7 @@ DEFAULT_WORLD_CUP_STAGES = [
 ]
 
 
-class EventSerializer(DomainModelSerializer):
+class EventSerializer(VersionedModelSerializer):
     """
     Event serializer - handles both Django ORM models and domain models (dataclasses).
 
@@ -168,7 +168,7 @@ class EventSerializer(DomainModelSerializer):
         return value
 
 
-class EventCreateSerializer(DomainModelSerializer):
+class EventCreateSerializer(VersionedModelSerializer):
     """
     Event create serializer - for creating new events.
     """

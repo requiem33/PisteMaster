@@ -3,9 +3,11 @@ from uuid import UUID, uuid4
 from datetime import date, datetime
 from typing import Optional, List
 
+from core.models.versioning import VersionedModel
+
 
 @dataclass
-class Tournament:
+class Tournament(VersionedModel):
     """
     1.1. Tournament（赛事主表）- 修正了字段顺序以符合Python语法
     """

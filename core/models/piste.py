@@ -2,9 +2,11 @@ from dataclasses import dataclass, field
 from uuid import UUID, uuid4
 from typing import Optional
 
+from core.models.versioning import VersionedModel
+
 
 @dataclass
-class Piste:
+class Piste(VersionedModel):
     """剑道"""
 
     tournament_id: UUID = field(metadata={"foreign_key": "Tournament", "description": "所属赛事"})

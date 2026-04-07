@@ -1,12 +1,14 @@
 from rest_framework import serializers
 from django.core.validators import MinValueValidator
+
+from backend.apps.fencing_organizer.serializers.base import VersionedModelSerializer
 from .models import DjangoPoolBout
 from ..pool.models import DjangoPool
 from ..fencer.models import DjangoFencer
 from ..match_status.models import DjangoMatchStatusType
 
 
-class PoolBoutSerializer(serializers.ModelSerializer):
+class PoolBoutSerializer(VersionedModelSerializer):
     """小组赛单场比赛序列化器"""
 
     # 嵌套序列化器字段（写操作）

@@ -3,9 +3,11 @@ from datetime import date, datetime
 from typing import Optional
 from uuid import UUID, uuid4
 
+from core.models.versioning import VersionedModel
+
 
 @dataclass
-class Fencer:
+class Fencer(VersionedModel):
     """3.1. Fencer（击剑运动员）"""
 
     first_name: str = field(metadata={"max_length": 100, "description": "名"})

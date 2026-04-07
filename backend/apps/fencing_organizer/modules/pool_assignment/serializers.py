@@ -1,11 +1,13 @@
 from rest_framework import serializers
 from django.core.validators import MinValueValidator
+
+from backend.apps.fencing_organizer.serializers.base import VersionedModelSerializer
 from .models import DjangoPoolAssignment
 from ..pool.models import DjangoPool
 from ..fencer.models import DjangoFencer
 
 
-class PoolAssignmentSerializer(serializers.ModelSerializer):
+class PoolAssignmentSerializer(VersionedModelSerializer):
     """PoolAssignment API序列化器"""
 
     # 嵌套序列化器字段（写操作）

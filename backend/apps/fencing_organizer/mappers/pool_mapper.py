@@ -1,3 +1,4 @@
+from core.models.mapper_base import versioned_fields_to_dict, versioned_fields_from_dict
 from backend.apps.fencing_organizer.modules.pool.models import DjangoPool
 from core.models.pool import Pool
 
@@ -8,6 +9,7 @@ class PoolMapper:
     @staticmethod
     def to_domain(django_pool: DjangoPool) -> Pool:
         """Django ORM → Core Domain"""
+        version_fields = versioned_fields_to_dict(django_pool)
         return Pool(
             id=django_pool.id,
             event_id=django_pool.event.id,
@@ -19,12 +21,13 @@ class PoolMapper:
             stats=django_pool.stats or [],
             status=django_pool.status,
             is_completed=django_pool.is_completed,
+            **version_fields
         )
 
     @staticmethod
     def to_orm_data(pool: Pool) -> dict:
         """Core Domain → ORM数据字典"""
-        return {
+        data = {
             "id": pool.id,
             "event_id": pool.event_id,
             "pool_number": pool.pool_number,
@@ -36,3 +39,5 @@ class PoolMapper:
             "status": pool.status,
             "is_completed": pool.is_completed,
         }
+        versioned_fields_from_dict(pool.__dict__, data)
+        return data

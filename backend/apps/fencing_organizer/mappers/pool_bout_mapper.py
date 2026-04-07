@@ -1,3 +1,4 @@
+from core.models.mapper_base import versioned_fields_to_dict, versioned_fields_from_dict
 from backend.apps.fencing_organizer.modules.pool_bout.models import DjangoPoolBout
 from core.models.pool_bout import PoolBout
 
@@ -8,6 +9,7 @@ class PoolBoutMapper:
     @staticmethod
     def to_domain(django_bout: DjangoPoolBout) -> PoolBout:
         """Django ORM → Core Domain"""
+        version_fields = versioned_fields_to_dict(django_bout)
         return PoolBout(
             id=django_bout.id,
             pool_id=django_bout.pool.id,
@@ -22,12 +24,13 @@ class PoolBoutMapper:
             actual_end_time=django_bout.actual_end_time,
             duration_seconds=django_bout.duration_seconds,
             notes=django_bout.notes,
+            **version_fields
         )
 
     @staticmethod
     def to_orm_data(bout: PoolBout) -> dict:
         """Core Domain → ORM数据字典"""
-        return {
+        data = {
             "id": bout.id,
             "pool_id": bout.pool_id,
             "fencer_a_id": bout.fencer_a_id,
@@ -42,3 +45,5 @@ class PoolBoutMapper:
             "duration_seconds": bout.duration_seconds,
             "notes": bout.notes,
         }
+        versioned_fields_from_dict(bout.__dict__, data)
+        return data

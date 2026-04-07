@@ -3,9 +3,11 @@ from uuid import UUID, uuid4
 from typing import Optional
 from decimal import Decimal
 
+from core.models.versioning import VersionedModel
+
 
 @dataclass
-class Rule:
+class Rule(VersionedModel):
     """
     1.3. Rule（赛制规则）
     定义一个比赛项目所遵循的全部赛制规则。

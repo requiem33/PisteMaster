@@ -2,9 +2,11 @@ from dataclasses import dataclass, field
 from uuid import UUID, uuid4
 from typing import Optional
 
+from core.models.versioning import VersionedModel
+
 
 @dataclass
-class PoolAssignment:
+class PoolAssignment(VersionedModel):
     """4.2. Pool_Assignment（小组赛排名）"""
 
     pool_id: UUID = field(metadata={"foreign_key": "Pool", "description": "所属小组"})

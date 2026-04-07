@@ -3,9 +3,11 @@ from uuid import UUID, uuid4
 from typing import Optional
 from datetime import datetime
 
+from core.models.versioning import VersionedModel
+
 
 @dataclass
-class EventParticipant:
+class EventParticipant(VersionedModel):
     """Event-Fencer关联（项目参与者）"""
 
     event_id: UUID = field(metadata={"foreign_key": "Event", "description": "所属项目"})

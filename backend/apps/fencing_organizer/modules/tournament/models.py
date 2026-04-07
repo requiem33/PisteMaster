@@ -45,6 +45,11 @@ class DjangoTournament(models.Model):
     )
     schedulers = models.ManyToManyField(settings.AUTH_USER_MODEL, related_name="assigned_tournaments", blank=True, verbose_name="编排人员")
 
+    # 版本追踪字段
+    version = models.BigIntegerField(default=1)
+    last_modified_node = models.CharField(max_length=100, blank=True, default="")
+    last_modified_at = models.DateTimeField(auto_now=True)
+
     # 时间戳字段
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)

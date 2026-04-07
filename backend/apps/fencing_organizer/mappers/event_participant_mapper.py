@@ -1,3 +1,4 @@
+from core.models.mapper_base import versioned_fields_to_dict, versioned_fields_from_dict
 from backend.apps.fencing_organizer.modules.event_participant.models import DjangoEventParticipant
 from core.models.event_participant import EventParticipant
 
@@ -8,6 +9,7 @@ class EventParticipantMapper:
     @staticmethod
     def to_domain(django_participant: DjangoEventParticipant) -> EventParticipant:
         """Django ORM → Core Domain"""
+        version_fields = versioned_fields_to_dict(django_participant)
         return EventParticipant(
             id=django_participant.id,
             event_id=django_participant.event.id,
@@ -19,12 +21,13 @@ class EventParticipantMapper:
             notes=django_participant.notes,
             created_at=django_participant.created_at,
             updated_at=django_participant.updated_at,
+            **version_fields
         )
 
     @staticmethod
     def to_orm_data(participant: EventParticipant) -> dict:
         """Core Domain → ORM数据字典"""
-        return {
+        data = {
             "id": participant.id,
             "event_id": participant.event_id,
             "fencer_id": participant.fencer_id,
@@ -36,3 +39,5 @@ class EventParticipantMapper:
             "created_at": participant.created_at,
             "updated_at": participant.updated_at,
         }
+        versioned_fields_from_dict(participant.__dict__, data)
+        return data

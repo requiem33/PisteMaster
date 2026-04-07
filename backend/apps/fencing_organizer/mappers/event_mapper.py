@@ -1,3 +1,4 @@
+from core.models.mapper_base import versioned_fields_to_dict, versioned_fields_from_dict
 from backend.apps.fencing_organizer.modules.event.models import DjangoEvent
 from core.models.event import Event
 
@@ -8,6 +9,7 @@ class EventMapper:
     @staticmethod
     def to_domain(django_event: DjangoEvent) -> Event:
         """Django ORM → Core Domain"""
+        version_fields = versioned_fields_to_dict(django_event)
         return Event(
             id=django_event.id,
             tournament_id=django_event.tournament_id,
@@ -23,12 +25,13 @@ class EventMapper:
             start_time=django_event.start_time,
             created_at=django_event.created_at,
             updated_at=django_event.updated_at,
+            **version_fields
         )
 
     @staticmethod
     def to_orm_data(event: Event) -> dict:
         """Core Domain → ORM数据字典"""
-        return {
+        data = {
             "id": event.id,
             "tournament_id": event.tournament_id,
             "rule_id": event.rule_id,
@@ -42,3 +45,5 @@ class EventMapper:
             "is_team_event": event.is_team_event,
             "start_time": event.start_time,
         }
+        versioned_fields_from_dict(event.__dict__, data)
+        return data

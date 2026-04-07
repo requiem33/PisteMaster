@@ -1,21 +1,23 @@
-from rest_framework import viewsets, status
-from rest_framework.decorators import action
-from rest_framework.response import Response
-from rest_framework.permissions import IsAuthenticated
-from django_filters.rest_framework import DjangoFilterBackend
-from rest_framework import filters
 from uuid import UUID
 
+from django_filters.rest_framework import DjangoFilterBackend
+from rest_framework import filters, status
+from rest_framework.decorators import action
+from rest_framework.permissions import IsAuthenticated
+from rest_framework.response import Response
+
+from backend.apps.fencing_organizer.viewsets.base import SyncWriteModelViewSet
 from .models import DjangoPoolBout
 from .serializers import PoolBoutSerializer, PoolBoutResultSerializer, PoolBoutStartSerializer, PoolBoutGenerateSerializer
 from ...services.pool_bout_service import PoolBoutService
 
 
-class PoolBoutViewSet(viewsets.ModelViewSet):
+class PoolBoutViewSet(SyncWriteModelViewSet):
     """
     PoolBout API视图集
     """
 
+    sync_table_name = "pool_bout"
     queryset = DjangoPoolBout.objects.all().order_by("pool", "scheduled_time")
     serializer_class = PoolBoutSerializer
     permission_classes = [IsAuthenticated]

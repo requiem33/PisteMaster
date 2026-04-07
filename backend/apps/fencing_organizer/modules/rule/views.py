@@ -1,11 +1,12 @@
 from uuid import UUID
 
 from django_filters.rest_framework import DjangoFilterBackend
-from rest_framework import filters, status, viewsets
+from rest_framework import filters, status
 from rest_framework.decorators import action
 from rest_framework.permissions import AllowAny, IsAuthenticated, IsAdminUser
 from rest_framework.response import Response
 
+from backend.apps.fencing_organizer.viewsets.base import SyncWriteModelViewSet
 from backend.apps.fencing_organizer.modules.rule.models import DjangoRule
 from backend.apps.fencing_organizer.modules.elimination_type.models import DjangoEliminationType
 from backend.apps.fencing_organizer.modules.ranking_type.models import DjangoRankingType
@@ -14,7 +15,7 @@ from backend.apps.fencing_organizer.utils.pagination import get_paginated_respon
 from .serializers import RuleSerializer, RuleCreateSerializer
 
 
-class RuleViewSet(viewsets.GenericViewSet):
+class RuleViewSet(SyncWriteModelViewSet):
     """
     Rule API - Clean Architecture Implementation
 
@@ -26,6 +27,7 @@ class RuleViewSet(viewsets.GenericViewSet):
     Serializer handles Domain model serialization via DomainModelSerializer.
     """
 
+    sync_table_name = "rule"
     queryset = DjangoRule.objects.all()
     serializer_class = RuleSerializer
     service = RuleService()

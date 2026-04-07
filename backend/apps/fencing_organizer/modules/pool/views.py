@@ -1,18 +1,19 @@
 from uuid import UUID
 
 from django_filters.rest_framework import DjangoFilterBackend
-from rest_framework import filters, status, viewsets
+from rest_framework import filters, status
 from rest_framework.decorators import action
 from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework.response import Response
 
+from backend.apps.fencing_organizer.viewsets.base import SyncWriteModelViewSet
 from backend.apps.fencing_organizer.modules.pool.models import DjangoPool
 from backend.apps.fencing_organizer.services.pool_service import PoolService
 from backend.apps.fencing_organizer.utils.pagination import get_paginated_response
 from .serializers import PoolSerializer, PoolCreateSerializer, PoolUpdateSerializer
 
 
-class PoolViewSet(viewsets.GenericViewSet):
+class PoolViewSet(SyncWriteModelViewSet):
     """
     Pool API - Clean Architecture Implementation
 
@@ -21,6 +22,7 @@ class PoolViewSet(viewsets.GenericViewSet):
     Serializer handles Domain model serialization via DomainModelSerializer.
     """
 
+    sync_table_name = "pool"
     queryset = DjangoPool.objects.all().order_by("event", "stage_id", "pool_number")
     serializer_class = PoolSerializer
     service = PoolService()

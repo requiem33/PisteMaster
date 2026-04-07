@@ -1,10 +1,10 @@
 from rest_framework import serializers
 
-from backend.apps.fencing_organizer.serializers.base import DomainModelSerializer
+from backend.apps.fencing_organizer.serializers.base import VersionedModelSerializer
 from .models import DjangoTournament
 
 
-class TournamentSerializer(DomainModelSerializer):
+class TournamentSerializer(VersionedModelSerializer):
     """
     Tournament serializer - handles both Django ORM models and domain models (dataclasses).
 
@@ -67,7 +67,7 @@ class TournamentSerializer(DomainModelSerializer):
         return attrs
 
 
-class TournamentCreateSerializer(DomainModelSerializer):
+class TournamentCreateSerializer(VersionedModelSerializer):
     """
     Tournament create serializer - for creating new tournaments.
     """

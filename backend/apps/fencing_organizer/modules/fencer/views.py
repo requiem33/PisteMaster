@@ -1,18 +1,19 @@
 from uuid import UUID
 
 from django_filters.rest_framework import DjangoFilterBackend
-from rest_framework import filters, status, viewsets
+from rest_framework import filters, status
 from rest_framework.decorators import action
 from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework.response import Response
 
+from backend.apps.fencing_organizer.viewsets.base import SyncWriteModelViewSet
 from backend.apps.fencing_organizer.modules.fencer.models import DjangoFencer
 from backend.apps.fencing_organizer.services.fencer_service import FencerService
 from backend.apps.fencing_organizer.utils.pagination import get_paginated_response
 from .serializers import FencerSerializer, FencerCreateSerializer, FencerUpdateSerializer, FencerSearchSerializer
 
 
-class FencerViewSet(viewsets.GenericViewSet):
+class FencerViewSet(SyncWriteModelViewSet):
     """
     Fencer API - Clean Architecture Implementation
 
@@ -21,6 +22,7 @@ class FencerViewSet(viewsets.GenericViewSet):
     Serializer handles Domain model serialization via DomainModelSerializer.
     """
 
+    sync_table_name = "fencer"
     queryset = DjangoFencer.objects.all().order_by("last_name", "first_name")
     serializer_class = FencerSerializer
     service = FencerService()
