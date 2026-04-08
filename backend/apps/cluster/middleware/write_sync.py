@@ -1,5 +1,5 @@
-import asyncio
 import logging
+import threading
 from typing import Callable, Optional
 
 from django.conf import settings
@@ -100,6 +100,8 @@ class SyncWriteMiddleware(MiddlewareMixin):
         if sync_log_id is None:
             return response
 
+        self._notify_followers(sync_log_id)
+
         confirmed = self._wait_for_acks(sync_log_id)
 
         if confirmed:
@@ -178,32 +180,50 @@ class SyncWriteMiddleware(MiddlewareMixin):
             )
 
     def _wait_for_acks(self, sync_log_id: int) -> bool:
-        """Wait for ACKs from followers."""
+        """Wait for ACKs from followers using threading.Event."""
+        event = sync_manager.ack_queue.register(sync_log_id, self.replica_ack_required)
+
+        confirmed = event.wait(timeout=self.ack_timeout_ms / 1000.0)
+
+        if confirmed:
+            return True
+
+        if sync_manager.ack_queue.is_confirmed(sync_log_id):
+            return True
+
+        logger.warning(
+            f"ACK timeout for sync_log_id={sync_log_id}, "
+            f"confirmed={len(sync_manager.ack_queue.get_confirmed_nodes(sync_log_id))}, "
+            f"required={self.replica_ack_required}"
+        )
+        return False
+
+    def _notify_followers(self, sync_log_id: int) -> None:
+        """Notify followers of a new sync_log entry via HTTP POST (fire-and-forget)."""
+        from backend.apps.cluster.models.sync_log import DjangoSyncLog
+        from backend.apps.cluster.models.sync_state import DjangoSyncState
+        from backend.apps.cluster.services.proxy import get_follower_proxy
+
         try:
-            loop = asyncio.new_event_loop()
-            asyncio.set_event_loop(loop)
+            sync_log = DjangoSyncLog.objects.get(id=sync_log_id)
+        except DjangoSyncLog.DoesNotExist:
+            logger.warning(f"SyncLog {sync_log_id} not found, skipping follower notification")
+            return
 
-            try:
-                event = sync_manager.ack_queue.register(sync_log_id, self.replica_ack_required)
+        follower_states = DjangoSyncState.objects.exclude(url__isnull=True).exclude(url="")
+        follower_urls = [state.url for state in follower_states]
 
-                future = asyncio.wait_for(event.wait(), timeout=self.ack_timeout_ms / 1000.0)
+        if not follower_urls:
+            logger.debug("No follower URLs registered, skipping notification")
+            return
 
-                loop.run_until_complete(future)
-                return True
+        proxy = get_follower_proxy()
 
-            except asyncio.TimeoutError:
-                confirmed_nodes = sync_manager.ack_queue.get_confirmed_nodes(sync_log_id)
-                logger.warning(
-                    f"ACK timeout for sync_log_id={sync_log_id}, " f"confirmed={len(confirmed_nodes)}, required={self.replica_ack_required}"
-                )
-                return len(confirmed_nodes) >= self.replica_ack_required
+        def _send():
+            proxy.broadcast_sync(follower_urls, sync_log_id, sync_log.table_name, sync_log.record_id)
 
-            finally:
-                loop.close()
-
-        except Exception as e:
-            logger.error(f"Error waiting for ACKs: {e}")
-            return False
+        thread = threading.Thread(target=_send, daemon=True, name="notify-followers")
+        thread.start()
 
 
 class ClusterModeMiddleware(MiddlewareMixin):
