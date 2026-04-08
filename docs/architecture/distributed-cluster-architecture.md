@@ -31,37 +31,41 @@ The system operates in a LAN environment without a central server, relying only 
 ### 2.1 System Architecture
 
 ```
-┌─────────────────────────────────────────────────────────────────┐
-│                      LAN (Gigabit Switch)                        │
-├─────────────────────────────────────────────────────────────────┤
-│                                                                 │
-│  ┌─────────────────────────────────────────────────────────────┐│
-│  │              Master Node (Electron + Django)                ││
-│  │  - Processes all write requests (POST/PUT/DELETE)          ││
-│  │  - Writes to local SQLite                                   ││
-│  │  - Records change log (sync_log)                           ││
-│  │  - Provides incremental sync API                           ││
-│  │  - Broadcasts heartbeat via UDP                            ││
-│  │  - Waits for replica ACK before responding to client        ││
-│  └─────────────────────────────────────────────────────────────┘│
-│                              ▲                                  │
-│                              │ HTTP Requests (all to master)    │
-│                              │ Data Sync (push/pull)            │
-│                              │ UDP Broadcast (discovery)        │
-│                              ▼                                  │
-│  ┌───────────────┐  ┌───────────────┐  ┌───────────────┐       │
-│  │ Follower A    │  │ Follower B    │  │ Follower C    │       │
-│  │ - Read-only   │  │ - Read-only   │  │ - Read-only   │       │
-│  │ - Local SQLite│  │ - Local SQLite│  │ - Local SQLite│       │
-│  │ - Pull sync   │  │ - Pull sync   │  │ - Pull sync   │       │
-│  │ - ACK writes  │  │ - ACK writes  │  │ - ACK writes  │       │
-│  │ - Monitor HB  │  │ - Monitor HB  │  │ - Monitor HB  │       │
-│  └───────────────┘  └───────────────┘  └───────────────┘       │
-│                                                                 │
-│  ┌─────────────────────────────────────────────────────────────┐│
-│  │         Service Discovery (UDP Broadcast Port 9000)         ││
-│  └─────────────────────────────────────────────────────────────┘│
-└─────────────────────────────────────────────────────────────────┘
+┌─────────────────────────────────────────────────────────────────────┐
+│                      LAN (Gigabit Switch)                            │
+├─────────────────────────────────────────────────────────────────────┤
+│                                                                     │
+│  ┌───────────────────────────────────────────────────────────────┐  │
+│  │              Master Node (Electron + Django)                  │  │
+│  │  - Processes all write requests (POST/PUT/DELETE)            │  │
+│  │  - Writes to local SQLite + sync_log                         │  │
+│  │  - Notifies followers via HTTP POST /sync/notify/             │  │
+│  │  - Provides incremental/full sync API                        │  │
+│  │  - Waits for replica ACK before responding to client          │  │
+│  │  - Broadcasts heartbeat via UDP                               │  │
+│  └───────────────────────────────────────────────────────────────┘  │
+│         │                            ▲                              │
+│         │ HTTP /sync/notify/          │ HTTP /sync/ack/             │
+│         │ (push notification)         │ (acknowledgement)           │
+│         ▼                            │                              │
+│  ┌───────────────┐  ┌───────────────┐  ┌───────────────┐         │
+│  │ Follower A    │  │ Follower B    │  │ Follower C    │         │
+│  │ - Read-only   │  │ - Read-only   │  │ - Read-only   │         │
+│  │ - Local SQLite│  │ - Local SQLite│  │ - Local SQLite│         │
+│  │ - SyncWorker  │  │ - SyncWorker  │  │ - SyncWorker  │         │
+│  │   (pull sync) │  │   (pull sync) │  │   (pull sync) │         │
+│  │ - ACK writes  │  │ - ACK writes  │  │ - ACK writes  │         │
+│  │ - Monitor HB  │  │ - Monitor HB  │  │ - Monitor HB  │         │
+│  │ - Notify EP   │  │ - Notify EP   │  │ - Notify EP   │         │
+│  └───────────────┘  └───────────────┘  └───────────────┘         │
+│         │                            ▲                              │
+│         │ HTTP /sync/changes/         │ (reads local SQLite)       │
+│         └────────────────────────────┘                              │
+│                                                                     │
+│  ┌───────────────────────────────────────────────────────────────┐  │
+│  │         Service Discovery (UDP Broadcast Port 9000)           │  │
+│  └───────────────────────────────────────────────────────────────┘  │
+└─────────────────────────────────────────────────────────────────────┘
 ```
 
 ### 2.2 Core Components
@@ -70,10 +74,14 @@ The system operates in a LAN environment without a central server, relying only 
 |-----------|---------------|----------|
 | **NodeDiscovery** | UDP-based node discovery, heartbeat, election | Backend (Python) |
 | **HeartbeatMonitor** | Monitor master heartbeat, trigger failover | Backend (Python) |
-| **SyncManager** | Change log recording, incremental/full sync | Backend (Python) |
+| **SyncManager** | Change log recording, incremental/full sync, apply changes | Backend (Python) |
+| **SyncWorker** | Background thread that pulls changes from master on followers | Backend (Python) |
 | **SyncLog Model** | Persist change records in SQLite | Backend (Django Model) |
+| **SyncState Model** | Track each node's sync progress (last_synced_id, url) | Backend (Django Model) |
 | **ApiRouter** | Route requests based on node role (master/follower) | Backend (Django Middleware) |
-| **AckQueue** | Track pending ACKs from followers for synchronous writes | Backend (Python) |
+| **SyncWriteMiddleware** | Intercept writes, notify followers, wait for ACKs | Backend (Django Middleware) |
+| **AckQueue** | Track pending ACKs from followers for synchronous writes | Backend (Python, threading.Event) |
+| **FollowerProxy** | Notify followers of new changes via HTTP /sync/notify/ | Backend (Python) |
 | **ConflictResolver** | Resolve conflicts after network partition recovery | Frontend (TypeScript) |
 | **SyncQueueService** | Offline operation queue with retry | Frontend (TypeScript) |
 | **IndexedDB Cache** | Local data cache with offline-first reads | Frontend (IndexedDB) |
@@ -99,8 +107,8 @@ The system operates in a LAN environment without a central server, relying only 
 
 | Role | Write Requests | Read Requests | Special Duties |
 |------|---------------|---------------|----------------|
-| **Master** | Process locally | Process locally | Broadcast heartbeat, record sync_log, wait for ACKs |
-| **Follower** | Proxy/Reject (503) | Process locally | Pull sync, ACK writes, monitor heartbeat |
+| **Master** | Process locally | Process locally | Record sync_log, notify followers via /sync/notify/, wait for ACKs, broadcast heartbeat |
+| **Follower** | Proxy/Reject (503) | Process locally | Pull sync (SyncWorker), ACK writes, monitor heartbeat, listen for /sync/notify/ |
 
 ---
 
@@ -130,8 +138,14 @@ The system operates in a LAN environment without a central server, relying only 
 | `heartbeat` | Master only | Every 5 seconds | Indicate master alive |
 | `master_announce` | New master | Once after election | Claim leadership |
 | `goodbye` | Exiting node | Once on shutdown | Graceful departure |
-| `sync_request` | Follower → Master | Configurable (default 3s) | Request incremental sync |
-| `ack` | Follower → Master | After applying sync | Confirm write received |
+
+**HTTP Sync Endpoints** (not UDP — these are REST API calls):
+
+| Endpoint | Direction | Trigger | Purpose |
+|----------|-----------|---------|---------|
+| `POST /api/cluster/sync/notify/` | Master → Follower | After each write | Push notification of new sync_log entry |
+| `GET /api/cluster/sync/changes/` | Follower → Master | Every 3 seconds (or on notify) | Pull incremental changes |
+| `POST /api/cluster/sync/ack/` | Follower → Master | After applying changes | Confirm write received |
 
 ### 4.2 Message Reliability
 
@@ -227,19 +241,30 @@ class SyncLog(models.Model):
 
 ### 5.2 Sync State Model
 
-Tracks each follower's sync progress:
+Tracks each follower's sync progress and connection URL for push notifications:
 
 ```python
 class SyncState(models.Model):
     node_id = models.CharField(max_length=100, primary_key=True)
     last_synced_id = models.BigIntegerField(default=0)
     last_sync_time = models.DateTimeField(auto_now=True)
+    url = models.CharField(max_length=200, blank=True, null=True)  # e.g. "http://192.168.1.101:8000"
     
     class Meta:
         db_table = 'sync_state'
 ```
 
-### 5.3 Write Operation Flow (Synchronous Replication)
+The `url` field stores each follower's HTTP endpoint, enabling the master to push
+notifications via `POST /api/cluster/sync/notify/` when new changes are written.
+Follower URLs are registered when nodes announce themselves via
+`POST /api/cluster/status/announce/` or discovered via UDP broadcast.
+
+### 5.3 Write Operation Flow (Push Notification + Synchronous Replication)
+
+The system uses a **dual push-pull** approach:
+- **Push**: Master notifies followers immediately after each write via HTTP POST
+- **Pull**: Followers pull incremental changes from master (triggered by push or periodic)
+- **ACK**: Followers confirm replication by sending ACK back to master
 
 ```
 ┌─────────┐     ┌──────────────┐     ┌────────────┐     ┌──────────────┐
@@ -258,61 +283,282 @@ class SyncState(models.Model):
      │                 │ COMMIT            │                   │
      │                 │──────────────────>│                   │
      │                 │                   │                   │
-     │                 │ Broadcast change via sync endpoint   │
+     │                 │ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─│─ ─ Push notification
+     │                 │ POST /sync/notify/ {sync_log_id}   │    (fire-and-forget)
      │                 │─────────────────────────────────────>│
      │                 │                   │                   │
+     │                 │                   │   Follower SyncWorker triggers
+     │                 │                   │   immediate pull:│
+     │                 │                   │                   │
+     │                 │<────── GET /sync/changes/?since=X ───│─ ─ Pull changes
+     │                 │──────────────────>│                   │
+     │                 │                   │                   │
      │                 │                   │   Apply change    │
+     │                 │                   │   (local SQLite)  │
      │                 │                   │<──────────────────│
      │                 │                   │                   │
-     │                 │<────── ACK ──────│───────────────────│
+     │                 │                   │   Update local    │
+     │                 │                   │   DjangoSyncState │
+     │                 │                   │<──────────────────│
+     │                 │                   │                   │
+     │                 │<────── POST /sync/ack/ ──────────────│─ ─ Send ACK
      │                 │                   │                   │
      │     200 OK      │                   │                   │
      │<────────────────│                   │                   │
-     │                 │                   │                   │
+     │  (or 202 if     │                   │                   │
+     │   ACK timeout)  │                   │                   │
 ```
+
+**Key points:**
+1. The push notification (`/sync/notify/`) is **fire-and-forget** — the master does NOT wait for it to complete
+2. The master waits for ACKs using `threading.Event` (not asyncio), which is thread-safe for cross-request signaling
+3. If no followers acknowledge within the timeout, the master returns `202 Accepted` (write persisted, replication pending)
+4. The push notification triggers the follower's `SyncWorker` to immediately pull changes, reducing replication lag to sub-second
+5. The periodic pull (every 3 seconds) serves as a fallback for missed push notifications
 
 ### 5.4 Synchronous Write Configuration
 
 ```python
-# In write request handler
+# In SyncWriteMiddleware (Django middleware)
 REPLICA_ACK_REQUIRED = 1  # Minimum ACKs required (configurable)
 ACK_TIMEOUT = 5000  # milliseconds
 
-async def handle_write_request(request):
-    # 1. Begin transaction
-    with transaction.atomic():
-        # 2. Execute business logic
-        record = perform_write(request)
+def process_response(request, response):
+    if not is_master or status_code >= 400 or method not in WRITE_METHODS:
+        return response
+    
+    sync_log_id = getattr(request, '_sync_log_id', None)
+    if sync_log_id is None:
+        return response
+    
+    # 1. Notify followers (fire-and-forget in background thread)
+    _notify_followers(sync_log_id)
+    
+    # 2. Wait for ACKs (threading.Event, not asyncio)
+    confirmed = _wait_for_acks(sync_log_id)
+    
+    if confirmed:
+        return response
+    else:
+        return JsonResponse({
+            'detail': 'Write accepted but replication pending',
+            'sync_log_id': sync_log_id,
+            'confirmed': False,
+        }, status=202)
+
+def _notify_followers(sync_log_id):
+    """Send push notification to all known followers in background."""
+    sync_log = SyncLog.objects.get(id=sync_log_id)
+    follower_urls = SyncState.objects.exclude(url__isnull=True).exclude(url='')
+    
+    proxy = get_follower_proxy()
+    thread = threading.Thread(
+        target=proxy.broadcast_sync,
+        args=(list(follower_urls), sync_log_id, sync_log.table_name, sync_log.record_id),
+        daemon=True,
+    )
+    thread.start()
+
+def _wait_for_acks(sync_log_id):
+    """Wait for followers to acknowledge write, using threading.Event."""
+    if REPLICA_ACK_REQUIRED <= 0:
+        return True
+    
+    event = sync_manager.ack_queue.register(sync_log_id, REPLICA_ACK_REQUIRED)
+    confirmed = event.wait(timeout=ACK_TIMEOUT / 1000.0)
+    
+    if confirmed:
+        return True
+    
+    return sync_manager.ack_queue.is_confirmed(sync_log_id)
+```
+
+### 5.5 Backend SyncWorker (Follower Background Thread)
+
+Each follower node runs a **SyncWorker** background thread that continuously pulls
+changes from the master. This ensures data replication occurs even without a frontend
+connected.
+
+```python
+class SyncWorker:
+    """Background sync thread running on every follower node."""
+    
+    def __init__(self):
+        self._thread: Optional[Thread] = None
+        self._stop_event = threading.Event()
+        self._sync_event = threading.Event()  # For immediate sync trigger
+        self._sync_interval = 3.0  # seconds
+        self._running = False
+    
+    def start(self):
+        """Start if this node is a cluster follower."""
+        config = DjangoClusterConfig.get_config()
+        if config.mode != 'cluster' or config.is_master:
+            return
+        self._running = True
+        self._thread = Thread(target=self._sync_loop, daemon=True, name='sync-worker')
+        self._thread.start()
+    
+    def stop(self):
+        """Stop the background sync thread."""
+        self._stop_event.set()
+        self._sync_event.set()  # Wake up thread
+        if self._thread:
+            self._thread.join(timeout=10)
+        self._running = False
+    
+    def trigger_immediate_sync(self):
+        """Called by /notify/ endpoint to trigger immediate pull."""
+        self._sync_event.set()
+    
+    def _sync_loop(self):
+        """Main loop: pull changes from master, apply, ACK."""
+        while not self._stop_event.is_set():
+            try:
+                self._do_sync_cycle()
+            except Exception as e:
+                logger.error(f"Sync cycle error: {e}")
+            
+            # Wait for next cycle or immediate trigger from /notify/
+            self._sync_event.wait(timeout=self._sync_interval)
+            self._sync_event.clear()
+    
+    def _do_sync_cycle(self):
+        """One iteration of the sync loop."""
+        config = DjangoClusterConfig.get_config()
+        if config.mode != 'cluster' or config.is_master or not config.master_url:
+            return
         
-        # 3. Record in sync_log
-        sync_log = SyncLog.objects.create(
-            table_name=record.table_name,
-            record_id=record.id,
-            operation='INSERT',
-            data=serialize(record),
-            version=record.version
+        master_url = config.master_url
+        node_id = config.node_id
+        self._sync_interval = config.sync_interval
+        
+        # Get last applied sync ID from local DjangoSyncState
+        sync_state = sync_manager.get_sync_state(node_id)
+        last_synced_id = sync_state.last_synced_id if sync_state else 0
+        
+        # First-time: full sync
+        if last_synced_id == 0:
+            self._do_full_sync(master_url, node_id)
+            return
+        
+        # Pull incremental changes from master
+        response = requests.get(
+            f"{master_url}/api/cluster/sync/changes/",
+            params={"since": last_synced_id, "limit": 100},
+            timeout=10,
         )
         
-    # 4. Notify followers
-    ack_future = ack_queue.register(sync_log.id, replicas_required=REPLICA_ACK_REQUIRED)
+        if response.status_code != 200:
+            logger.error(f"Sync pull failed: HTTP {response.status_code}")
+            return
+        
+        data = response.json()
+        changes = data.get("changes", [])
+        last_id = data.get("last_id", last_synced_id)
+        has_more = data.get("has_more", False)
+        
+        if not changes:
+            return
+        
+        # Apply changes locally (direct SyncManager call, no HTTP roundtrip)
+        sync_changes = [SyncChange(**c) for c in changes]
+        results = sync_manager.apply_changes_batch(sync_changes)
+        
+        # Update local DjangoSyncState
+        sync_manager.update_sync_state(node_id, last_id)
+        
+        # ACK to master
+        requests.post(
+            f"{master_url}/api/cluster/sync/ack/",
+            json={"node_id": node_id, "sync_id": last_id},
+            timeout=5,
+        )
+        
+        # If more changes available, trigger immediate next cycle
+        if has_more:
+            self._sync_event.set()
     
-    # 5. Broadcast to followers
-    broadcast_sync_change(sync_log)
-    
-    # 6. Wait for ACKs
-    try:
-        await asyncio.wait_for(ack_future, timeout=ACK_TIMEOUT / 1000)
-        return Response({'status': 'confirmed', 'sync_id': sync_log.id})
-    except asyncio.TimeoutError:
-        return Response({'status': 'partial', 'confirmed_replicas': ack_queue.get_confirmed()},
-                        status=503)
+    def _do_full_sync(self, master_url, node_id):
+        """Initial full sync when node has no sync state (last_synced_id == 0)."""
+        response = requests.get(
+            f"{master_url}/api/cluster/sync/full/",
+            params={"page": 1, "page_size": 1000},
+            timeout=30,
+        )
+        
+        if response.status_code != 200:
+            logger.error(f"Full sync failed: HTTP {response.status_code}")
+            return
+        
+        data = response.json()
+        latest_sync_id = data.get("latest_sync_id", 0)
+        
+        for table_name, records in data.get("data", {}).items():
+            if table_name not in sync_manager._model_registry:
+                continue
+            model_class = sync_manager._model_registry[table_name].model_class
+            for record in records:
+                model_class.objects.update_or_create(id=record["id"], defaults=record)
+        
+        sync_manager.update_sync_state(node_id, latest_sync_id)
+        
+        # ACK full sync to master
+        requests.post(
+            f"{master_url}/api/cluster/sync/ack/",
+            json={"node_id": node_id, "sync_id": latest_sync_id},
+            timeout=5,
+        )
 ```
 
-### 5.5 Incremental Sync Protocol
+**Key design decisions:**
 
-**Request** (Follower → Master):
+| Decision | Choice | Rationale |
+|----------|--------|-----------|
+| Thread type | `threading.Thread(daemon=True)` | Simple, no event loop needed; Django ORM is thread-safe for reads |
+| Trigger mechanism | `threading.Event` | Push notification sets the event, waking the worker immediately |
+| Sync method | Direct `SyncManager` calls (no local HTTP) | Avoids network roundtrip to self; uses Django ORM directly |
+| ACK method | HTTP POST to master | Must go to master so ACK queue is updated for synchronous write confirmation |
+| Local sync state | `sync_manager.update_sync_state()` called locally | Fixes `lastSyncTime=null` on followers; creates/updates `DjangoSyncState` in local DB |
+| Config source | `DjangoClusterConfig.get_config()` per cycle | Supports runtime config changes (mode, master_url, sync_interval) without restart |
+| SQLite concurrency | Acceptable for single-writer | Only SyncWorker writes follower data; master is the single writer for sync_log |
+
+**Startup behavior:**
+- `SyncWorker.start()` is called from `ClusterConfig.ready()` (Django app startup)
+- Only starts if `mode == "cluster" and is_master == False`
+- Skips during `manage.py migrate` or other management commands
+- If the node is promoted to master (e.g., after election), the worker stops itself on the next cycle
+
+**Push notification endpoint (`POST /api/cluster/sync/notify/`):**
+
+When the master's `SyncWriteMiddleware.notify_followers()` sends a push notification:
+
+```python
+# On the follower's Django server
+@action(detail=False, methods=["post"], url_path="notify")
+def notify_sync(self, request):
+    """
+    Receive push notification from master about new sync_log entry.
+    Triggers immediate sync on this follower's SyncWorker.
+    Returns 200 immediately (non-blocking).
+    """
+    config = DjangoClusterConfig.get_config()
+    if config.is_master:
+        return Response({"status": "ignored", "reason": "master_node"})
+    
+    from backend.apps.cluster.services.sync_worker import sync_worker
+    sync_worker.trigger_immediate_sync()
+    
+    return Response({"status": "notified"})
 ```
-GET /api/sync/changes?since={last_applied_id}&limit=100
+
+### 5.6 Incremental Sync Protocol
+
+**Note**: Incremental sync is driven by the **backend SyncWorker** on each follower node, not by the frontend. The frontend retains a secondary polling loop for UI status updates, but data replication is entirely backend-driven.
+
+**Request** (Follower SyncWorker → Master):
+```
+GET /api/cluster/sync/changes/?since={last_applied_id}&limit=100
 ```
 
 **Response**:
@@ -354,21 +600,20 @@ def apply_change(change):
     apply_change_with_version(change)
 ```
 
-### 5.6 Full Sync
+### 5.7 Full Sync
 
 **Triggers**:
-- New follower joins (no local data)
-- Incremental sync fails (data inconsistency)
-- Manual trigger via admin panel
+- `last_synced_id == 0` (new follower with no sync state) — automatic via SyncWorker
+- Incremental sync fails (data inconsistency) — SyncWorker falls back to full sync
+- Manual trigger via admin panel or API
 
-**Process**:
+**Process** (performed by SyncWorker automatically on first join):
 ```
-1. Follower: POST /api/sync/full
-2. Master: Export all data (paginated)
-   GET /api/sync/full?page=1&tables=tournaments,events,scores
-3. Follower: Clear local database
-4. Follower: Import all data
-5. Follower: Update sync_state.last_synced_id
+1. SyncWorker: GET /api/cluster/sync/full/?page=1&page_size=1000
+2. Master: Export all data (paginated) with serializers
+3. SyncWorker: Apply each record via model_class.objects.update_or_create()
+4. SyncWorker: Update local sync_state.last_synced_id = latest_sync_id
+5. SyncWorker: POST /api/cluster/sync/ack/ {node_id, sync_id}
 ```
 
 ---
@@ -462,7 +707,19 @@ def needs_manual_review(record_type):
 |--------|------|----------|
 | GET | /api/* | Serve from local SQLite |
 | POST/PUT/DELETE | /api/* | Return 503 or proxy to master |
-| POST | /api/sync/ack | Acknowledge received change |
+| GET | /api/cluster/sync/changes/ | Proxy: pull changes from master |
+| POST | /api/cluster/sync/apply/ | Apply received changes to local DB, update local SyncState |
+| POST | /api/cluster/sync/notify/ | Receive push notification, trigger immediate SyncWorker cycle |
+| GET | /api/cluster/status/ | Return local cluster status and sync lag |
+
+**Push Notification Flow**:
+```python
+# On master - after writing to sync_log:
+notify_followers(sync_log_id)
+# → POST http://follower:8000/api/cluster/sync/notify/ {sync_log_id, table_name, record_id}
+# → Fire-and-forget in background thread
+# → Triggers follower's SyncWorker.trigger_immediate_sync()
+```
 
 **Proxy Option** (configurable):
 ```python
@@ -475,19 +732,25 @@ else:
 
 ### 7.3 Frontend Integration
 
+The frontend is **not responsible for data replication**. The backend `SyncWorker` handles all pull-sync and applies changes to the local SQLite database. The frontend's role is:
+
+1. **Read from local backend**: All API calls go to the local Django instance
+2. **Write proxy**: If this node is a follower, writes are proxied to the master by `ApiRouterMiddleware`
+3. **UI status display**: `ClusterService` polls `/api/cluster/status/` for sync lag, peer status
+4. **Full sync trigger**: Manual "Full Sync" button in `ClusterStatus.vue` calls `POST /api/cluster/sync/full/`
+5. **Conflict resolution UI**: `ConflictReview.vue` for manual resolution of critical conflicts
+
 ```typescript
-// Frontend discovers master node on startup
-const masterUrl = await ClusterService.discoverMaster();
-
-// All API calls go to master
+// Frontend reads from local backend (which SyncWorker keeps up-to-date)
 const apiClient = axios.create({
-  baseURL: masterUrl,
+  baseURL: window.location.origin,  // Local Django
 });
 
-// Handle master switch
-ClusterService.onMasterChange((newMasterUrl) => {
-  apiClient.defaults.baseURL = newMasterUrl;
-});
+// For writes on follower, middleware proxies to master automatically
+// Frontend uses syncStore for status display only
+const syncStore = useSyncStore();
+await syncStore.refreshStatus();  // GET /api/cluster/status/
+// syncLag, lastSyncTime, isMaster — all from local backend
 ```
 
 ---
@@ -712,7 +975,7 @@ DELETE FROM sync_log WHERE created_at < datetime('now', '-7 days');
 - **Batch Sync**: Return up to 100 changes per request
 - **Compression**: Enable gzip for sync responses > 1KB
 - **Delta Only**: Only send changed fields for UPDATEs
-- **WebSocket Option**: Real-time push (future enhancement)
+- **Push Notification**: Master notifies followers immediately via HTTP POST /sync/notify/ (implemented)
 
 ### 11.3 Frontend Optimization
 
@@ -812,10 +1075,17 @@ Access via `/admin/cluster`:
 |------|----------|-------|
 | Implement SyncManager class | High | `backend/apps/cluster/services/sync_manager.py` |
 | Implement transaction wrapper | High | `backend/apps/cluster/decorators/transaction.py` |
-| Create /api/sync/changes endpoint | High | `backend/apps/cluster/views/sync.py` |
-| Create /api/sync/full endpoint | High | `backend/apps/cluster/views/sync.py` |
-| Implement AckQueue class | High | `backend/apps/cluster/services/ack_queue.py` |
-| Implement synchronous write handler | High | `backend/apps/cluster/middleware/write_sync.py` |
+| Create /api/cluster/sync/changes/ endpoint | High | `backend/apps/cluster/views/sync.py` |
+| Create /api/cluster/sync/full/ endpoint | High | `backend/apps/cluster/views/sync.py` |
+| Create /api/cluster/sync/apply/ endpoint | High | `backend/apps/cluster/views/sync.py` |
+| Create /api/cluster/sync/ack/ endpoint | High | `backend/apps/cluster/views/sync.py` |
+| Create /api/cluster/sync/notify/ endpoint | High | `backend/apps/cluster/views/sync.py` |
+| Implement AckQueue class (threading.Event) | High | `backend/apps/cluster/services/ack_queue.py` |
+| Implement SyncWorker background thread | High | `backend/apps/cluster/services/sync_worker.py` |
+| Implement synchronous write handler with notify | High | `backend/apps/cluster/middleware/write_sync.py` |
+| Add url field to DjangoSyncState model | High | `backend/apps/cluster/models/sync_state.py` |
+| Update local SyncState in apply_changes endpoint | Medium | `backend/apps/cluster/views/sync.py` |
+| Auto-start SyncWorker in ClusterConfig.ready() | Medium | `backend/apps/cluster/apps.py` |
 
 ### Phase 4: API Routing (Backend)
 
@@ -941,7 +1211,7 @@ Users can regenerate the node ID if needed.
 
 | Enhancement | Description | Priority |
 |-------------|-------------|----------|
-| WebSocket Real-time Push | Replace polling with WebSocket for lower latency | Medium |
+| WebSocket Push Upgrade | Replace HTTP /notify/ with persistent WebSocket for lower overhead | Medium |
 | Read Replicas | Allow followers to serve GET requests locally | Medium |
 | Metrics Export | Prometheus-compatible metrics endpoint | Low |
 | Dashboard UI | Real-time cluster visualization | Low |
@@ -1060,23 +1330,19 @@ Users can regenerate the node ID if needed.
 ┌──────────┐     ┌───────────┐     ┌─────────┐
 │ RECEIVED │────>│ PROCESSING│────>│ WRITTEN │
 └──────────┘     └───────────┘     └────┬────┘
-                      │                 │
-                      │(error)          │
-                      ▼                 ▼
-                 ┌─────────┐      ┌───────────┐
-                 │ FAILED   │      │ BROADCAST │
-                 └─────────┘      └─────┬─────┘
-                                       │
-                                       ▼
-                                 ┌───────────┐
-                                 │ WAIT_ACK  │
-                                 └─────┬─────┘
-                                       │
-                        ┌──────────────┼──────────────┐
-                        ▼              ▼              ▼
-                   ┌────────┐    ┌─────────┐   ┌─────────┐
-                   │CONFIRMED│    │PARTIAL  │   │ TIMEOUT │
-                   └────────┘    └─────────┘   └─────────┘
+                       │                 │
+                       │(error)          │
+                       ▼                 ▼
+                  ┌─────────┐      ┌───────────┐
+                  │ FAILED   │      │ NOTIFY +  │
+                  └─────────┘      │ WAIT_ACK  │
+                                   └─────┬─────┘
+                                         │
+                            ┌────────────┼────────────┐
+                            ▼            ▼            ▼
+                       ┌────────┐  ┌─────────┐  ┌─────────┐
+                       │CONFIRMED│  │PARTIAL  │  │ TIMEOUT │
+                       └────────┘  └─────────┘  └─────────┘
 ```
 
 ---
@@ -1093,6 +1359,8 @@ Users can regenerate the node ID if needed.
 | UDP packet loss | Sequence gap | Retransmit or poll for missing |
 | Database lock | SQLite busy error | Retry with exponential backoff |
 | Disk full | Write failure | Alert admin, halt sync |
+| SyncWorker crash | Thread not alive | Auto-restart on next health check |
+| Push notify missed | Follower lag > threshold | Periodic pull (3s) catches up automatically |
 
 ### C.2 Error Response Codes
 
@@ -1106,5 +1374,6 @@ Users can regenerate the node ID if needed.
 
 ---
 
-*Document Version: 1.0*
-*Last Updated: 2025-03-31*
+*Document Version: 1.1*
+*Last Updated: 2026-04-08*
+*Changes: Updated Sections 2.1, 2.2, 3.3, 4.1, 5.2-5.7, 7.2, 7.3, 11.2, 14, 15 to reflect backend-driven push+pull sync with SyncWorker, push notification via /sync/notify/, threading.Event for ACK queue, and SyncState.url field*
