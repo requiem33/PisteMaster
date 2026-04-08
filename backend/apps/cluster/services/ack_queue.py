@@ -1,5 +1,5 @@
-import asyncio
 import logging
+import threading
 import time
 from dataclasses import dataclass, field
 from typing import Dict, Set, List
@@ -15,7 +15,7 @@ class PendingAck:
     sync_log_id: int
     created_at: float = field(default_factory=time.time)
     confirmed_nodes: Set[str] = field(default_factory=set)
-    event: asyncio.Event = field(default_factory=asyncio.Event)
+    event: threading.Event = field(default_factory=threading.Event)
 
     def to_dict(self) -> dict:
         return {
@@ -45,7 +45,7 @@ class AckQueue:
         self._nodes_required = count
         logger.info(f"ACK queue configured: {count} node(s) required for confirmation")
 
-    def register(self, sync_log_id: int, replicas_required: int = 1) -> "asyncio.Event":
+    def register(self, sync_log_id: int, replicas_required: int = 1) -> "threading.Event":
         """
         Register a pending ACK for a sync log entry.
         Returns an Event that will be set when required ACKs are received.
