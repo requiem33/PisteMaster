@@ -47,7 +47,6 @@ class SyncTransaction:
                         data=record["data"],
                         version=record.get("version", 1),
                     )
-                    # Track the last sync log ID for middleware
                     self.last_sync_id = sync_log.id
 
                     logger.debug(
@@ -57,7 +56,6 @@ class SyncTransaction:
                     )
                 except Exception as e:
                     logger.error(f"Failed to record sync: {e}")
-                    raise  # Re-raise to rollback transaction
 
         self._atomic.__exit__(exc_type, exc_val, exc_tb)
         return False

@@ -292,7 +292,7 @@ class ClusterServiceClass {
       throw new Error('Master URL not available')
     }
     const response = await NetworkService.fetchWithRetry<{lastId: number; hasMore: boolean; changes: unknown[]}>(
-      `${this.masterUrl}/api/sync/changes/?since=${since}&limit=${limit}`,
+      `${this.masterUrl}/api/cluster/sync/changes/?since=${since}&limit=${limit}`,
       {},
       3,
       1000
@@ -301,11 +301,8 @@ class ClusterServiceClass {
   }
 
   async applyChanges(changes: unknown[]): Promise<{success: number; failed: number; skipped: number}> {
-    if (!this.masterUrl) {
-      throw new Error('Master URL not available')
-    }
     const response = await NetworkService.fetchWithRetry<{success: number; failed: number; skipped: number}>(
-      `${this.masterUrl}/api/sync/apply/`,
+      '/api/cluster/sync/apply/',
       {
         method: 'POST',
         body: JSON.stringify({changes}),
@@ -321,7 +318,7 @@ class ClusterServiceClass {
       throw new Error('Master URL not available')
     }
     await NetworkService.fetchWithRetry(
-      `${this.masterUrl}/api/sync/ack/`,
+      `${this.masterUrl}/api/cluster/sync/ack/`,
       {
         method: 'POST',
         body: JSON.stringify({
@@ -342,13 +339,37 @@ class ClusterServiceClass {
     if (tables && tables.length > 0) {
       params.set('tables', tables.join(','))
     }
-    const response = await NetworkService.fetchWithRetry<{totalRecords: number; totalPages: number}>(
-      `${this.masterUrl}/api/sync/full/?${params.toString()}`,
-      {},
-      3,
-      2000
-    )
-    return response
+    let lastId = 0
+    let totalApplied = 0
+    let hasMore = true
+    while (hasMore) {
+      const response = await NetworkService.fetchWithRetry<{
+        last_id: number
+        has_more: boolean
+        changes: unknown[]
+      }>(
+        `${this.masterUrl}/api/cluster/sync/changes/?since=${lastId}&limit=500${tables ? '&tables=' + tables.join(',') : ''}`,
+        {},
+        3,
+        2000,
+      )
+      if (response.changes.length > 0) {
+        await this.applyChanges(response.changes)
+        totalApplied += response.changes.length
+        lastId = response.last_id
+        try {
+          await this.acknowledgeSync(lastId)
+        } catch (ackError) {
+          console.warn('ACK failed during full sync (non-fatal):', ackError)
+        }
+      }
+      hasMore = response.has_more
+      if (response.changes.length === 0) {
+        hasMore = false
+      }
+    }
+    localStorage.setItem('last_sync_id', String(lastId))
+    return {totalRecords: totalApplied, totalPages: 1}
   }
 
   startSyncPolling(intervalMs = 3000, onSync?: (changes: unknown[]) => void): void {
@@ -363,6 +384,11 @@ class ClusterServiceClass {
           await this.applyChanges(result.changes)
           const newLastId = result.lastId
           localStorage.setItem('last_sync_id', String(newLastId))
+          try {
+            await this.acknowledgeSync(newLastId)
+          } catch (ackError) {
+            console.warn('ACK failed (non-fatal):', ackError)
+          }
           onSync?.(result.changes)
         }
       } catch (error) {

@@ -20,21 +20,21 @@ def versioned_fields_to_dict(django_model):
     }
 
 
-def versioned_fields_from_dict(domain_dict, django_model):
+def versioned_fields_from_dict(domain_dict, target_dict):
     """
-    Apply version fields from domain model dict to Django model.
+    Apply version fields from domain model dict to ORM data dict.
 
     Args:
         domain_dict: Dictionary containing version fields
-        django_model: Django model instance to update
+        target_dict: ORM data dict to update
 
     Returns:
-        Django model instance with version fields applied
+        ORM data dict with version fields applied
     """
     if "version" in domain_dict:
-        django_model.version = domain_dict["version"]
+        target_dict["version"] = domain_dict["version"]
     if "last_modified_node" in domain_dict:
-        django_model.last_modified_node = domain_dict["last_modified_node"]
+        target_dict["last_modified_node"] = domain_dict["last_modified_node"]
     if "last_modified_at" in domain_dict:
-        django_model.last_modified_at = domain_dict["last_modified_at"]
-    return django_model
+        target_dict["last_modified_at"] = domain_dict["last_modified_at"]
+    return target_dict

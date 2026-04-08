@@ -445,7 +445,8 @@ class ClusterStatusViewSet(viewsets.GenericViewSet):
                 master_ip = request.data["master_ip"]
                 db_config.master_ip = master_ip
                 if master_ip:
-                    db_config.master_url = f"http://{master_ip}:{db_config.api_port}"
+                    master_port = request.data.get("master_port", 8000)
+                    db_config.master_url = f"http://{master_ip}:{master_port}"
                     db_config.is_master = False
                 else:
                     db_config.master_url = None
