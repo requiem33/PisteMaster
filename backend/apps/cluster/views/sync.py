@@ -4,6 +4,7 @@ from rest_framework import status, viewsets
 from rest_framework.decorators import action, api_view, permission_classes
 from rest_framework.permissions import AllowAny
 from rest_framework.response import Response
+from django.conf import settings
 from django.db.models import Max
 from django.views.decorators.csrf import csrf_exempt
 
@@ -268,7 +269,8 @@ class SyncViewSet(viewsets.GenericViewSet):
             return Response({"detail": "Invalid sync_id"}, status=status.HTTP_400_BAD_REQUEST)
 
         sync_manager.ack_queue.acknowledge(sync_id, node_id)
-        sync_manager.update_sync_state(node_id, sync_id)
+        url = request.data.get("url")
+        sync_manager.update_sync_state(node_id, sync_id, url=url)
 
         logger.debug(f"ACK received from node={node_id} for sync_id={sync_id}")
 
@@ -278,10 +280,13 @@ class SyncViewSet(viewsets.GenericViewSet):
     def apply_changes(self, request):
         """
         Apply a batch of sync changes.
-        Used by followers to apply received changes.
+        Used by followers to apply received changes to local DB.
+        Also updates local sync state tracking progress.
 
         Request body:
         - changes: List of change objects from sync/changes endpoint
+        - node_id: (optional) Identifier of the follower node
+        - url: (optional) HTTP endpoint URL of this follower node
         """
         changes = request.data.get("changes", [])
 
@@ -309,6 +314,12 @@ class SyncViewSet(viewsets.GenericViewSet):
                 )
 
             results = sync_manager.apply_changes_batch(sync_changes)
+
+            if sync_changes:
+                last_id = max(c.id for c in sync_changes)
+                node_id = request.data.get("node_id") or getattr(settings, "CLUSTER_CONFIG", {}).get("node_id", "unknown")
+                url = request.data.get("url")
+                sync_manager.update_sync_state(node_id, last_id, url=url)
 
             return Response(
                 {
@@ -345,6 +356,7 @@ def sync_ack(request):
         return Response({"detail": "Invalid sync_id"}, status=status.HTTP_400_BAD_REQUEST)
 
     sync_manager.ack_queue.acknowledge(sync_id, node_id)
-    sync_manager.update_sync_state(node_id, sync_id)
+    url = request.data.get("url")
+    sync_manager.update_sync_state(node_id, sync_id, url=url)
 
     return Response({"status": "acknowledged", "node_id": node_id, "sync_id": sync_id})
