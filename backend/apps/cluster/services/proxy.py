@@ -226,7 +226,7 @@ class FollowerProxy:
         return results
 
     def _send_sync_notification(self, follower_url: str, sync_log_id: int, table_name: str, record_id: str) -> bool:
-        url = f"{follower_url.rstrip('/')}/api/sync/notify"
+        url = f"{follower_url.rstrip('/')}/api/cluster/sync/notify/"
 
         payload = {
             "sync_log_id": sync_log_id,
