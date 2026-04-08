@@ -229,9 +229,13 @@ class SyncManager:
         except DjangoSyncState.DoesNotExist:
             return None
 
-    def update_sync_state(self, node_id: str, last_synced_id: int) -> DjangoSyncState:
+    def update_sync_state(self, node_id: str, last_synced_id: int, url: Optional[str] = None) -> DjangoSyncState:
         """Update the sync state for a follower node."""
-        sync_state, created = DjangoSyncState.objects.update_or_create(node_id=node_id, defaults={"last_synced_id": last_synced_id})
+        defaults = {"last_synced_id": last_synced_id}
+        if url is not None:
+            defaults["url"] = url
+
+        sync_state, created = DjangoSyncState.objects.update_or_create(node_id=node_id, defaults=defaults)
 
         if created:
             logger.info(f"Created sync state for node={node_id}")
