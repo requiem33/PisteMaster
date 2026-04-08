@@ -14,7 +14,9 @@ from backend.apps.cluster.serializers import (
     SyncLogCreateSerializer,
     SyncStateSerializer,
 )
+from backend.apps.cluster.models.cluster_config import DjangoClusterConfig
 from backend.apps.cluster.services.sync_manager import sync_manager
+from backend.apps.cluster.services.sync_worker import sync_worker
 
 logger = logging.getLogger(__name__)
 
@@ -334,6 +336,31 @@ class SyncViewSet(viewsets.GenericViewSet):
         except Exception as e:
             logger.error(f"Failed to apply changes: {e}")
             return Response({"detail": "Failed to apply changes"}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+    @action(detail=False, methods=["post"], url_path="notify")
+    def notify_sync(self, request):
+        """
+        Receive push notification from master about new sync_log entry.
+        Triggers immediate sync on this follower's SyncWorker.
+        Returns 200 immediately (non-blocking).
+        """
+        config = DjangoClusterConfig.get_config()
+        if config.is_master:
+            return Response({"status": "ignored", "reason": "master_node"})
+
+        sync_worker.trigger_immediate_sync()
+
+        sync_log_id = request.data.get("sync_log_id")
+        table_name = request.data.get("table_name")
+        record_id = request.data.get("record_id")
+        logger.info(
+            "Push notification received: sync_log_id=%s, table=%s, record=%s",
+            sync_log_id,
+            table_name,
+            record_id,
+        )
+
+        return Response({"status": "notified"})
 
 
 @api_view(["POST"])
