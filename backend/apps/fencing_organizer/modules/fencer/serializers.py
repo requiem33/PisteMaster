@@ -131,6 +131,7 @@ class FencerCreateSerializer(VersionedModelSerializer):
     Fencer create serializer - for creating new fencers.
     """
 
+    id = serializers.UUIDField(read_only=True)
     first_name = serializers.CharField(max_length=100, required=True)
     last_name = serializers.CharField(max_length=100, required=True)
     display_name = serializers.CharField(max_length=200, required=False, allow_null=True)
@@ -144,6 +145,7 @@ class FencerCreateSerializer(VersionedModelSerializer):
     class Meta:
         model = DjangoFencer
         fields = [
+            "id",
             "first_name",
             "last_name",
             "display_name",

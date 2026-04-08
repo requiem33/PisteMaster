@@ -84,6 +84,7 @@ class PoolCreateSerializer(VersionedModelSerializer):
     Pool create serializer - for creating new pools.
     """
 
+    id = serializers.UUIDField(read_only=True)
     event = serializers.PrimaryKeyRelatedField(queryset=DjangoEvent.objects.all(), write_only=True, required=True)
     stage_id = serializers.CharField(max_length=50, required=False, default="1")
     pool_number = serializers.IntegerField(required=True)
@@ -91,7 +92,7 @@ class PoolCreateSerializer(VersionedModelSerializer):
 
     class Meta:
         model = DjangoPool
-        fields = ["event", "stage_id", "pool_number", "fencer_ids"]
+        fields = ["id", "event", "stage_id", "pool_number", "fencer_ids"]
 
     def validate_pool_number(self, value):
         if value < 1:

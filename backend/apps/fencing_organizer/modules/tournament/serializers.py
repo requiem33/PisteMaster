@@ -72,6 +72,7 @@ class TournamentCreateSerializer(VersionedModelSerializer):
     Tournament create serializer - for creating new tournaments.
     """
 
+    id = serializers.UUIDField(read_only=True)
     tournament_name = serializers.CharField(max_length=200, required=True)
     organizer = serializers.CharField(max_length=200, required=False, allow_null=True)
     location = serializers.CharField(max_length=200, required=False, allow_null=True)
@@ -82,6 +83,7 @@ class TournamentCreateSerializer(VersionedModelSerializer):
     class Meta:
         model = DjangoTournament
         fields = [
+            "id",
             "tournament_name",
             "organizer",
             "location",

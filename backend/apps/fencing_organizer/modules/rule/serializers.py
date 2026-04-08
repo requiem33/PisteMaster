@@ -125,6 +125,7 @@ class RuleCreateSerializer(VersionedModelSerializer):
     Note: Only admins can create non-preset rules.
     """
 
+    id = serializers.UUIDField(read_only=True)
     rule_name = serializers.CharField(max_length=100, required=True)
     elimination_type_id = serializers.UUIDField(write_only=True, required=True)
     final_ranking_type_id = serializers.UUIDField(write_only=True, required=True)
@@ -140,6 +141,7 @@ class RuleCreateSerializer(VersionedModelSerializer):
     class Meta:
         model = DjangoRule
         fields = [
+            "id",
             "rule_name",
             "elimination_type_id",
             "final_ranking_type_id",

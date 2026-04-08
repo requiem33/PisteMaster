@@ -173,6 +173,7 @@ class EventCreateSerializer(VersionedModelSerializer):
     Event create serializer - for creating new events.
     """
 
+    id = serializers.UUIDField(read_only=True)
     tournament_id = serializers.PrimaryKeyRelatedField(
         queryset=DjangoTournament.objects.all(), source="tournament", write_only=True, required=True
     )
@@ -188,7 +189,17 @@ class EventCreateSerializer(VersionedModelSerializer):
 
     class Meta:
         model = DjangoEvent
-        fields = ["tournament_id", "event_name", "event_type", "rule_id", "start_time", "custom_rule_config", "is_team_event", "status"]
+        fields = [
+            "id",
+            "tournament_id",
+            "event_name",
+            "event_type",
+            "rule_id",
+            "start_time",
+            "custom_rule_config",
+            "is_team_event",
+            "status",
+        ]
 
     def validate_event_name(self, value):
         if not value or len(value.strip()) == 0:
