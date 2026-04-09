@@ -275,11 +275,17 @@ follower_proxy: Optional[FollowerProxy] = None
 
 def get_master_proxy() -> MasterProxy:
     global master_proxy
-    if master_proxy is None:
-        config = getattr(settings, "CLUSTER_CONFIG", {})
-        master_url = config.get("master_url")
-        timeout = config.get("proxy_timeout", 10)
-        master_proxy = MasterProxy(master_url=master_url, timeout=timeout)
+    from backend.apps.cluster.models.cluster_config import DjangoClusterConfig
+
+    try:
+        config = DjangoClusterConfig.get_config()
+        master_url = config.master_url
+    except Exception:
+        master_url = None
+
+    if master_proxy is None or master_proxy.master_url != master_url:
+        master_proxy = MasterProxy(master_url=master_url)
+
     return master_proxy
 
 

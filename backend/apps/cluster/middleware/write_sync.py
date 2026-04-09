@@ -2,10 +2,10 @@ import logging
 import threading
 from typing import Callable, Optional
 
-from django.conf import settings
 from django.http import HttpRequest, HttpResponse, JsonResponse
 from django.utils.deprecation import MiddlewareMixin
 
+from backend.apps.cluster.models.cluster_config import DjangoClusterConfig
 from backend.apps.cluster.services.sync_manager import sync_manager
 
 logger = logging.getLogger(__name__)
@@ -48,22 +48,25 @@ class SyncWriteMiddleware(MiddlewareMixin):
         self._load_config()
 
     def _load_config(self) -> None:
-        """Load cluster configuration from Django settings."""
-        config = getattr(settings, "CLUSTER_CONFIG", {})
-
-        self.mode = config.get("mode", "single")
-        self.is_master = config.get("is_master", False)
-        self.master_url = config.get("master_url")
-        self.replica_ack_required = config.get("replica_ack_required", 1)
-        self.ack_timeout_ms = config.get("ack_timeout_ms", 5000)
+        """Load cluster configuration from database."""
+        try:
+            config = DjangoClusterConfig.get_config()
+            self.mode = config.mode
+            self.is_master = config.is_master
+            self.master_url = config.master_url
+            self.replica_ack_required = config.replica_ack_required
+            self.ack_timeout_ms = config.ack_timeout_ms
+        except Exception:
+            self.mode = "single"
+            self.is_master = False
+            self.master_url = None
+            self.replica_ack_required = 1
+            self.ack_timeout_ms = 5000
 
         sync_manager.ack_queue.set_nodes_required(self.replica_ack_required)
 
-        logger.info(
-            f"SyncWriteMiddleware initialized: mode={self.mode}, " f"is_master={self.is_master}, ack_required={self.replica_ack_required}"
-        )
-
     def __call__(self, request: HttpRequest) -> HttpResponse:
+        self._load_config()
         return self.get_response(request)
 
     def process_request(self, request: HttpRequest) -> Optional[HttpResponse]:
@@ -126,10 +129,8 @@ class SyncWriteMiddleware(MiddlewareMixin):
         return False
 
     def _handle_follower_write(self, request: HttpRequest) -> HttpResponse:
-        """Handle write request on follower node."""
-        proxy_enabled = getattr(settings, "PROXY_WRITES_TO_MASTER", False)
-
-        if proxy_enabled and self.master_url:
+        """Handle write request on follower node by proxying to master."""
+        if self.master_url:
             return self._proxy_to_master(request)
 
         return JsonResponse(
@@ -241,11 +242,16 @@ class ClusterModeMiddleware(MiddlewareMixin):
         self._load_config()
 
     def _load_config(self) -> None:
-        config = getattr(settings, "CLUSTER_CONFIG", {})
-        self.mode = config.get("mode", "single")
-        self.is_master = config.get("is_master", False)
+        try:
+            config = DjangoClusterConfig.get_config()
+            self.mode = config.mode
+            self.is_master = config.is_master
+        except Exception:
+            self.mode = "single"
+            self.is_master = False
 
     def __call__(self, request: HttpRequest) -> HttpResponse:
+        self._load_config()
         return self.get_response(request)
 
     def process_request(self, request: HttpRequest) -> None:

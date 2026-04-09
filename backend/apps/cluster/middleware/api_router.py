@@ -1,10 +1,10 @@
 import logging
 from typing import Optional
 
-from django.conf import settings
 from django.http import HttpRequest, HttpResponse, JsonResponse
 from django.utils.deprecation import MiddlewareMixin
 
+from backend.apps.cluster.models.cluster_config import DjangoClusterConfig
 from backend.apps.cluster.services.proxy import get_master_proxy
 
 logger = logging.getLogger(__name__)
@@ -62,20 +62,22 @@ class ApiRouterMiddleware(MiddlewareMixin):
         self._load_config()
 
     def _load_config(self) -> None:
-        config = getattr(settings, "CLUSTER_CONFIG", {})
-
-        self.mode = config.get("mode", "single")
-        self.is_master = config.get("is_master", False)
-        self.master_url = config.get("master_url")
-        self.proxy_writes = config.get("proxy_writes", False)
-        self.proxy_timeout = config.get("proxy_timeout", 10)
-
-        self._is_cluster_mode = self.mode == "cluster"
-        self._is_follower = self._is_cluster_mode and not self.is_master
-
-        logger.info(f"ApiRouterMiddleware initialized: mode={self.mode}, " f"is_master={self.is_master}, proxy_writes={self.proxy_writes}")
+        try:
+            config = DjangoClusterConfig.get_config()
+            self.mode = config.mode
+            self.is_master = config.is_master
+            self.master_url = config.master_url
+            self._is_cluster_mode = self.mode == "cluster"
+            self._is_follower = self._is_cluster_mode and not self.is_master
+        except Exception:
+            self.mode = "single"
+            self.is_master = False
+            self.master_url = None
+            self._is_cluster_mode = False
+            self._is_follower = False
 
     def __call__(self, request: HttpRequest) -> HttpResponse:
+        self._load_config()
         return self.get_response(request)
 
     def process_request(self, request: HttpRequest) -> Optional[HttpResponse]:
@@ -91,7 +93,10 @@ class ApiRouterMiddleware(MiddlewareMixin):
             return None
 
         if request.method in self.WRITE_METHODS and self._is_follower:
-            return self._handle_follower_write(request)
+            if self.master_url:
+                return self._handle_follower_write(request)
+            logger.warning("Follower node has no master_url configured, rejecting write")
+            return self._create_readonly_response()
 
         return None
 
@@ -102,17 +107,14 @@ class ApiRouterMiddleware(MiddlewareMixin):
         return False
 
     def _handle_follower_write(self, request: HttpRequest) -> HttpResponse:
-        if not self.proxy_writes:
-            return self._create_readonly_response()
-
         if not self.master_url:
-            logger.error("Proxy writes enabled but master_url not configured")
+            logger.error("Follower write but master_url not configured")
             return self._create_readonly_response()
 
         proxy = get_master_proxy()
 
-        retry_count = getattr(settings, "PROXY_RETRY_COUNT", 3)
-        retry_delay = getattr(settings, "PROXY_RETRY_DELAY", 1.0)
+        retry_count = 3
+        retry_delay = 1.0
 
         response = proxy.forward_with_retry(
             request=request,
@@ -135,23 +137,23 @@ class ApiRouterMiddleware(MiddlewareMixin):
 
 
 class NodeRoleMiddleware(MiddlewareMixin):
-    """
-    Simplified middleware that only sets node role context on the request.
-
-    Use this when you want role information available but don't need
-    the full routing logic.
-    """
+    """Simplified middleware that only sets node role context on the request."""
 
     def __init__(self, get_response):
         self.get_response = get_response
         self._load_config()
 
     def _load_config(self) -> None:
-        config = getattr(settings, "CLUSTER_CONFIG", {})
-        self.mode = config.get("mode", "single")
-        self.is_master = config.get("is_master", False)
+        try:
+            config = DjangoClusterConfig.get_config()
+            self.mode = config.mode
+            self.is_master = config.is_master
+        except Exception:
+            self.mode = "single"
+            self.is_master = False
 
     def __call__(self, request: HttpRequest) -> HttpResponse:
+        self._load_config()
         return self.get_response(request)
 
     def process_request(self, request: HttpRequest) -> None:
