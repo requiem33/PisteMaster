@@ -156,6 +156,10 @@ class MasterProxy:
         if request.META.get("CONTENT_LENGTH"):
             headers["Content-Length"] = request.META["CONTENT_LENGTH"]
 
+        user = getattr(request, "user", None)
+        if user and user.is_authenticated:
+            headers["X-Cluster-User"] = user.username
+
         return headers
 
     def _get_request_body(self, request: HttpRequest) -> bytes:
