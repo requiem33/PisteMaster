@@ -1,4 +1,5 @@
 import logging
+import socket
 import threading
 from typing import Optional
 
@@ -8,6 +9,25 @@ from backend.apps.cluster.models.cluster_config import DjangoClusterConfig
 from backend.apps.cluster.services.sync_manager import sync_manager, SyncChange
 
 logger = logging.getLogger(__name__)
+
+
+def _get_own_url() -> str:
+    """Derive this node's own HTTP URL from api_port and local IP."""
+    try:
+        config = DjangoClusterConfig.get_config()
+        api_port = config.api_port or 8000
+    except Exception:
+        api_port = 8000
+
+    try:
+        s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+        s.connect(("10.255.255.255", 1))
+        ip = s.getsockname()[0]
+        s.close()
+    except Exception:
+        ip = "127.0.0.1"
+
+    return f"http://{ip}:{api_port}"
 
 
 class SyncWorker:
@@ -53,6 +73,8 @@ class SyncWorker:
         self._thread = threading.Thread(target=self._sync_loop, daemon=True, name="sync-worker")
         self._thread.start()
         logger.info("SyncWorker: started (node_id=%s, master_url=%s)", config.node_id, config.master_url)
+
+        self._announce_to_master(config)
 
     def stop(self) -> None:
         """Stop the background sync thread."""
@@ -220,15 +242,35 @@ class SyncWorker:
         self._send_ack(master_url, node_id, latest_sync_id)
 
     def _send_ack(self, master_url: str, node_id: str, sync_id: int) -> None:
-        """Send ACK to master after applying changes."""
+        """Send ACK to master after applying changes, including this node's URL."""
+        own_url = _get_own_url()
         try:
             requests.post(
                 f"{master_url.rstrip('/')}/api/cluster/sync/ack/",
-                json={"node_id": node_id, "sync_id": sync_id},
+                json={"node_id": node_id, "sync_id": sync_id, "url": own_url},
                 timeout=5,
             )
         except requests.RequestException as e:
             logger.warning("SyncWorker: ACK to master failed: %s", e)
+
+    def _announce_to_master(self, config: DjangoClusterConfig) -> None:
+        """Announce this follower's presence to the master so it can send push notifications."""
+        if not config.master_url or not config.node_id:
+            return
+        own_url = _get_own_url()
+        try:
+            requests.post(
+                f"{config.master_url.rstrip('/')}/api/cluster/status/announce/",
+                json={
+                    "node_id": config.node_id,
+                    "url": own_url,
+                    "is_master": False,
+                },
+                timeout=5,
+            )
+            logger.info("SyncWorker: announced presence to master at %s (url=%s)", config.master_url, own_url)
+        except requests.RequestException as e:
+            logger.warning("SyncWorker: failed to announce to master: %s", e)
 
 
 sync_worker = SyncWorker()
