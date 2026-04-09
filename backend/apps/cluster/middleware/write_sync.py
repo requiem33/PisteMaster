@@ -65,12 +65,10 @@ class SyncWriteMiddleware(MiddlewareMixin):
 
         sync_manager.ack_queue.set_nodes_required(self.replica_ack_required)
 
-    def __call__(self, request: HttpRequest) -> HttpResponse:
-        self._load_config()
-        return self.get_response(request)
-
     def process_request(self, request: HttpRequest) -> Optional[HttpResponse]:
         """Pre-process incoming requests."""
+        self._load_config()
+
         if self.mode == "single":
             return None
         if self._is_exempt_path(request.path):
@@ -84,6 +82,8 @@ class SyncWriteMiddleware(MiddlewareMixin):
 
     def process_response(self, request: HttpRequest, response: HttpResponse) -> HttpResponse:
         """Post-process response after view execution."""
+        self._load_config()
+
         if self.mode == "single":
             return response
 
@@ -250,11 +250,8 @@ class ClusterModeMiddleware(MiddlewareMixin):
             self.mode = "single"
             self.is_master = False
 
-    def __call__(self, request: HttpRequest) -> HttpResponse:
-        self._load_config()
-        return self.get_response(request)
-
     def process_request(self, request: HttpRequest) -> None:
+        self._load_config()
         request.cluster_mode = self.mode
         request.is_master = self.is_master
         request.is_follower = self.mode == "cluster" and not self.is_master

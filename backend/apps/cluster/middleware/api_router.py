@@ -22,26 +22,15 @@ class ApiRouterMiddleware(MiddlewareMixin):
 
     Follower Node:
     - GET requests: Processed locally (read-only)
-    - POST/PUT/DELETE/PATCH: Either rejected (503) or proxied to master
+    - POST/PUT/DELETE/PATCH: Proxied to master
+
+    When a proxied request arrives at the master (identified by the
+    X-Cluster-Proxy header), CSRF validation is skipped because the
+    follower already validated the original request and both nodes
+    share the same trusted origin configuration.
 
     This middleware should be placed before SyncWriteMiddleware
     in the MIDDLEWARE configuration.
-
-    Configuration (in settings.py):
-        MIDDLEWARE = [
-            ...
-            'backend.apps.cluster.middleware.api_router.ApiRouterMiddleware',
-            'backend.apps.cluster.middleware.write_sync.SyncWriteMiddleware',
-            ...
-        ]
-
-        CLUSTER_CONFIG = {
-            'mode': 'single' or 'cluster',
-            'is_master': False,
-            'master_url': 'http://192.168.1.100:8000',
-            'proxy_writes': True,  # IfTrue, proxy writes to master
-            'proxy_timeout': 10,   # Timeout for proxy requests
-        }
     """
 
     SYNC_EXEMPT_PATHS = [
@@ -76,11 +65,12 @@ class ApiRouterMiddleware(MiddlewareMixin):
             self._is_cluster_mode = False
             self._is_follower = False
 
-    def __call__(self, request: HttpRequest) -> HttpResponse:
-        self._load_config()
-        return self.get_response(request)
-
     def process_request(self, request: HttpRequest) -> Optional[HttpResponse]:
+        self._load_config()
+
+        if self._is_cluster_mode and request.META.get("HTTP_X_CLUSTER_PROXY") == "follower":
+            setattr(request, "_dont_enforce_csrf_checks", True)
+
         if not self._is_cluster_mode:
             return None
 
@@ -152,11 +142,8 @@ class NodeRoleMiddleware(MiddlewareMixin):
             self.mode = "single"
             self.is_master = False
 
-    def __call__(self, request: HttpRequest) -> HttpResponse:
-        self._load_config()
-        return self.get_response(request)
-
     def process_request(self, request: HttpRequest) -> None:
+        self._load_config()
         request.cluster_mode = self.mode
         request.is_master = self.is_master
         request.is_follower = self.mode == "cluster" and not self.is_master
