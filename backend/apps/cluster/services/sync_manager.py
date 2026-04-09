@@ -275,6 +275,17 @@ class SyncManager:
             logger.error(f"Failed to apply change {change.id}: {e}")
             return False
 
+    @staticmethod
+    def _clean_data(data: Dict[str, Any], model_class: Type[Model]) -> Dict[str, Any]:
+        """Strip fields that should not be passed to create/update ORM calls.
+
+        Removes the ``id`` key (passed separately) and any auto-set timestamp
+        fields that Django manages internally (created_at, updated_at,
+        last_modified_at) to avoid duplicate-key errors and type mismatches.
+        """
+        skip_fields = {"id", "created_at", "updated_at", "last_modified_at"}
+        return {k: v for k, v in data.items() if k not in skip_fields}
+
     def _apply_insert(
         self,
         model_class: Type[Model],
@@ -287,7 +298,8 @@ class SyncManager:
                 logger.warning(f"Record already exists for INSERT: {change.record_id}")
                 return self._apply_update(model_class, change, registry_entry)
 
-            model_class.objects.create(id=change.record_id, **change.data)
+            clean_data = self._clean_data(change.data, model_class)
+            model_class.objects.create(id=change.record_id, **clean_data)
             logger.debug(f"Applied INSERT: {change.table_name}/{change.record_id}")
             return True
         except Exception as e:
@@ -306,7 +318,8 @@ class SyncManager:
 
             if not record:
                 logger.warning(f"Record not found for UPDATE: {change.record_id}, creating instead")
-                model_class.objects.create(id=change.record_id, **change.data)
+                clean_data = self._clean_data(change.data, model_class)
+                model_class.objects.create(id=change.record_id, **clean_data)
                 return True
 
             existing_version = getattr(record, registry_entry.version_field, 1)
@@ -325,13 +338,16 @@ class SyncManager:
                         logger.info(f"Skipping UPDATE - existing is newer for {change.record_id}")
                         return True
 
-            for key, value in change.data.items():
+            clean_data = self._clean_data(change.data, model_class)
+            update_fields = list(clean_data.keys()) + [registry_entry.version_field]
+
+            for key, value in clean_data.items():
                 setattr(record, key, value)
 
             if hasattr(record, registry_entry.version_field):
                 setattr(record, registry_entry.version_field, change.version)
 
-            record.save(update_fields=list(change.data.keys()) + [registry_entry.version_field])
+            record.save(update_fields=update_fields)
 
             logger.debug(f"Applied UPDATE: {change.table_name}/{change.record_id}")
             return True
