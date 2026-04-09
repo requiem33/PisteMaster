@@ -307,6 +307,7 @@ class ClusterStatusViewSet(viewsets.GenericViewSet):
         - ip: Node IP address
         - port: Node API port
         - is_master: Whether this node is master
+        - url: (optional) Node URL for push notifications
 
         Used for manual cluster configuration when UDP broadcast is not available.
         """
@@ -314,19 +315,21 @@ class ClusterStatusViewSet(viewsets.GenericViewSet):
         ip = request.data.get("ip")
         port = request.data.get("port", 8000)
         is_master = request.data.get("is_master", False)
+        url = request.data.get("url") or (f"http://{ip}:{port}" if ip else None)
 
         if not node_id:
             return Response({"detail": "node_id is required"}, status=status.HTTP_400_BAD_REQUEST)
 
         try:
-            sync_manager.update_sync_state(node_id, 0)
+            sync_manager.update_sync_state(node_id, 0, url=url)
 
-            logger.info(f"Node announced: id={node_id}, ip={ip}, port={port}, is_master={is_master}")
+            logger.info(f"Node announced: id={node_id}, ip={ip}, port={port}, is_master={is_master}, url={url}")
 
             return Response(
                 {
                     "status": "announced",
                     "node_id": node_id,
+                    "url": url,
                 }
             )
 
