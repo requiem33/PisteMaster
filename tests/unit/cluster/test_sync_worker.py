@@ -145,25 +145,26 @@ class TestSyncWorkerDoIncrementalSync:
         }
         mock_requests.get.return_value = mock_response
 
-        mock_sync_manager.apply_changes_batch.return_value = {"success": 1, "failed": 0, "skipped": 0}
+        mock_sync_manager.apply_changes_batch.return_value = {"success": 1, "failed": 0, "skipped": 0, "last_success_id": 11}
 
         worker = SyncWorker()
         with patch.object(worker, "_send_ack"):
             worker._do_incremental_sync("http://master:8000", "follower_001", 10)
 
         mock_sync_manager.apply_changes_batch.assert_called_once()
-        mock_sync_manager.update_sync_state.assert_called_once_with("follower_001", 11)
+        mock_sync_manager.update_sync_state.assert_called_once_with("follower_001", 11, master_latest_sync_id=11)
 
 
 class TestSyncWorkerSendAck:
+    @patch("backend.apps.cluster.services.sync_worker._get_own_url", return_value="http://192.168.1.5:8001")
     @patch("backend.apps.cluster.services.sync_worker.requests")
-    def test_send_ack_posts_to_master(self, mock_requests):
+    def test_send_ack_posts_to_master(self, mock_requests, mock_own_url):
         worker = SyncWorker()
         worker._send_ack("http://master:8000", "follower_001", 42)
 
         mock_requests.post.assert_called_once_with(
             "http://master:8000/api/cluster/sync/ack/",
-            json={"node_id": "follower_001", "sync_id": 42},
+            json={"node_id": "follower_001", "sync_id": 42, "url": "http://192.168.1.5:8001"},
             timeout=5,
         )
 
