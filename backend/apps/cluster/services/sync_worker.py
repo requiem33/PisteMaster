@@ -127,10 +127,6 @@ class SyncWorker:
         sync_state = sync_manager.get_sync_state(node_id)
         last_synced_id = sync_state.last_synced_id if sync_state else 0
 
-        if last_synced_id == 0:
-            self._do_full_sync(master_url, node_id)
-            return
-
         self._do_incremental_sync(master_url, node_id, last_synced_id)
 
     def _do_incremental_sync(self, master_url: str, node_id: str, last_synced_id: int) -> None:
