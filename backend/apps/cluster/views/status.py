@@ -120,12 +120,11 @@ class ClusterStatusViewSet(viewsets.GenericViewSet):
 
                     pending_acks = sync_manager.ack_queue.get_pending_count()
                 else:
-                    try:
-                        state = DjangoSyncState.objects.get(node_id=node_id)
-                        sync_lag = DjangoSyncLog.objects.filter(id__gt=state.last_synced_id).count()
-                        last_sync_time = state.last_sync_time
-                    except DjangoSyncState.DoesNotExist:
-                        sync_lag = DjangoSyncLog.objects.count()
+                    state = sync_manager.get_sync_state(node_id)
+                    if state is None:
+                        state = sync_manager.update_sync_state(node_id, 0)
+                    sync_lag = DjangoSyncLog.objects.filter(id__gt=state.last_synced_id).count()
+                    last_sync_time = state.last_sync_time
 
             except Exception as e:
                 logger.error(f"Failed to get sync status: {e}")
@@ -173,11 +172,10 @@ class ClusterStatusViewSet(viewsets.GenericViewSet):
             if is_master:
                 last_sync_id = DjangoSyncLog.objects.aggregate(max_id=models.Max("id"))["max_id"] or 0
             else:
-                try:
-                    state = DjangoSyncState.objects.get(node_id=node_id)
-                    last_sync_id = state.last_synced_id
-                except DjangoSyncState.DoesNotExist:
-                    pass
+                state = sync_manager.get_sync_state(node_id)
+                if state is None:
+                    state = sync_manager.update_sync_state(node_id, 0)
+                last_sync_id = state.last_synced_id
 
         except Exception as e:
             logger.error(f"Failed to get last_sync_id: {e}")
@@ -254,7 +252,9 @@ class ClusterStatusViewSet(viewsets.GenericViewSet):
             if is_master:
                 current_node["lastSyncId"] = DjangoSyncLog.objects.aggregate(max_id=models.Max("id"))["max_id"] or 0
             else:
-                state = DjangoSyncState.objects.get(node_id=node_id)
+                state = sync_manager.get_sync_state(node_id)
+                if state is None:
+                    state = sync_manager.update_sync_state(node_id, 0)
                 current_node["lastSyncId"] = state.last_synced_id
         except Exception:
             pass
