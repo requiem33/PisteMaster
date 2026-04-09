@@ -156,17 +156,23 @@ class SyncWorker:
 
         results = sync_manager.apply_changes_batch(sync_changes)
 
-        applied_last_id = max(c.id for c in sync_changes)
-        sync_manager.update_sync_state(node_id, applied_last_id)
+        last_success_id = results.get("last_success_id", 0)
+
+        if last_success_id > 0:
+            sync_manager.update_sync_state(node_id, last_success_id)
+            self._send_ack(master_url, node_id, last_success_id)
+        else:
+            logger.warning(
+                "SyncWorker: no changes applied successfully out of %d, " "not advancing sync state",
+                len(sync_changes),
+            )
 
         logger.info(
-            "SyncWorker: incremental sync applied %d/%d changes (last_id=%d)",
+            "SyncWorker: incremental sync applied %d/%d changes (last_success_id=%d)",
             results["success"],
             len(sync_changes),
-            applied_last_id,
+            last_success_id,
         )
-
-        self._send_ack(master_url, node_id, applied_last_id)
 
         if has_more:
             self._sync_event.set()

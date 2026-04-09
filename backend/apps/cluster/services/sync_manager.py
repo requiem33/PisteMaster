@@ -371,25 +371,38 @@ class SyncManager:
             logger.error(f"DELETE failed for {change.table_name}/{change.record_id}: {e}")
             return False
 
-    def apply_changes_batch(self, changes: List[SyncChange]) -> Dict[str, int]:
+    def apply_changes_batch(self, changes: List[SyncChange]) -> Dict[str, Any]:
         """
         Apply a batch of changes.
-        Returns summary of successes/failures.
+        Returns summary with per-change status and the last successfully applied ID.
         """
-        results = {"success": 0, "failed": 0, "skipped": 0}
+        success_ids: List[int] = []
+        failed_count = 0
+        skipped_count = 0
 
         for change in changes:
             result = self.apply_change(change)
             if result is True:
-                results["success"] += 1
+                success_ids.append(change.id)
             elif result is False:
-                results["failed"] += 1
+                failed_count += 1
             else:
-                results["skipped"] += 1
+                skipped_count += 1
 
-        logger.info(f"Batch apply complete: {results['success']} success, " f"{results['failed']} failed, {results['skipped']} skipped")
+        last_success_id = max(success_ids) if success_ids else 0
 
-        return results
+        logger.info(
+            f"Batch apply complete: {len(success_ids)} success, "
+            f"{failed_count} failed, {skipped_count} skipped, "
+            f"last_success_id={last_success_id}"
+        )
+
+        return {
+            "success": len(success_ids),
+            "failed": failed_count,
+            "skipped": skipped_count,
+            "last_success_id": last_success_id,
+        }
 
     def export_full_data(
         self,
