@@ -30,6 +30,9 @@ def _get_own_url() -> str:
     return f"http://{ip}:{api_port}"
 
 
+SKIP_FIELDS = {"id", "created_at", "updated_at", "last_modified_at"}
+
+
 class SyncWorker:
     """Background sync thread running on follower nodes.
 
@@ -227,7 +230,8 @@ class SyncWorker:
             model_class = sync_manager._model_registry[table_name].model_class
             for record in records:
                 try:
-                    model_class.objects.update_or_create(id=record["id"], defaults=record)
+                    defaults = {k: v for k, v in record.items() if k not in SKIP_FIELDS}
+                    model_class.objects.update_or_create(id=record["id"], defaults=defaults)
                 except Exception as e:
                     logger.error("SyncWorker: failed to import record %s/%s: %s", table_name, record.get("id"), e)
 
