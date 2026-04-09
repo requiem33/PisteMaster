@@ -115,8 +115,12 @@ class ClusterStatusViewSet(viewsets.GenericViewSet):
             try:
                 if is_master:
                     latest_id = DjangoSyncLog.objects.aggregate(max_id=models.Max("id"))["max_id"] or 0
-                    acked_id = sync_manager.ack_queue.get_min_confirmed_id()
-                    sync_lag = latest_id - acked_id if latest_id and acked_id else latest_id
+                    followers = DjangoSyncState.objects.exclude(node_id=node_id)
+                    if followers.exists():
+                        min_follower_id = min(f.last_synced_id for f in followers)
+                        sync_lag = max(0, latest_id - min_follower_id)
+                    else:
+                        sync_lag = 0
 
                     pending_acks = sync_manager.ack_queue.get_pending_count()
                 else:
