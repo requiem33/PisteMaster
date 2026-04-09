@@ -210,14 +210,15 @@ DJANGO_DB_PATH=db_node2.sqlite3 python manage.py migrate
 ```
 
 **2. Start Backend Instances (separate terminals):**
-```bash
-# Terminal 1 - Backend Node 1
-cd backend
-DJANGO_DB_PATH=db_node1.sqlite3 python manage.py runserver 8000
 
-# Terminal 2 - Backend Node 2
-cd backend
-DJANGO_DB_PATH=db_node2.sqlite3 python manage.py runserver 8001
+> **Important:** Use `0.0.0.0` as the bind address so each backend is reachable by the other node. If you use the default `127.0.0.1`, the follower cannot connect to the master for sync.
+
+```bash
+# Terminal 1 - Backend Node 1 (Master)
+DJANGO_DB_PATH=db_node1.sqlite3 python manage.py runserver 0.0.0.0:8000
+
+# Terminal 2 - Backend Node 2 (Follower)
+DJANGO_DB_PATH=db_node2.sqlite3 python manage.py runserver 0.0.0.0:8001
 ```
 
 **3. Start Frontend Instances (separate terminals):**
@@ -248,6 +249,20 @@ PISTEMASTER_USER_DATA_DIR=/tmp/pistemaster-node2 \
   npm run dev
 ```
 
+### Master IP Configuration
+
+When both nodes run on the **same machine** (e.g. for development/testing):
+
+- Set the **Master IP** to `127.0.0.1` in Node 2's cluster settings
+- This tells the follower to reach the master at `http://127.0.0.1:8000`
+- The SyncWorker will derive the follower's own URL (e.g. `http://127.0.0.1:8001`) and announce it to the master so push notifications work
+
+When nodes run on **separate machines**:
+
+- Set the **Master IP** to the master's LAN IP (e.g. `192.168.1.50`)
+- Each node must be reachable by the other on the configured API port
+- The master's `0.0.0.0` bind address ensures it accepts connections from the network
+
 ### Configuration Notes
 
 - Each Electron instance stores its config in its own `PISTEMASTER_USER_DATA_DIR`, including unique `nodeId`
@@ -259,8 +274,8 @@ PISTEMASTER_USER_DATA_DIR=/tmp/pistemaster-node2 \
 
 1. Start both instances following the steps above
 2. In Node 1's cluster settings: Set mode to "cluster", mark as Master
-3. In Node 2's cluster settings: Set mode to "cluster", set Master IP to Node 1's IP
-4. Nodes will discover each other via UDP broadcast and sync data
+3. In Node 2's cluster settings: Set mode to "cluster", set Master IP (use `127.0.0.1` on same machine)
+4. The follower auto-announces itself to the master; data sync begins within seconds
 
 ## Building
 
