@@ -66,6 +66,14 @@ class ClusterConfig(AppConfig):
                 f"SyncManager initialized with {len(sync_manager.get_registered_tables())} models: "
                 f"{sync_manager.get_registered_tables()}"
             )
+
+            # Start SyncWorker for follower nodes
+            from backend.apps.cluster.services.sync_worker import sync_worker
+
+            try:
+                sync_worker.start()
+            except Exception as e:
+                logger.warning(f"Failed to start SyncWorker: {e}")
         except ImportError as e:
             # Models not available yet (during migrations)
             import logging
