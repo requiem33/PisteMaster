@@ -1,8 +1,10 @@
 import logging
 from dataclasses import dataclass
 from datetime import datetime
+from decimal import Decimal
 from enum import Enum
 from typing import Dict, List, Any, Optional, Type
+from uuid import UUID
 
 from django.db import transaction
 from django.db.models import Model, Max
@@ -284,15 +286,83 @@ class SyncManager:
             return False
 
     @staticmethod
+    def _parse_datetime(value) -> Optional[datetime]:
+        """Parse a value into a datetime object.
+
+        Handles strings (ISO 8601), None, and already-parsed datetime objects.
+        """
+        if value is None:
+            return None
+        if isinstance(value, datetime):
+            return value
+        if isinstance(value, str):
+            for fmt in (
+                "%Y-%m-%dT%H:%M:%S.%f%z",
+                "%Y-%m-%dT%H:%M:%S.%f",
+                "%Y-%m-%dT%H:%M:%S%z",
+                "%Y-%m-%dT%H:%M:%S",
+                "%Y-%m-%d",
+            ):
+                try:
+                    return datetime.strptime(value, fmt)
+                except (ValueError, TypeError):
+                    continue
+            from dateutil.parser import parse as dateutil_parse
+
+            try:
+                return dateutil_parse(value)
+            except (ValueError, TypeError):
+                pass
+        return None
+
+    @staticmethod
+    def _coerce_value(value, field):
+        """Coerce a serialized value to match a Django model field's Python type.
+
+        JSON deserialization produces strings for dates/datetimes and UUIDs,
+        but Django expects native Python types. This helper converts strings
+        to the correct type based on the field's internal type.
+        """
+        if value is None:
+            return value
+        internal_type = field.get_internal_type()
+        if internal_type == "DateTimeField":
+            return SyncManager._parse_datetime(value)
+        if internal_type == "DateField":
+            dt = SyncManager._parse_datetime(value)
+            return dt.date() if dt else value
+        if internal_type == "UUIDField":
+            if isinstance(value, UUID):
+                return value
+            return str(value)
+        if internal_type in ("DecimalField", "CurrencyField"):
+            if isinstance(value, Decimal):
+                return value
+            return Decimal(str(value))
+        return value
+
+    @staticmethod
     def _clean_data(data: Dict[str, Any], model_class: Type[Model]) -> Dict[str, Any]:
         """Strip fields that should not be passed to create/update ORM calls.
 
         Removes the ``id`` key (passed separately) and any auto-set timestamp
         fields that Django manages internally (created_at, updated_at,
         last_modified_at) to avoid duplicate-key errors and type mismatches.
+        Also coerces serialized values (strings) to the correct Python types
+        based on the model field definitions.
         """
         skip_fields = {"id", "created_at", "updated_at", "last_modified_at"}
-        return {k: v for k, v in data.items() if k not in skip_fields}
+        cleaned = {}
+        for k, v in data.items():
+            if k in skip_fields:
+                continue
+            try:
+                field = model_class._meta.get_field(k)
+                v = SyncManager._coerce_value(v, field)
+            except Exception:
+                pass
+            cleaned[k] = v
+        return cleaned
 
     def _apply_insert(
         self,
@@ -339,7 +409,7 @@ class SyncManager:
 
             if existing_version == change.version:
                 existing_modified = getattr(record, registry_entry.last_modified_field, None)
-                incoming_modified = change.created_at
+                incoming_modified = self._parse_datetime(change.created_at)
 
                 if existing_modified and incoming_modified:
                     if existing_modified >= incoming_modified:
