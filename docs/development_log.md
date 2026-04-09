@@ -77,6 +77,136 @@
 
 ---
 
+## 🗓️ 2026-04-09
+
+### 已完成事项
+
+* **集群同步推送通知**: 实现Master向Follower的实时推送通知机制
+  - DjangoSyncState新增url字段，存储Follower的回调URL
+  - 添加数据库迁移`0004_djangosyncstate_url`和`0005_add_master_latest_sync_id`
+  - Master写操作完成后通过`/api/cluster/sync/notify/`端点主动通知Follower拉取变更
+  - Follower在announce端点注册URL到Master，实现自动推送通知注册
+  - 修复FollowerProxy推送通知URL从`/api/sync/notify`更正为`/api/cluster/sync/notify/`
+
+* **SyncWorker后台线程**: 实现Follower节点的后台拉取同步
+  - 创建SyncWorker类，作为守护线程在Follower节点后台运行
+  - 支持增量同步（since参数）和全量同步
+  - ClusterConfig.ready()中自动启动SyncWorker
+  - 自动创建DjangoSyncState记录，防止lastSyncTime为null
+
+* **集群同步数据修复**: 修复多个同步数据处理问题
+  - 剥离`id`和自动管理字段（created_at, updated_at, version）在变更数据和全量同步默认值中
+  - 仅对成功应用的变更推进同步状态，跳过已删除或冲突的记录
+  - 在Follower存储Master的最新sync ID用于准确计算syncLag
+  - Master的syncLag从持久化DjangoSyncState计算，而非内存ack_queue
+  - 修复datetime字符串在sync apply中的解析和字段类型强制转换
+
+* **集群认证与中间件修复**: 修复代理写入的认证和CSRF问题
+  - 创建ProxyAuthentication类，代理Follower写请求时使用原始用户身份认证
+  - 修复ApiRouterMiddleware请求处理逻辑
+  - 修复代理写入的CSRF豁免处理
+  - 从数据库读取集群配置替代静态settings
+
+* **集群单元测试**: 添加集群核心模块的单元测试
+  - AckQueue测试：确认机制、超时处理、最小已确认ID
+  - Sync API测试：全量同步、增量同步、变更推送通知
+  - Write Sync测试：写同步中间件路由
+  - SyncWorker测试：增量拉取、全量拉取、错误处理
+
+* **TypeScript声明**: 添加Electron API的TypeScript类型声明（window.electron）
+
+### 技术决策 & 挑战
+
+* 推送+拉取混合同步策略：Master主动通知Follower有新数据，Follower再拉取，减少轮询延迟
+* 代理写入认证：Follower代理请求到Master时，需携带原始用户身份而非服务器间认证
+* 同步状态持久化：使用DjangoSyncState数据库记录替代内存状态，服务重启后不丢失进度
+
+### 发现的问题
+
+* 无。
+
+---
+
+## 🗓️ 2026-04-08
+
+### 已完成事项
+
+* **同步基础架构搭建**: 实现集群分布式同步的核心基础设施
+  - 创建cluster Django app（apps.py），使用ClusterConfig.ready()自动启动集群组件
+  - 实现版本追踪基础设施：所有同步模型添加version字段，VersionedModelMixin自动管理版本递增
+  - 创建BaseViewSet统一处理版本化模型的创建和更新
+  - 创建VersionedModelSerializer基类，自动输出version字段
+  - 添加版本追踪迁移（0019_add_version_tracking）
+
+* **AckQueue线程安全修复**: 替换asyncio.Event为threading.Event
+  - AckQueue从asyncio.Event改为threading.Event，解决Django同步视图中的跨线程安全问题
+  - 简化`_wait_for_acks`实现，添加`_notify_followers`推送通知方法
+
+* **集群架构文档更新**: 更新分布式集群架构设计文档至v1.1
+  - 添加推送+拉取混合同步设计
+  - 完善节点发现、选举和数据同步流程说明
+
+* **Serializer ID字段修复**: 为多个serializer添加缺失的id字段
+
+* **Master URL修复**: 修正集群Master URL的API路径
+
+### 技术决策 & 挑战
+
+* asyncio vs threading：Django视图运行在同步线程中，AckQueue需使用threading.Event而非asyncio.Event
+* 版本追踪：所有同步模型增加version字段用于冲突检测，由ORM自动递增，不暴露给前端
+
+### 发现的问题
+
+* 无。
+
+---
+
+## 🗓️ 2026-04-07
+
+### 已完成事项
+
+* **集群同步基础设施**: 实现分布式数据同步的核心模型和API
+  - 创建SyncLog和SyncState Django模型，记录变更历史和同步状态
+  - 创建数据迁移添加默认SyncLog和SyncState
+  - 实现SyncManager服务，管理变更记录和同步队列
+  - 实现AckQueue确认机制，保证写入操作的可靠性
+  - 创建decorators/transaction.py处理同步事务
+
+* **模型版本追踪**: 为所有可同步模型添加版本追踪
+  - VersionedModelMixin在保存时自动递增version字段
+  - SyncLog记录包含模型名称、实例ID、操作类型和变更数据
+  - 版本追踪为后续增量同步和冲突解决提供基础
+
+### 技术决策 & 挑战
+
+* 同步日志设计：每次数据变更记录到SyncLog，提供完整的变更历史用于增量同步
+* 确认机制：AckQueue保证Master等待足够数量的Follower确认后才响应客户端
+
+### 发现的问题
+
+* 无。
+
+---
+
+## 🗓️ 2026-04-06
+
+### 已完成事项
+
+* **Electron TypeScript声明**: 添加window.electron API的TypeScript类型声明
+  - 创建`web_frontend/src/types/electron.d.ts`，定义所有Electron IPC接口类型
+  - 包括cluster、database、auth、tournament等模块的类型定义
+  - 解决前端Electron API调用的TypeScript编译错误
+
+### 技术决策 & 挑战
+
+* 无。
+
+### 发现的问题
+
+* 无。
+
+---
+
 ## 🗓️ 2026-04-04
 
 ### 已完成事项
