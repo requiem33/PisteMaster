@@ -130,8 +130,11 @@ class SyncWorker:
         data = response.json()
         changes = data.get("changes", [])
         has_more = data.get("has_more", False)
+        master_latest_id = data.get("last_id", 0)
 
         if not changes:
+            if master_latest_id > 0:
+                sync_manager.update_sync_state(node_id, last_synced_id, master_latest_sync_id=master_latest_id)
             return
 
         sync_changes = []
@@ -159,7 +162,7 @@ class SyncWorker:
         last_success_id = results.get("last_success_id", 0)
 
         if last_success_id > 0:
-            sync_manager.update_sync_state(node_id, last_success_id)
+            sync_manager.update_sync_state(node_id, last_success_id, master_latest_sync_id=master_latest_id)
             self._send_ack(master_url, node_id, last_success_id)
         else:
             logger.warning(
@@ -210,7 +213,7 @@ class SyncWorker:
                 except Exception as e:
                     logger.error("SyncWorker: failed to import record %s/%s: %s", table_name, record.get("id"), e)
 
-        sync_manager.update_sync_state(node_id, latest_sync_id)
+        sync_manager.update_sync_state(node_id, latest_sync_id, master_latest_sync_id=latest_sync_id)
 
         logger.info("SyncWorker: full sync complete (last_sync_id=%d)", latest_sync_id)
 

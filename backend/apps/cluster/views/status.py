@@ -123,7 +123,10 @@ class ClusterStatusViewSet(viewsets.GenericViewSet):
                     state = sync_manager.get_sync_state(node_id)
                     if state is None:
                         state = sync_manager.update_sync_state(node_id, 0)
-                    sync_lag = DjangoSyncLog.objects.filter(id__gt=state.last_synced_id).count()
+                    if state.master_latest_sync_id > 0:
+                        sync_lag = state.master_latest_sync_id - state.last_synced_id
+                    else:
+                        sync_lag = DjangoSyncLog.objects.filter(id__gt=state.last_synced_id).count()
                     last_sync_time = state.last_sync_time
 
             except Exception as e:

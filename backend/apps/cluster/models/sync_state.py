@@ -12,6 +12,7 @@ class DjangoSyncState(models.Model):
     last_synced_id = models.BigIntegerField(default=0, verbose_name="Last sync_log ID successfully applied")
     last_sync_time = models.DateTimeField(auto_now=True, verbose_name="Timestamp of last successful sync")
     url = models.CharField(max_length=200, blank=True, null=True, verbose_name="HTTP endpoint URL of follower node for push notifications")
+    master_latest_sync_id = models.BigIntegerField(default=0, verbose_name="Latest sync_log ID on master at time of last sync pull")
 
     class Meta:
         db_table = "sync_state"
