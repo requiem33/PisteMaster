@@ -106,6 +106,39 @@ export default {
         totalScore: '总分',
         finalRankingNote: '最终排名计算规则：根据淘汰赛被淘汰轮次排序，同轮次淘汰者按照小组赛成绩排序。'
     },
+    eventForm: {
+        eventName: '项目名称',
+        startTime: '比赛时间',
+        weapon: '剑种',
+        gender: '性别',
+        type: '类型',
+        individual: '个人',
+        team: '团体',
+        competitionRules: '赛制规则',
+        ruleType: '规则类型',
+        presetRule: '预设规则',
+        customRule: '自定义规则',
+        selectRule: '选择规则',
+        weaponEpee: '重剑 (Epee)',
+        weaponFoil: '花剑 (Foil)',
+        weaponSabre: '佩剑 (Sabre)',
+        male: '男 (M)',
+        female: '女 (F)',
+        mixed: '混合 (X)',
+        stageConfig: '阶段配置：',
+        placeholder: {
+            eventName: '如：男子重剑个人',
+            pleaseSelect: '请选择',
+            startTime: '选择开始时间',
+            presetRule: '请选择预设规则'
+        },
+        validation: {
+            eventNameRequired: '请输入项目名称',
+            weaponRequired: '请选择剑种',
+            genderRequired: '请选择性别',
+            startTimeRequired: '请选择时间'
+        }
+    },
     ruleSettings: {
         template: '赛制规则模板',
         worldCup: '世界杯',

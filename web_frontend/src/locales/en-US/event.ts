@@ -106,6 +106,39 @@ export default {
         totalScore: 'Total Score',
         finalRankingNote: 'Final ranking calculated based on elimination round progress and pool results.'
     },
+    eventForm: {
+        eventName: 'Event Name',
+        startTime: 'Start Time',
+        weapon: 'Weapon',
+        gender: 'Gender',
+        type: 'Type',
+        individual: 'Individual',
+        team: 'Team',
+        competitionRules: 'Competition Rules',
+        ruleType: 'Rule Type',
+        presetRule: 'Preset Rule',
+        customRule: 'Custom Rule',
+        selectRule: 'Select Rule',
+        weaponEpee: 'Epee',
+        weaponFoil: 'Foil',
+        weaponSabre: 'Sabre',
+        male: 'Male (M)',
+        female: 'Female (F)',
+        mixed: 'Mixed (X)',
+        stageConfig: 'Stage Configuration:',
+        placeholder: {
+            eventName: 'e.g., Men\'s Epee Individual',
+            pleaseSelect: 'Please select',
+            startTime: 'Select start time',
+            presetRule: 'Select a preset rule'
+        },
+        validation: {
+            eventNameRequired: 'Please enter event name',
+            weaponRequired: 'Please select weapon',
+            genderRequired: 'Please select gender',
+            startTimeRequired: 'Please select time'
+        }
+    },
     ruleSettings: {
         template: 'Competition Rule Template',
         worldCup: 'World Cup',
