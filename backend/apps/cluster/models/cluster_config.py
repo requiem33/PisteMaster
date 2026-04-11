@@ -22,6 +22,7 @@ class DjangoClusterConfig(models.Model):
     replica_ack_required = models.IntegerField(default=1, verbose_name="Replica ACK Required")
     ack_timeout_ms = models.IntegerField(default=5000, verbose_name="ACK Timeout (ms)")
     master_ip = models.CharField(max_length=50, blank=True, null=True, verbose_name="Master IP")
+    master_port = models.IntegerField(default=8000, null=True, blank=True, verbose_name="Master Port")
     is_master = models.BooleanField(default=False, verbose_name="Is Master")
     master_url = models.CharField(max_length=200, blank=True, null=True, verbose_name="Master URL")
     created_at = models.DateTimeField(auto_now_add=True)

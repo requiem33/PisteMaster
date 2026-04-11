@@ -81,6 +81,8 @@ export default {
     heartbeat: '心跳间隔',
     masterIp: '主节点IP',
     masterIpHint: '留空则自动发现',
+    masterAddress: '主节点地址',
+    masterAddressHint: '格式: IP:端口，例如 192.168.1.100:9000',
     regenerateNodeId: '重新生成节点ID',
     resetToDefaults: '恢复默认设置',
     resetConfirmTitle: '重置设置',

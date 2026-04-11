@@ -81,6 +81,8 @@ export default {
     heartbeat: 'Heartbeat Interval',
     masterIp: 'Master IP',
     masterIpHint: 'Leave empty for auto-discovery',
+    masterAddress: 'Master Address',
+    masterAddressHint: 'Format: IP:Port, e.g. 192.168.1.100:9000',
     regenerateNodeId: 'Regenerate Node ID',
     resetToDefaults: 'Reset to Defaults',
     resetConfirmTitle: 'Reset Settings',

@@ -76,6 +76,7 @@ class ClusterStatusViewSet(viewsets.GenericViewSet):
                 "replica_ack_required": db_config.replica_ack_required,
                 "ack_timeout_ms": db_config.ack_timeout_ms,
                 "master_ip": db_config.master_ip,
+                "master_port": db_config.master_port,
                 "is_master": is_master,
                 "master_url": db_config.master_url,
             }
@@ -411,11 +412,12 @@ class ClusterStatusViewSet(viewsets.GenericViewSet):
         Request body (snake_case for backward compatibility):
         - mode: 'single' or 'cluster'
         - node_id: Node identifier (optional)
-        - udp_port: UDP port (optional)
-        - api_port: API port (optional)
+        - udp_port: UDP port (optional, read-only from UI)
+        - api_port: API port (optional, read-only from UI)
         - heartbeat_interval: Heartbeat interval in seconds (optional)
         - heartbeat_timeout: Heartbeat timeout in seconds (optional)
         - master_ip: Fixed master IP (optional)
+        - master_port: Master API port (optional)
 
         Returns (camelCase):
         - Updated configuration
@@ -435,6 +437,7 @@ class ClusterStatusViewSet(viewsets.GenericViewSet):
                     db_config.is_master = False
                     db_config.master_url = None
                     db_config.master_ip = None
+                    db_config.master_port = None
 
             if "node_id" in request.data:
                 db_config.node_id = request.data["node_id"]
@@ -455,11 +458,21 @@ class ClusterStatusViewSet(viewsets.GenericViewSet):
                 master_ip = request.data["master_ip"]
                 db_config.master_ip = master_ip
                 if master_ip:
-                    master_port = request.data.get("master_port", 8000)
-                    db_config.master_url = f"http://{master_ip}:{master_port}"
+                    master_port = request.data.get("master_port", db_config.master_port)
+                    effective_port = master_port if master_port else 8000
+                    db_config.master_port = master_port
+                    db_config.master_url = f"http://{master_ip}:{effective_port}"
                     db_config.is_master = False
                 else:
                     db_config.master_url = None
+                    db_config.master_port = None
+
+            if "master_port" in request.data:
+                master_port = request.data["master_port"]
+                db_config.master_port = master_port
+                if db_config.master_ip:
+                    effective_port = master_port if master_port else 8000
+                    db_config.master_url = f"http://{db_config.master_ip}:{effective_port}"
 
             if "is_master" in request.data:
                 is_master = request.data["is_master"]
@@ -468,6 +481,7 @@ class ClusterStatusViewSet(viewsets.GenericViewSet):
                     if is_master:
                         db_config.master_url = None
                         db_config.master_ip = None
+                        db_config.master_port = None
 
             if "is_master" not in request.data:
                 if db_config.mode == "cluster" and not db_config.master_url and not db_config.master_ip:
@@ -487,6 +501,7 @@ class ClusterStatusViewSet(viewsets.GenericViewSet):
                     "heartbeatInterval": db_config.heartbeat_interval,
                     "heartbeatTimeout": db_config.heartbeat_timeout,
                     "masterIp": db_config.master_ip,
+                    "masterPort": db_config.master_port,
                     "masterUrl": db_config.master_url,
                     "syncInterval": db_config.sync_interval,
                     "replicaAckRequired": db_config.replica_ack_required,

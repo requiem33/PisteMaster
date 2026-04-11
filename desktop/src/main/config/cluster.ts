@@ -15,6 +15,7 @@ export interface ClusterConfig {
   replicaAckRequired: number
   ackTimeout: number
   masterIp: string | null
+  masterPort: number | null
   isMaster: boolean
 }
 
@@ -28,6 +29,7 @@ export const DEFAULT_CONFIG: Omit<ClusterConfig, 'nodeId'> = {
   replicaAckRequired: 1,
   ackTimeout: 5000,
   masterIp: null,
+  masterPort: null,
   isMaster: false,
 }
 
@@ -130,9 +132,10 @@ export function getNodeInfo(): { nodeId: string; apiPort: number } {
 export function getMasterInfo(): { masterIp: string | null; masterUrl: string | null } {
   const config = loadClusterConfig()
   if (config.masterIp) {
+    const port = config.masterPort ?? config.apiPort
     return {
       masterIp: config.masterIp,
-      masterUrl: `http://${config.masterIp}:${config.apiPort}`,
+      masterUrl: `http://${config.masterIp}:${port}`,
     }
   }
   return {

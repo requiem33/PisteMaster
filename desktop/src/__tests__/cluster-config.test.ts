@@ -19,6 +19,7 @@ describe('ClusterConfig', () => {
         replicaAckRequired: 1,
         ackTimeout: 5000,
         masterIp: null,
+        masterPort: null,
         isMaster: false,
       }
 
@@ -32,6 +33,7 @@ describe('ClusterConfig', () => {
         mode: 'cluster',
         nodeId: 'test_node',
         masterIp: '192.168.1.100',
+        masterPort: 9000,
         udpPort: 9000,
         apiPort: 8000,
         heartbeatInterval: 5,
@@ -50,6 +52,7 @@ describe('ClusterConfig', () => {
       const partialConfig: Partial<ClusterConfig> = {
         mode: 'cluster',
         masterIp: '192.168.1.100',
+        masterPort: 9000,
       }
 
       expect(partialConfig.mode).toBe('cluster')

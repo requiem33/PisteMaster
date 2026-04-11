@@ -16,6 +16,7 @@ export interface MockClusterConfig {
   replicaAckRequired: number
   ackTimeout: number
   masterIp: string | null
+  masterPort: number | null
   isMaster: boolean
 }
 
@@ -33,6 +34,7 @@ export function createMockClusterConfig(
     replicaAckRequired: 1,
     ackTimeout: 5000,
     masterIp: null,
+    masterPort: null,
     isMaster: false,
     ...overrides,
   }

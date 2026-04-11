@@ -67,13 +67,14 @@
 
               <el-form-item
                 v-if="!localConfig.isMaster"
-                :label="$t('cluster.masterIp')"
+                :label="$t('cluster.masterAddress')"
               >
                 <el-input
-                  v-model="localConfig.masterIp"
-                  :placeholder="$t('cluster.masterIpHint')"
+                  :model-value="masterAddress"
+                  :placeholder="$t('cluster.masterAddressHint')"
                   :disabled="!canEdit || isSaving"
                   clearable
+                  @update:model-value="masterAddress = $event"
                 />
               </el-form-item>
 
@@ -94,7 +95,7 @@
                   v-model="localConfig.udpPort"
                   :min="1024"
                   :max="65535"
-                  :disabled="!canEdit || isSaving"
+                  disabled
                 />
               </el-form-item>
 
@@ -103,7 +104,7 @@
                   v-model="localConfig.apiPort"
                   :min="1024"
                   :max="65535"
-                  :disabled="!canEdit || isSaving"
+                  disabled
                 />
               </el-form-item>
 
@@ -241,12 +242,43 @@ const localConfig = ref<ClusterConfig>({
   replicaAckRequired: 1,
   ackTimeout: 5000,
   masterIp: null,
+  masterPort: null,
   isMaster: false,
 })
 
 const originalConfig = ref<ClusterConfig | null>(null)
 const clusterStatus = computed(() => syncStore.clusterStatus)
 const isOnline = computed(() => syncStore.isOnline)
+
+const masterAddress = computed({
+  get: (): string => {
+    const ip = localConfig.value.masterIp || ''
+    const port = localConfig.value.masterPort
+    if (ip && port && port !== 8000) {
+      return `${ip}:${port}`
+    }
+    return ip
+  },
+  set: (value: string): void => {
+    if (!value) {
+      localConfig.value.masterIp = null
+      localConfig.value.masterPort = null
+      return
+    }
+    const colonIndex = value.lastIndexOf(':')
+    if (colonIndex > 0) {
+      const ip = value.slice(0, colonIndex)
+      const port = parseInt(value.slice(colonIndex + 1), 10)
+      if (!isNaN(port) && port >= 1 && port <= 65535) {
+        localConfig.value.masterIp = ip
+        localConfig.value.masterPort = port
+        return
+      }
+    }
+    localConfig.value.masterIp = value
+    localConfig.value.masterPort = null
+  },
+})
 
 const canEdit = computed(() => {
   if (!isElectron()) {
@@ -351,6 +383,7 @@ async function handleSave(): Promise<void> {
       apiPort: localConfig.value.apiPort,
       heartbeatInterval: localConfig.value.heartbeatInterval,
       masterIp: localConfig.value.isMaster ? null : localConfig.value.masterIp,
+      masterPort: localConfig.value.isMaster ? null : localConfig.value.masterPort,
       isMaster: localConfig.value.isMaster,
     })
 
