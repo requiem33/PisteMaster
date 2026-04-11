@@ -4,6 +4,7 @@ Base viewsets with automatic sync logging support.
 
 import logging
 from typing import Optional
+from django.forms.models import model_to_dict
 
 from rest_framework.viewsets import ModelViewSet
 
@@ -84,10 +85,16 @@ class SyncWriteViewSetMeta(type):
                             instance_id = result.data.get("id")
                             if instance_id and hasattr(self, "queryset"):
                                 instance = self.queryset.get(id=instance_id)
-                                sync_tx.record_insert(table_name=table_name, instance=instance, data=result.data)
+                                sync_data = model_to_dict(instance)
+                                if hasattr(instance, "created_at") and instance.created_at:
+                                    sync_data["created_at"] = instance.created_at
+                                sync_tx.record_insert(table_name=table_name, instance=instance, data=sync_data)
                         else:  # update
                             instance = self.get_object()
-                            sync_tx.record_update(table_name=table_name, instance=instance, data=result.data)
+                            sync_data = model_to_dict(instance)
+                            if hasattr(instance, "created_at") and instance.created_at:
+                                sync_data["created_at"] = instance.created_at
+                            sync_tx.record_update(table_name=table_name, instance=instance, data=sync_data)
                     except Exception as e:
                         logger.warning(f"Failed to record sync log: {e}")
 

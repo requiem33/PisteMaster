@@ -8,8 +8,13 @@ class ClusterConfig(AppConfig):
 
     def ready(self):
         """Initialize cluster services and register models for sync."""
+        import logging
+
+        logger = logging.getLogger(__name__)
+        logger.warning("ClusterConfig.ready() called - initializing sync")
         # Import models and serializers
         try:
+            logger.warning("ClusterConfig.ready(): importing sync_manager")
             from backend.apps.cluster.services.sync_manager import sync_manager
             from backend.apps.fencing_organizer.modules.tournament.models import DjangoTournament
             from backend.apps.fencing_organizer.modules.event.models import DjangoEvent
@@ -31,9 +36,7 @@ class ClusterConfig(AppConfig):
             from backend.apps.fencing_organizer.modules.event_participant.serializers import EventParticipantSerializer
             from backend.apps.fencing_organizer.modules.pool_assignment.serializers import PoolAssignmentSerializer
 
-            import logging
-
-            logger = logging.getLogger(__name__)
+            logger.warning("ClusterConfig.ready(): all imports successful")
 
             # Map model to serializer and table name
             model_registry = [
@@ -49,6 +52,7 @@ class ClusterConfig(AppConfig):
             ]
 
             # Register each model
+            logger.warning(f"ClusterConfig.ready(): registering {len(model_registry)} models")
             for model_class, serializer_class, table_name in model_registry:
                 try:
                     sync_manager.register_model(
@@ -79,3 +83,20 @@ class ClusterConfig(AppConfig):
             import logging
 
             logging.getLogger(__name__).warning(f"Could not register models for sync: {e}")
+
+        # Register signal to restart SyncWorker when cluster config changes
+        from django.db.models.signals import post_save  # noqa: E402
+        from django.dispatch import receiver  # noqa: E402
+        from backend.apps.cluster.models.cluster_config import DjangoClusterConfig  # noqa: E402
+
+        @receiver(post_save, sender=DjangoClusterConfig, dispatch_uid="cluster_config_sync_worker")
+        def on_cluster_config_saved(sender, instance, **kwargs):
+            """Restart SyncWorker when cluster configuration changes."""
+            from backend.apps.cluster.services.sync_worker import sync_worker  # noqa: E402
+
+            try:
+                sync_worker.reconfigure()
+            except Exception as e:
+                import logging
+
+                logging.getLogger(__name__).warning(f"Failed to reconfigure SyncWorker: {e}")

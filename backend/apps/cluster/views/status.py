@@ -13,6 +13,7 @@ from rest_framework.response import Response
 
 from backend.apps.cluster.models import DjangoSyncLog, DjangoSyncState, DjangoClusterConfig
 from backend.apps.cluster.services.sync_manager import sync_manager
+from backend.apps.cluster.services.sync_worker import sync_worker
 from backend.apps.fencing_organizer.permissions import IsSchedulerOrAdmin
 
 logger = logging.getLogger(__name__)
@@ -490,6 +491,12 @@ class ClusterStatusViewSet(viewsets.GenericViewSet):
             db_config.save()
 
             logger.info(f"Cluster config updated: mode={db_config.mode}, " f"is_master={db_config.is_master}, node_id={db_config.node_id}")
+
+            # Notify SyncWorker of config change
+            try:
+                sync_worker.reconfigure()
+            except Exception as e:
+                logger.warning(f"SyncWorker reconfigure failed: {e}")
 
             return Response(
                 {

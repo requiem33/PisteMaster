@@ -55,12 +55,17 @@ class SyncWorker:
         """Start the sync worker if this node is a cluster follower."""
         try:
             config = DjangoClusterConfig.get_config()
-        except Exception:
-            logger.debug("SyncWorker: cluster config not available, skipping start")
+            logger.warning(
+                f"SyncWorker: config loaded - mode={config.mode}, "
+                f"is_master={config.is_master}, master_url={config.master_url}, "
+                f"node_id={config.node_id}"
+            )
+        except Exception as e:
+            logger.debug(f"SyncWorker: cluster config not available, skipping start. Error: {e}")
             return
 
         if config.mode != "cluster" or config.is_master:
-            logger.info("SyncWorker: not starting (mode=%s, is_master=%s)", config.mode, config.is_master)
+            logger.warning("SyncWorker: not starting (mode=%s, is_master=%s)", config.mode, config.is_master)
             return
 
         if self.is_running:
@@ -72,9 +77,23 @@ class SyncWorker:
         self._sync_event.clear()
         self._thread = threading.Thread(target=self._sync_loop, daemon=True, name="sync-worker")
         self._thread.start()
-        logger.info("SyncWorker: started (node_id=%s, master_url=%s)", config.node_id, config.master_url)
+        logger.warning("SyncWorker: started (node_id=%s, master_url=%s)", config.node_id, config.master_url)
 
         self._announce_to_master(config)
+
+    def reconfigure(self) -> None:
+        """Re‑evaluate config and start/stop worker as needed."""
+        try:
+            config = DjangoClusterConfig.get_config()
+            logger.warning(f"SyncWorker: reconfigure - mode={config.mode}, " f"is_master={config.is_master}")
+        except Exception as e:
+            logger.debug(f"SyncWorker: failed to get config: {e}")
+            return
+
+        if config.mode == "cluster" and not config.is_master:
+            self.start()
+        else:
+            self.stop()
 
     def stop(self) -> None:
         """Stop the background sync thread."""
@@ -108,9 +127,11 @@ class SyncWorker:
 
     def _do_sync_cycle(self) -> None:
         """One iteration of the sync loop."""
+        logger.warning("SyncWorker: starting sync cycle")
         try:
             config = DjangoClusterConfig.get_config()
         except Exception:
+            logger.warning("SyncWorker: failed to get config")
             return
 
         if config.mode != "cluster" or config.is_master or not config.master_url:
@@ -131,6 +152,7 @@ class SyncWorker:
 
     def _do_incremental_sync(self, master_url: str, node_id: str, last_synced_id: int) -> None:
         """Pull and apply incremental changes from master."""
+        logger.warning(f"SyncWorker: incremental sync called, last_synced_id={last_synced_id}, master_url={master_url}")
         try:
             response = requests.get(
                 f"{master_url.rstrip('/')}/api/cluster/sync/changes/",

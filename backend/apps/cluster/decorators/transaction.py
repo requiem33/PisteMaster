@@ -1,5 +1,8 @@
 import logging
+from datetime import date, datetime
+from decimal import Decimal
 from typing import Dict, Any, Optional
+from uuid import UUID
 
 from django.db import transaction
 
@@ -24,6 +27,24 @@ class SyncTransaction:
                 data={"name": tournament.name, ...}
             )
     """
+
+    @staticmethod
+    def _make_json_serializable(data):
+        """Recursively convert Python objects to JSON-serializable types.
+
+        Handles datetime, date, UUID, Decimal, and nested dicts/lists.
+        """
+        if isinstance(data, (datetime, date)):
+            return data.isoformat()
+        if isinstance(data, UUID):
+            return str(data)
+        if isinstance(data, Decimal):
+            return str(data)
+        if isinstance(data, dict):
+            return {k: SyncTransaction._make_json_serializable(v) for k, v in data.items()}
+        if isinstance(data, (list, tuple)):
+            return [SyncTransaction._make_json_serializable(item) for item in data]
+        return data
 
     def __init__(self, using: Optional[str] = None):
         self.using = using
@@ -78,12 +99,13 @@ class SyncTransaction:
             data: JSON-serializable data of the change
             version: Version number for conflict resolution
         """
+        serialized_data = self._make_json_serializable(data)
         self._records.append(
             {
                 "table_name": table_name,
                 "record_id": str(record_id),
                 "operation": operation,
-                "data": data,
+                "data": serialized_data,
                 "version": version,
             }
         )

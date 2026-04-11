@@ -7,7 +7,7 @@ from typing import Dict, List, Any, Optional, Type
 from uuid import UUID
 
 from django.db import transaction
-from django.db.models import Model, Max
+from django.db.models import Model, Max, ForeignKey, ManyToManyField
 
 from backend.apps.cluster.models import DjangoSyncLog, DjangoSyncState
 from backend.apps.cluster.services.ack_queue import AckQueue
@@ -351,17 +351,25 @@ class SyncManager:
         Also coerces serialized values (strings) to the correct Python types
         based on the model field definitions.
         """
-        skip_fields = {"id", "created_at", "updated_at", "last_modified_at"}
+        skip_fields = {"id", "updated_at", "last_modified_at"}
         cleaned = {}
         for k, v in data.items():
             if k in skip_fields:
                 continue
             try:
                 field = model_class._meta.get_field(k)
+
+                # Skip ManyToMany fields - must be set after creation
+                if isinstance(field, ManyToManyField):
+                    continue
+
+                # ForeignKey: remap field name to attname (e.g., "tournament" -> "tournament_id")
+                key = field.attname if isinstance(field, ForeignKey) else k
                 v = SyncManager._coerce_value(v, field)
+                cleaned[key] = v
             except Exception:
-                pass
-            cleaned[k] = v
+                # Skip keys that are not model fields (SerializerMethodField, @property, etc.)
+                continue
         return cleaned
 
     def _apply_insert(
@@ -377,7 +385,12 @@ class SyncManager:
                 return self._apply_update(model_class, change, registry_entry)
 
             clean_data = self._clean_data(change.data, model_class)
+            # Pop created_at - Django's auto_now_add overrides it during create()
+            created_at = clean_data.pop("created_at", None)
             model_class.objects.create(id=change.record_id, **clean_data)
+            # Restore created_at after creation
+            if created_at:
+                model_class.objects.filter(id=change.record_id).update(created_at=created_at)
             logger.debug(f"Applied INSERT: {change.table_name}/{change.record_id}")
             return True
         except Exception as e:

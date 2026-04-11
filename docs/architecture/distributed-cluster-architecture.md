@@ -239,7 +239,148 @@ class SyncLog(models.Model):
         ]
 ```
 
-### 5.2 Sync State Model
+### 5.2 Sync Data Payload Design
+
+The sync data payload must contain **only the concrete database field values** needed for the follower node to replicate the write operation. It must not include API-response-only fields, and all values must be JSON-serializable.
+
+#### 5.2.1 Data Collection (Master Node)
+
+When the master records a write operation for sync, the payload is built from the **Django model instance** using `model_to_dict()`, not from the DRF serializer response:
+
+```python
+from django.forms.models import model_to_dict
+
+# In SyncWriteViewSetMeta._wrap_with_sync:
+sync_data = model_to_dict(instance)
+
+# model_to_dict skips editable=False fields (auto_now_add, auto_now).
+# Preserve created_at for time-consistent replication across nodes.
+if hasattr(instance, 'created_at') and instance.created_at:
+    sync_data['created_at'] = instance.created_at
+
+sync_tx.record_insert(table_name=table_name, instance=instance, data=sync_data)
+```
+
+**Why `model_to_dict` instead of `serializer.data`:**
+
+DRF serializer output includes fields designed for API consumers that are **not** database columns. Passing `serializer.data` as sync payload causes failures on follower nodes:
+
+| Serializer Field Type | Example | Problem on Follower |
+|---|---|---|
+| `SerializerMethodField` | `tournament_info`, `rule_info`, `fencer_info` | Not a DB column → `TypeError: unexpected keyword argument` |
+| `@property` on model | `is_completed`, `is_draw`, `win_rate` | Not a DB column → same error |
+| Nested serializer | `elimination_type` (full dict) | DB expects FK ID, not dict |
+| `source=...` with dotted path | `elimination_type_code` | Not a DB column name |
+| `write_only=True` FK fields | `tournament_id` (source=`tournament`) | Excluded from response → **missing** on follower |
+
+Using `model_to_dict(instance)` yields only the concrete field names and their raw database values, which are exactly what the follower needs.
+
+#### 5.2.2 Data Cleaning (Follower Node)
+
+When the follower applies a sync change, `SyncManager._clean_data()` transforms the payload into valid kwargs for `objects.create()` / `setattr()`:
+
+```python
+@staticmethod
+def _clean_data(data, model_class):
+    skip_fields = {"id", "updated_at", "last_modified_at"}
+    cleaned = {}
+    for k, v in data.items():
+        if k in skip_fields:
+            continue
+        try:
+            field = model_class._meta.get_field(k)
+        except Exception:
+            continue   # Skip non-model fields (SerializerMethodField, @property, etc.)
+
+        if isinstance(field, ManyToManyField):
+            continue   # Must be set after creation
+
+        # ForeignKey: remap "tournament" → "tournament_id" (attname)
+        key = field.attname if isinstance(field, ForeignKey) else k
+        v = SyncManager._coerce_value(v, field)
+        cleaned[key] = v
+    return cleaned
+```
+
+**Key design decisions:**
+
+| Decision | Rationale |
+|---|---|
+| Skip keys not on the model | `model_to_dict` and the JSON round-trip guarantee only model fields, but `_clean_data` also safely handles older sync payloads or manual entries that may contain extra keys |
+| Remap FK keys to `attname` | `model_to_dict` returns `{"tournament": <uuid>}` (field name), but `create()` expects `tournament_id=<uuid>` (column name). Using `field.attname` converts correctly |
+| Skip ManyToMany fields | M2M relations must be set after the record is created, not passed to `create()` |
+| Preserve `created_at` | For time-consistent replication: followers should have the same `created_at` as the master, not the time the sync was applied |
+| Skip `updated_at` & `last_modified_at` | These use `auto_now=True` and should reflect the follower's apply time |
+| Skip `id` | Passed separately to `create(id=...)` |
+
+#### 5.2.3 JSON Serialization Safety
+
+Before recording sync data to the `JSONField` in `sync_log`, all values are recursively sanitized by `_make_json_serializable()` in `SyncTransaction.record()`:
+
+```python
+def _make_json_serializable(data):
+    if isinstance(data, (datetime, date)):
+        return data.isoformat()
+    if isinstance(data, UUID):
+        return str(data)
+    if isinstance(data, Decimal):
+        return str(data)
+    if isinstance(data, dict):
+        return {k: _make_json_serializable(v) for k, v in data.items()}
+    if isinstance(data, (list, tuple)):
+        return [_make_json_serializable(item) for item in data]
+    return data
+```
+
+This converts `date`, `datetime`, `UUID`, and `Decimal` objects to their string representations, preventing `TypeError: Object of type X is not JSON serializable` when Django writes the `JSONField`.
+
+#### 5.2.4 `created_at` Preservation
+
+Django's `auto_now_add=True` on `created_at` causes `pre_save()` to override any explicitly passed value during `create()`. To preserve the master's `created_at` timestamp:
+
+```python
+def _apply_insert(self, model_class, change, registry_entry):
+    clean_data = self._clean_data(change.data, model_class)
+
+    # Pop created_at — Django's auto_now_add overrides it during create()
+    created_at = clean_data.pop('created_at', None)
+
+    model_class.objects.create(id=change.record_id, **clean_data)
+
+    # Restore created_at after creation
+    if created_at:
+        model_class.objects.filter(id=change.record_id).update(created_at=created_at)
+```
+
+This ensures all nodes have identical `created_at` values for replicated records.
+
+#### 5.2.5 Complete Flow Summary
+
+```
+Master Node:
+  1. View handles POST /api/events/
+  2. SyncWriteViewSetMeta wrapper intercepts the response
+  3. Loads the created model instance from queryset
+  4. sync_data = model_to_dict(instance)     # Only concrete DB fields
+  5. Adds created_at if present                # model_to_dict skips it
+  6. _make_json_serializable(sync_data)        # date/UUID/Decimal → strings
+  7. sync_tx.record_insert(table, instance, sync_data)
+  8. SyncTransaction writes to sync_log.JSONField
+
+Follower Node:
+  1. SyncWorker pulls change from master
+  2. SyncManager._clean_data(change.data, model_class)
+     - Skips non-model keys (if any)
+     - Remaps FK keys: "tournament" → "tournament_id"
+     - Skips ManyToMany fields
+     - Coerces values to correct Python types
+  3. _apply_insert():
+     - Pop created_at from clean_data
+     - objects.create(id=record_id, **clean_data)
+     - objects.filter(id=record_id).update(created_at=created_at)
+```
+
+### 5.3 Sync State Model
 
 Tracks each follower's sync progress and connection URL for push notifications:
 
@@ -259,7 +400,7 @@ notifications via `POST /api/cluster/sync/notify/` when new changes are written.
 Follower URLs are registered when nodes announce themselves via
 `POST /api/cluster/status/announce/` or discovered via UDP broadcast.
 
-### 5.3 Write Operation Flow (Push Notification + Synchronous Replication)
+### 5.4 Write Operation Flow (Push Notification + Synchronous Replication)
 
 The system uses a **dual push-pull** approach:
 - **Push**: Master notifies followers immediately after each write via HTTP POST
@@ -316,7 +457,7 @@ The system uses a **dual push-pull** approach:
 4. The push notification triggers the follower's `SyncWorker` to immediately pull changes, reducing replication lag to sub-second
 5. The periodic pull (every 3 seconds) serves as a fallback for missed push notifications
 
-### 5.4 Synchronous Write Configuration
+### 5.5 Synchronous Write Configuration
 
 ```python
 # In SyncWriteMiddleware (Django middleware)
@@ -373,7 +514,7 @@ def _wait_for_acks(sync_log_id):
     return sync_manager.ack_queue.is_confirmed(sync_log_id)
 ```
 
-### 5.5 Backend SyncWorker (Follower Background Thread)
+### 5.6 Backend SyncWorker (Follower Background Thread)
 
 Each follower node runs a **SyncWorker** background thread that continuously pulls
 changes from the master. This ensures data replication occurs even without a frontend
@@ -552,7 +693,7 @@ def notify_sync(self, request):
     return Response({"status": "notified"})
 ```
 
-### 5.6 Incremental Sync Protocol
+### 5.7 Incremental Sync Protocol
 
 **Note**: Incremental sync is driven by the **backend SyncWorker** on each follower node, not by the frontend. The frontend retains a secondary polling loop for UI status updates, but data replication is entirely backend-driven.
 
@@ -584,23 +725,28 @@ GET /api/cluster/sync/changes/?since={last_applied_id}&limit=100
 ```python
 def apply_change(change):
     model = get_model(change.table_name)
-    
+
+    # _clean_data: strip non-model fields, remap FK keys, coerce types
+    clean_data = _clean_data(change.data, model)
+
     if change.operation == 'INSERT':
-        model.objects.create(id=change.record_id, **change.data)
+        created_at = clean_data.pop('created_at', None)
+        model.objects.create(id=change.record_id, **clean_data)
+        if created_at:
+            model.objects.filter(id=change.record_id).update(created_at=created_at)
     elif change.operation == 'UPDATE':
-        model.objects.filter(id=change.record_id).update(**change.data)
+        # Resolve conflicts using version
+        if existing and existing.version > change.version:
+            skip_change()
+            return
+        for key, value in clean_data.items():
+            setattr(existing, key, value)
+        existing.save(update_fields=list(clean_data.keys()) + ['version'])
     elif change.operation == 'DELETE':
         model.objects.filter(id=change.record_id).delete()
-    
-    # Resolve conflicts using version
-    if existing and existing.version > change.version:
-        skip_change()  # Keep newer version
-        return
-    
-    apply_change_with_version(change)
 ```
 
-### 5.7 Full Sync
+### 5.8 Full Sync
 
 **Triggers**:
 - `last_synced_id == 0` (new follower with no sync state) — automatic via SyncWorker
@@ -1376,4 +1522,4 @@ Users can regenerate the node ID if needed.
 
 *Document Version: 1.1*
 *Last Updated: 2026-04-08*
-*Changes: Updated Sections 2.1, 2.2, 3.3, 4.1, 5.2-5.7, 7.2, 7.3, 11.2, 14, 15 to reflect backend-driven push+pull sync with SyncWorker, push notification via /sync/notify/, threading.Event for ACK queue, and SyncState.url field*
+*Changes: Updated Sections 2.1, 2.2, 3.3, 4.1, 5.2-5.8, 7.2, 7.3, 11.2, 14, 15 to reflect backend-driven push+pull sync with SyncWorker, push notification via /sync/notify/, threading.Event for ACK queue, SyncState.url field, and Section 5.2 for sync data payload design (model_to_dict, _clean_data, JSON serialization safety, created_at preservation)*
