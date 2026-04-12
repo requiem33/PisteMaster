@@ -69,6 +69,13 @@ class DjangoPool(models.Model):
     def __str__(self):
         return f"阶段{self.stage_id} - 小组{self.pool_number} ({self.event.event_name})"
 
+    @property
+    def pool_letter(self) -> str:
+        """Get pool letter representation (A-Z) for display."""
+        if 1 <= self.pool_number <= 26:
+            return chr(ord("A") + self.pool_number - 1)
+        return ""
+
     def save(self, *args, **kwargs):
         """保存前自动处理状态与完成状态的一致性"""
         if self.status == PoolStatus.COMPLETED.value:

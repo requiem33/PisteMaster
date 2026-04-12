@@ -11,7 +11,13 @@ import time
 from backend.apps.cluster.services.election import BullyElection, ElectionState
 from backend.apps.cluster.services.node_discovery import NodeDiscovery, NodeInfo
 from backend.apps.cluster.services.heartbeat import HeartbeatMonitor
-from backend.apps.cluster.services.sync_manager import SyncManager, SyncOperation
+from backend.apps.cluster.services.sync_manager import SyncManager, SyncOperation, sync_manager
+from rest_framework.test import APIClient
+from backend.apps.cluster.models import DjangoSyncLog
+from backend.apps.fencing_organizer.modules.fencer.models import DjangoFencer
+from backend.apps.fencing_organizer.modules.tournament.models import DjangoTournament
+from datetime import date
+from uuid import uuid4
 from backend.apps.cluster.schemas.messages import (
     AnnounceMessage,
     MasterAnnounceMessage,
@@ -456,3 +462,91 @@ class TestElectionEdgeCases:
 
         assert "node_z" > "node_abc"
         assert "node_a" < "node_abc"
+
+
+class TestBulkOperationsSync:
+    """Test that bulk-created records are replicated to follower via sync logs."""
+
+    @pytest.mark.django_db
+    def test_fencer_bulk_save_appears_on_follower(self):
+        """
+        Test fencer bulk-save creates sync logs, and follower applying those logs
+        results in fencer records appearing in follower database.
+        """
+        # Ensure sync_manager has fencer model registered (should already be registered)
+        if "fencer" not in sync_manager.get_registered_tables():
+            from backend.apps.fencing_organizer.modules.fencer.serializers import FencerSerializer
+
+            sync_manager.register_model(
+                table_name="fencer",
+                model_class=DjangoFencer,
+                serializer_class=FencerSerializer,
+                version_field="version",
+                last_modified_field="updated_at",
+            )  # noqa: F841
+
+        # Step 1: Create a tournament (required for foreign key relationships in other tests)
+        _tournament = DjangoTournament.objects.create(  # noqa: F841
+            id=uuid4(),
+            tournament_name="Test Tournament",
+            start_date=date(2025, 1, 1),
+            end_date=date(2025, 1, 1),
+            status=DjangoTournament.Status.PLANNING,
+            organizer=None,
+            location=None,
+        )
+
+        # Step 2: Call the bulk_save endpoint for fencers using Django's APIClient
+        api_client = APIClient()
+        fencer_data = {
+            "first_name": "John",
+            "last_name": "Doe",
+            "gender": "MEN",
+            "country_code": "USA",
+        }
+        response = api_client.post(
+            "/api/fencers/bulk-save/",
+            [fencer_data],
+            format="json",
+        )
+        assert response.status_code == 200
+        assert response.data["saved_count"] == 1
+        assert response.data["error_count"] == 0
+        results = response.data["results"]
+        assert len(results) == 1
+        created_fencer_id = results[0]["id"]
+
+        # Step 3: Verify that sync logs are created in DjangoSyncLog for each record
+        sync_logs = DjangoSyncLog.objects.filter(table_name="fencer", record_id=created_fencer_id, operation="INSERT")
+        assert sync_logs.count() == 1
+        sync_log = sync_logs.first()
+        assert sync_log.id is not None
+        assert sync_log.data["first_name"] == "John"
+
+        # Step 4: Simulate a follower applying those sync logs using sync_manager.apply_change
+        # First, delete the fencer record from the local database (simulating follower not having it yet)
+        DjangoFencer.objects.filter(id=created_fencer_id).delete()
+        assert not DjangoFencer.objects.filter(id=created_fencer_id).exists()
+
+        # Apply the sync log as a follower would
+        change = sync_manager.get_changes_since(since_id=0, limit=10)
+        assert len(change.changes) >= 1
+        # Find the change for our fencer
+        fencer_change = None
+        for c in change.changes:
+            if c.table_name == "fencer" and c.record_id == created_fencer_id and c.operation == "INSERT":
+                fencer_change = c
+                break
+        assert fencer_change is not None
+
+        # Apply the change
+        success = sync_manager.apply_change(fencer_change)
+        assert success is True
+
+        # Step 5: Verify that the records exist in the database after applying changes
+        assert DjangoFencer.objects.filter(id=created_fencer_id).exists()
+        fencer = DjangoFencer.objects.get(id=created_fencer_id)
+        assert fencer.first_name == "John"
+        assert fencer.last_name == "Doe"
+        assert fencer.gender == "MEN"
+        assert fencer.country_code == "USA"

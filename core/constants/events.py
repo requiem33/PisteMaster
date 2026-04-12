@@ -142,3 +142,11 @@ PREDEFINED_EVENT_TYPES = [
         "is_team": True,
     },
 ]
+
+# Mapping from event_type code to gender
+EVENT_TYPE_GENDER_MAP = {item["type_code"]: item["gender"] for item in PREDEFINED_EVENT_TYPES}
+
+
+def get_gender_for_event_type(event_type: str) -> str | None:
+    """Get gender for an event type code."""
+    return EVENT_TYPE_GENDER_MAP.get(event_type)

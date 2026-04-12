@@ -3,6 +3,7 @@ from uuid import UUID, uuid4
 from datetime import datetime
 from typing import Optional, Dict, Any
 
+from core.constants.events import get_gender_for_event_type
 from core.models.versioning import VersionedModel
 
 
@@ -36,3 +37,8 @@ class Event(VersionedModel):
     start_time: Optional[datetime] = field(default=None, metadata={"description": "项目计划开始时间"})
     created_at: datetime = field(default_factory=datetime.now)
     updated_at: datetime = field(default_factory=datetime.now)
+
+    @property
+    def gender(self) -> Optional[str]:
+        """Get gender for this event based on event_type."""
+        return get_gender_for_event_type(self.event_type)
