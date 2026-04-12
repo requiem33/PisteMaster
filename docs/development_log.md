@@ -9,67 +9,53 @@
 
 ---
 
-## 🗓️ 2026-04-05
+## 🗓️ 2026-04-12
 
 ### 已完成事项
 
-* **多实例集群开发支持**: 实现本地多节点集群测试环境
-  - 添加 `DJANGO_DB_PATH` 环境变量，支持每个后端实例独立数据库
-  - 添加 `VITE_PORT` 和 `VITE_API_PROXY_TARGET` 环境变量，支持多前端实例
-  - 添加 `PISTEMASTER_USER_DATA_DIR` 环境变量，支持多Electron实例独立配置
-  - 添加 `PISTEMASTER_API_PORT` 环境变量，指定各实例连接的后端端口
-  - 修复UDP socket使用 `reuseAddr: true`，允许多实例共享同一UDP端口
-  - 修复cluster-handlers使用config.apiPort而非硬编码8000
-  - 更新desktop/README.md添加多实例开发文档
+* **集群配置增强**: 改进集群配置管理和同步工作者可靠性
+    - 添加 `master_port` 字段，使UDP/API端口在设置界面只读
+    - 实现 `SyncWorker` 自动重启机制，集群配置变更时自动重启同步工作者
+    - 改进同步可靠性，确保配置变更后同步立即生效
 
-* **集群同步错误修复**: 修复后端集群服务的多个bug
-  - 为AckQueue添加get_min_confirmed_id()方法，解决同步状态获取错误
-  - 修复pending_acks属性访问，改用get_pending_count()
-  - 修复is_master自动设置逻辑：仅在未明确设置时默认followerr角色
+* **国际化完善**: 替换前端硬编码中文字符串为i18n翻译
+    - 更新 `EventForm.vue` 组件，移除硬编码中文，使用 `$t()` 国际化函数
+    - 确保中英文切换时规则设置界面文本正确翻译
 
-* **节点角色选择UI**: 在设置页面添加Master/Follower角色选择
-  - 为ClusterConfig接口添加isMaster字段
-  - 在Settings.vue添加角色选择单选按钮（Master/Follower）
-  - 仅在选择Follower时显示Master IP输入框
-  - 添加nodeRole中英文国际化翻译
-  - 更新后端API支持is_master参数
+* **批量操作同步日志**: 为所有批量操作端点添加同步日志记录
+    - **选手批量保存** (`/api/fencers/bulk-save/`): 记录INSERT操作到sync_log
+    - **事件-选手批量注册** (`/api/event-participants/bulk-register/`): 修复原子性同步事务，确保`request._sync_log_id`
+      正确赋值
+    - **分组分配批量创建** (`/api/pool-assignments/bulk-create/`): 记录INSERT操作到sync_log
+    - 确保所有批量操作在Master节点创建同步日志，供Follower节点拉取应用
 
-* **is_master设置bug修复**: 修复保存Master角色后变成Follower的问题
-  - 修改update_config逻辑：仅在is_master未在请求中提供时才默认false
-  - 之前保存is_master=true时会因master_url/master_ip为空而被覆盖为false
+* **自定义@action端点同步修复**: 修复所有自定义`@action`端点缺失同步日志的问题
+    - **问题根源**: `SyncWriteViewSetMeta`元类仅自动包装标准CRUD方法(`create`, `update`, `destroy`)，不包装自定义
+      `@action`端点
+    - **修复范围**: 7个视图集文件，20+个自定义`@action`端点，包括：
+        - `event/views.py`: `sync_participants`, `update_live_ranking`, `stage_pools`, `stage_detree`
+        - `tournament/views.py`: `add_scheduler`, `remove_scheduler`
+        - `pool_assignment/views.py`: `update_match_result`, `update_ranking`, `calculate_pool_ranking`,
+          `calculate_qualification`, `reset_assignments`
+        - `event_participant/views.py`: `confirm_participation`, `unconfirm_participation`, `update_seeds`,
+          `generate_seeds`
+        - `pool/views.py`: `update_results`
+        - `pool_bout/views.py`: `update_result`, `start_bout`, `complete_bout`, `cancel_bout`, `generate_round_robin`
+        - `tournament_status/views.py`: `initialize`
+    - **修复模式**: 每个端点使用`SyncTransaction`包装数据操作，记录DELETE/INSERT/UPDATE操作，并设置`request._sync_log_id`
+    - **根本解决**: 事件-选手关系同步问题。之前`sync_participants`
+      端点删除/创建event_participant记录时不记录同步日志，导致Follower节点永远不知道哪些选手属于哪些事件
 
-* **集群状态API字段映射修复**: 修复前端获取集群状态显示undefined
-  - 修复Electron端BackendClusterStatus接口使用camelCase而非snake_case
-  - 后端/api/cluster/status/返回camelCase字段（nodeId, isMaster, syncLag等）
-  - 合并UDP发现的peers与后端peers
-
-* **前端获取UDP peers修复**: 修复前端显示peers始终为0
-  - 在Electron环境下使用window.electron.cluster.getStatus()替代直接调用后端API
-  - 将Electron的PeerInfo[]映射为前端的ClusterNode[]类型
-  - 现在正确显示通过UDP发现的节点
-
-* **UDP节点发现增强**: 添加周期性广播确保节点重发现
-  - 添加announceInterval，每30秒周期性广播announce消息
-  - 确保新节点加入时被发现，之前丢失的节点重新发现
-  - 修复sendAnnounce中isMaster字段使用config.isMaster而非硬编码false
-  - 在stop()中清理announceInterval防止内存泄漏
-
-* **集群状态刷新修复**: 修复重置设置后集群状态不更新问题
-  - 修改ClusterStatus组件在reset后调用refreshStatus()刷新状态
-
-* **集群状态API响应修复**: 修复API响应使用camelCase字段名
-  - 后端/api/cluster/status/返回camelCase格式字段
-
-* **集群设置页面**: 实现集群模式配置UI
-  - 创建Settings.vue页面，提供Mode切换、节点配置、状态显示
-  - 支持UDP端口、API端口、心跳间隔、Master IP配置
-  - 集成ClusterService与Electron IPC进行配置管理
+* **集群同步集成测试**: 添加全面的集群同步集成测试
+    - 添加`TestEventSyncParticipantsSyncLogging`测试类，验证`sync_participants`端点的同步日志记录
+    - 添加`test_event_sync_participants_appears_on_follower`端到端测试，验证Master同步事件-选手关系到Follower节点
+    - 所有47个集成测试和207个单元测试通过，确保无回归
 
 ### 技术决策 & 挑战
 
-* 多实例开发需要每个组件（后端、前端、Electron）独立配置端口和数据目录
-* 集群角色设置需要前后端和Electron三端协调，字段命名需一致
-* UDP广播使用SO_REUSEADDR允许多进程绑定同一端口，但需要周期性广播维持发现
+* **自定义端点同步**: 发现`SyncWriteViewSetMeta`的设计局限，决定手动包装所有自定义`@action`端点。未来考虑扩展元类自动检测数据修改操作。
+* **事件-选手关系同步**: 这是多节点集群中选手不显示问题的根本原因。需要确保所有数据修改操作（包括批量删除/创建）都记录同步日志。
+* **测试策略**: 为每个修复的端点添加集成测试，确保同步日志正确创建，并通过端到端测试验证Master-Follower数据一致性。
 
 ### 发现的问题
 
@@ -82,36 +68,36 @@
 ### 已完成事项
 
 * **集群同步推送通知**: 实现Master向Follower的实时推送通知机制
-  - DjangoSyncState新增url字段，存储Follower的回调URL
-  - 添加数据库迁移`0004_djangosyncstate_url`和`0005_add_master_latest_sync_id`
-  - Master写操作完成后通过`/api/cluster/sync/notify/`端点主动通知Follower拉取变更
-  - Follower在announce端点注册URL到Master，实现自动推送通知注册
-  - 修复FollowerProxy推送通知URL从`/api/sync/notify`更正为`/api/cluster/sync/notify/`
+    - DjangoSyncState新增url字段，存储Follower的回调URL
+    - 添加数据库迁移`0004_djangosyncstate_url`和`0005_add_master_latest_sync_id`
+    - Master写操作完成后通过`/api/cluster/sync/notify/`端点主动通知Follower拉取变更
+    - Follower在announce端点注册URL到Master，实现自动推送通知注册
+    - 修复FollowerProxy推送通知URL从`/api/sync/notify`更正为`/api/cluster/sync/notify/`
 
 * **SyncWorker后台线程**: 实现Follower节点的后台拉取同步
-  - 创建SyncWorker类，作为守护线程在Follower节点后台运行
-  - 支持增量同步（since参数）和全量同步
-  - ClusterConfig.ready()中自动启动SyncWorker
-  - 自动创建DjangoSyncState记录，防止lastSyncTime为null
+    - 创建SyncWorker类，作为守护线程在Follower节点后台运行
+    - 支持增量同步（since参数）和全量同步
+    - ClusterConfig.ready()中自动启动SyncWorker
+    - 自动创建DjangoSyncState记录，防止lastSyncTime为null
 
 * **集群同步数据修复**: 修复多个同步数据处理问题
-  - 剥离`id`和自动管理字段（created_at, updated_at, version）在变更数据和全量同步默认值中
-  - 仅对成功应用的变更推进同步状态，跳过已删除或冲突的记录
-  - 在Follower存储Master的最新sync ID用于准确计算syncLag
-  - Master的syncLag从持久化DjangoSyncState计算，而非内存ack_queue
-  - 修复datetime字符串在sync apply中的解析和字段类型强制转换
+    - 剥离`id`和自动管理字段（created_at, updated_at, version）在变更数据和全量同步默认值中
+    - 仅对成功应用的变更推进同步状态，跳过已删除或冲突的记录
+    - 在Follower存储Master的最新sync ID用于准确计算syncLag
+    - Master的syncLag从持久化DjangoSyncState计算，而非内存ack_queue
+    - 修复datetime字符串在sync apply中的解析和字段类型强制转换
 
 * **集群认证与中间件修复**: 修复代理写入的认证和CSRF问题
-  - 创建ProxyAuthentication类，代理Follower写请求时使用原始用户身份认证
-  - 修复ApiRouterMiddleware请求处理逻辑
-  - 修复代理写入的CSRF豁免处理
-  - 从数据库读取集群配置替代静态settings
+    - 创建ProxyAuthentication类，代理Follower写请求时使用原始用户身份认证
+    - 修复ApiRouterMiddleware请求处理逻辑
+    - 修复代理写入的CSRF豁免处理
+    - 从数据库读取集群配置替代静态settings
 
 * **集群单元测试**: 添加集群核心模块的单元测试
-  - AckQueue测试：确认机制、超时处理、最小已确认ID
-  - Sync API测试：全量同步、增量同步、变更推送通知
-  - Write Sync测试：写同步中间件路由
-  - SyncWorker测试：增量拉取、全量拉取、错误处理
+    - AckQueue测试：确认机制、超时处理、最小已确认ID
+    - Sync API测试：全量同步、增量同步、变更推送通知
+    - Write Sync测试：写同步中间件路由
+    - SyncWorker测试：增量拉取、全量拉取、错误处理
 
 * **TypeScript声明**: 添加Electron API的TypeScript类型声明（window.electron）
 
@@ -132,19 +118,19 @@
 ### 已完成事项
 
 * **同步基础架构搭建**: 实现集群分布式同步的核心基础设施
-  - 创建cluster Django app（apps.py），使用ClusterConfig.ready()自动启动集群组件
-  - 实现版本追踪基础设施：所有同步模型添加version字段，VersionedModelMixin自动管理版本递增
-  - 创建BaseViewSet统一处理版本化模型的创建和更新
-  - 创建VersionedModelSerializer基类，自动输出version字段
-  - 添加版本追踪迁移（0019_add_version_tracking）
+    - 创建cluster Django app（apps.py），使用ClusterConfig.ready()自动启动集群组件
+    - 实现版本追踪基础设施：所有同步模型添加version字段，VersionedModelMixin自动管理版本递增
+    - 创建BaseViewSet统一处理版本化模型的创建和更新
+    - 创建VersionedModelSerializer基类，自动输出version字段
+    - 添加版本追踪迁移（0019_add_version_tracking）
 
 * **AckQueue线程安全修复**: 替换asyncio.Event为threading.Event
-  - AckQueue从asyncio.Event改为threading.Event，解决Django同步视图中的跨线程安全问题
-  - 简化`_wait_for_acks`实现，添加`_notify_followers`推送通知方法
+    - AckQueue从asyncio.Event改为threading.Event，解决Django同步视图中的跨线程安全问题
+    - 简化`_wait_for_acks`实现，添加`_notify_followers`推送通知方法
 
 * **集群架构文档更新**: 更新分布式集群架构设计文档至v1.1
-  - 添加推送+拉取混合同步设计
-  - 完善节点发现、选举和数据同步流程说明
+    - 添加推送+拉取混合同步设计
+    - 完善节点发现、选举和数据同步流程说明
 
 * **Serializer ID字段修复**: 为多个serializer添加缺失的id字段
 
@@ -166,16 +152,16 @@
 ### 已完成事项
 
 * **集群同步基础设施**: 实现分布式数据同步的核心模型和API
-  - 创建SyncLog和SyncState Django模型，记录变更历史和同步状态
-  - 创建数据迁移添加默认SyncLog和SyncState
-  - 实现SyncManager服务，管理变更记录和同步队列
-  - 实现AckQueue确认机制，保证写入操作的可靠性
-  - 创建decorators/transaction.py处理同步事务
+    - 创建SyncLog和SyncState Django模型，记录变更历史和同步状态
+    - 创建数据迁移添加默认SyncLog和SyncState
+    - 实现SyncManager服务，管理变更记录和同步队列
+    - 实现AckQueue确认机制，保证写入操作的可靠性
+    - 创建decorators/transaction.py处理同步事务
 
 * **模型版本追踪**: 为所有可同步模型添加版本追踪
-  - VersionedModelMixin在保存时自动递增version字段
-  - SyncLog记录包含模型名称、实例ID、操作类型和变更数据
-  - 版本追踪为后续增量同步和冲突解决提供基础
+    - VersionedModelMixin在保存时自动递增version字段
+    - SyncLog记录包含模型名称、实例ID、操作类型和变更数据
+    - 版本追踪为后续增量同步和冲突解决提供基础
 
 ### 技术决策 & 挑战
 
@@ -193,13 +179,81 @@
 ### 已完成事项
 
 * **Electron TypeScript声明**: 添加window.electron API的TypeScript类型声明
-  - 创建`web_frontend/src/types/electron.d.ts`，定义所有Electron IPC接口类型
-  - 包括cluster、database、auth、tournament等模块的类型定义
-  - 解决前端Electron API调用的TypeScript编译错误
+    - 创建`web_frontend/src/types/electron.d.ts`，定义所有Electron IPC接口类型
+    - 包括cluster、database、auth、tournament等模块的类型定义
+    - 解决前端Electron API调用的TypeScript编译错误
 
 ### 技术决策 & 挑战
 
 * 无。
+
+### 发现的问题
+
+* 无。
+
+---
+
+## 🗓️ 2026-04-05
+
+### 已完成事项
+
+* **多实例集群开发支持**: 实现本地多节点集群测试环境
+    - 添加 `DJANGO_DB_PATH` 环境变量，支持每个后端实例独立数据库
+    - 添加 `VITE_PORT` 和 `VITE_API_PROXY_TARGET` 环境变量，支持多前端实例
+    - 添加 `PISTEMASTER_USER_DATA_DIR` 环境变量，支持多Electron实例独立配置
+    - 添加 `PISTEMASTER_API_PORT` 环境变量，指定各实例连接的后端端口
+    - 修复UDP socket使用 `reuseAddr: true`，允许多实例共享同一UDP端口
+    - 修复cluster-handlers使用config.apiPort而非硬编码8000
+    - 更新desktop/README.md添加多实例开发文档
+
+* **集群同步错误修复**: 修复后端集群服务的多个bug
+    - 为AckQueue添加get_min_confirmed_id()方法，解决同步状态获取错误
+    - 修复pending_acks属性访问，改用get_pending_count()
+    - 修复is_master自动设置逻辑：仅在未明确设置时默认followerr角色
+
+* **节点角色选择UI**: 在设置页面添加Master/Follower角色选择
+    - 为ClusterConfig接口添加isMaster字段
+    - 在Settings.vue添加角色选择单选按钮（Master/Follower）
+    - 仅在选择Follower时显示Master IP输入框
+    - 添加nodeRole中英文国际化翻译
+    - 更新后端API支持is_master参数
+
+* **is_master设置bug修复**: 修复保存Master角色后变成Follower的问题
+    - 修改update_config逻辑：仅在is_master未在请求中提供时才默认false
+    - 之前保存is_master=true时会因master_url/master_ip为空而被覆盖为false
+
+* **集群状态API字段映射修复**: 修复前端获取集群状态显示undefined
+    - 修复Electron端BackendClusterStatus接口使用camelCase而非snake_case
+    - 后端/api/cluster/status/返回camelCase字段（nodeId, isMaster, syncLag等）
+    - 合并UDP发现的peers与后端peers
+
+* **前端获取UDP peers修复**: 修复前端显示peers始终为0
+    - 在Electron环境下使用window.electron.cluster.getStatus()替代直接调用后端API
+    - 将Electron的PeerInfo[]映射为前端的ClusterNode[]类型
+    - 现在正确显示通过UDP发现的节点
+
+* **UDP节点发现增强**: 添加周期性广播确保节点重发现
+    - 添加announceInterval，每30秒周期性广播announce消息
+    - 确保新节点加入时被发现，之前丢失的节点重新发现
+    - 修复sendAnnounce中isMaster字段使用config.isMaster而非硬编码false
+    - 在stop()中清理announceInterval防止内存泄漏
+
+* **集群状态刷新修复**: 修复重置设置后集群状态不更新问题
+    - 修改ClusterStatus组件在reset后调用refreshStatus()刷新状态
+
+* **集群状态API响应修复**: 修复API响应使用camelCase字段名
+    - 后端/api/cluster/status/返回camelCase格式字段
+
+* **集群设置页面**: 实现集群模式配置UI
+    - 创建Settings.vue页面，提供Mode切换、节点配置、状态显示
+    - 支持UDP端口、API端口、心跳间隔、Master IP配置
+    - 集成ClusterService与Electron IPC进行配置管理
+
+### 技术决策 & 挑战
+
+* 多实例开发需要每个组件（后端、前端、Electron）独立配置端口和数据目录
+* 集群角色设置需要前后端和Electron三端协调，字段命名需一致
+* UDP广播使用SO_REUSEADDR允许多进程绑定同一端口，但需要周期性广播维持发现
 
 ### 发现的问题
 
@@ -212,10 +266,10 @@
 ### 已完成事项
 
 * **国际化字符串修复**: 替换硬编码中文字符串为i18n翻译
-  - 修复Settings.vue、ClusterStatus.vue等组件的硬编码中文
+    - 修复Settings.vue、ClusterStatus.vue等组件的硬编码中文
 
 * **Guest用户密码修复**: 设置Guest用户密码启用桌面版自动登录
-  - 创建数据迁移设置Guest用户默认密码
+    - 创建数据迁移设置Guest用户默认密码
 
 * **桌面开发文档**: 记录Electron开发工作流和ELECTRON_RENDERER_URL配置需求
 
@@ -234,19 +288,19 @@
 ### 已完成事项
 
 * **后端Guest用户认证**: 实现基于后端的Guest用户认证系统
-  - 后端User模型添加GUEST角色
-  - 创建数据迁移创建默认Guest用户（仅桌面版）
-  - 添加IsSchedulerOrAdminOrGuest权限
-  - 更新IsTournamentEditor和IsEventEditor支持GUEST角色
-  - 允许GUEST创建比赛
+    - 后端User模型添加GUEST角色
+    - 创建数据迁移创建默认Guest用户（仅桌面版）
+    - 添加IsSchedulerOrAdminOrGuest权限
+    - 更新IsTournamentEditor和IsEventEditor支持GUEST角色
+    - 允许GUEST创建比赛
 
 * **前端Guest登录**: 实现前端Guest用户登录流程
-  - 移除localStorage的本地authService
-  - AuthService添加loginAsGuest()方法
-  - authStore支持后端Guest登录
-  - 添加GUEST角色到UserRole类型
-  - UserMenu显示GUEST角色标签
-  - 简化Guest用户流程
+    - 移除localStorage的本地authService
+    - AuthService添加loginAsGuest()方法
+    - authStore支持后端Guest登录
+    - 添加GUEST角色到UserRole类型
+    - UserMenu显示GUEST角色标签
+    - 简化Guest用户流程
 
 * **Dark Mode支持**: 改善前端组件的深色模式支持
 
@@ -273,39 +327,39 @@
 ### 已完成事项
 
 * **分布式集群架构**: 实现完整的分布式集群支持，无需中心服务器
-  - Phase 1-3: 后端数据模型和同步系统
-    - SyncLog和SyncState模型记录变更历史和同步状态
-    - SyncManager管理变更记录和同步队列
-    - AckQueue实现同步写入确认机制
-  
-  - Phase 4: API路由中间件
-    - ApiRouterMiddleware根据节点角色路由请求
-    - MasterProxy/FollowerProxy代理写请求到主节点
-  
-  - Phase 5: 前端同步栈
-    - IndexedDBService扩展支持同步存储
-    - SyncQueueService离线队列服务
-    - ConflictResolver冲突解决
-    - NetworkService网络状态监控
-    - ClusterService集群协调
-  
-  - Phase 6: Electron集成
-    - UDP广播服务用于节点发现
-    - IPC处理器暴露集群API
-    - 集群配置管理
-  
-  - Phase 7: UI组件
-    - ClusterStatus组件显示集群状态
-    - SyncProgress同步进度指示器
-    - ConflictReview冲突解决面板
-    - 中英文国际化支持
+    - Phase 1-3: 后端数据模型和同步系统
+        - SyncLog和SyncState模型记录变更历史和同步状态
+        - SyncManager管理变更记录和同步队列
+        - AckQueue实现同步写入确认机制
+
+    - Phase 4: API路由中间件
+        - ApiRouterMiddleware根据节点角色路由请求
+        - MasterProxy/FollowerProxy代理写请求到主节点
+
+    - Phase 5: 前端同步栈
+        - IndexedDBService扩展支持同步存储
+        - SyncQueueService离线队列服务
+        - ConflictResolver冲突解决
+        - NetworkService网络状态监控
+        - ClusterService集群协调
+
+    - Phase 6: Electron集成
+        - UDP广播服务用于节点发现
+        - IPC处理器暴露集群API
+        - 集群配置管理
+
+    - Phase 7: UI组件
+        - ClusterStatus组件显示集群状态
+        - SyncProgress同步进度指示器
+        - ConflictReview冲突解决面板
+        - 中英文国际化支持
 
 * **测试和文档**: Phase 8完成
-  - 单元测试: BullyElection算法测试
-  - 集成测试: SyncManager和AckQueue测试
-  - E2E测试: 多节点场景、选举、故障转移测试
-  - 部署指南: `docs/deployment/cluster-setup.md`
-  - 故障排查: `docs/deployment/troubleshooting.md`
+    - 单元测试: BullyElection算法测试
+    - 集成测试: SyncManager和AckQueue测试
+    - E2E测试: 多节点场景、选举、故障转移测试
+    - 部署指南: `docs/deployment/cluster-setup.md`
+    - 故障排查: `docs/deployment/troubleshooting.md`
 
 ### 技术决策 & 挑战
 
@@ -323,26 +377,26 @@
 ### 已完成事项
 
 * **用户认证系统**: 实现完整的用户认证和角色权限控制
-  - 自定义User模型，支持ADMIN和SCHEDULER两种角色
-  - 认证API端点: login、logout、me
-  - 权限类: IsAdmin、IsSchedulerOrAdmin、IsTournamentEditor、IsEventEditor
-  - 前端auth store、authService服务和登录页面
-  - UserMenu组件集成到AppHeader
-  - 桌面版本地auth service支持guest模式
-  - 数据迁移创建默认admin用户 (admin/admin)
+    - 自定义User模型，支持ADMIN和SCHEDULER两种角色
+    - 认证API端点: login、logout、me
+    - 权限类: IsAdmin、IsSchedulerOrAdmin、IsTournamentEditor、IsEventEditor
+    - 前端auth store、authService服务和登录页面
+    - UserMenu组件集成到AppHeader
+    - 桌面版本地auth service支持guest模式
+    - 数据迁移创建默认admin用户 (admin/admin)
 
 * **Tournament权限控制**: 扩展Tournament模型支持用户关联
-  - Tournament模型新增created_by和schedulers字段
-  - Tournament域模型同步新增created_by_id和scheduler_ids字段
-  - TournamentMapper处理用户字段转换
-  - IsTournamentEditor权限使用域模型字段
-  - IsEventEditor权限控制Event级别操作
-  - Django Admin显示User模型和Tournament用户字段
+    - Tournament模型新增created_by和schedulers字段
+    - Tournament域模型同步新增created_by_id和scheduler_ids字段
+    - TournamentMapper处理用户字段转换
+    - IsTournamentEditor权限使用域模型字段
+    - IsEventEditor权限控制Event级别操作
+    - Django Admin显示User模型和Tournament用户字段
 
 * **Bug修复**: 多个代码质量问题
-  - 修复permissions.py重复类定义
-  - 修复pre-commit hook使用`git rev-parse --show-toplevel`定位项目根目录
-  - 修复TypeScript编译错误: router导航守卫未使用参数、authService类型不匹配
+    - 修复permissions.py重复类定义
+    - 修复pre-commit hook使用`git rev-parse --show-toplevel`定位项目根目录
+    - 修复TypeScript编译错误: router导航守卫未使用参数、authService类型不匹配
 
 ### 技术决策 & 挑战
 
@@ -361,17 +415,17 @@
 ### 已完成事项
 
 * **Docker CI/CD修复**: 修复GitHub Actions构建流程
-  - 添加前端Dockerfile (`web_frontend/Dockerfile`)
-  - 配置.dockerignore排除不必要文件
-  - 修复Docker构建警告和GHCR权限错误
-  - 使用DOCKER_ACCESS_TOKEN密钥进行Docker Hub登录
+    - 添加前端Dockerfile (`web_frontend/Dockerfile`)
+    - 配置.dockerignore排除不必要文件
+    - 修复Docker构建警告和GHCR权限错误
+    - 使用DOCKER_ACCESS_TOKEN密钥进行Docker Hub登录
 
 * **Pre-commit Hooks**: 添加本地lint检查，与GitHub Actions CI保持一致
-  - 创建 `scripts/pre-commit.sh` 脚本，运行前端ESLint和Python flake8/black检查
-  - 创建 `scripts/setup-hooks.sh` 脚本，安装pre-commit git hook
-  - 支持自动检测 `venv/` 和 `.venv/` 虚拟环境
-  - 排除 `dist/` 构建产物目录
-  - 更新 `AGENTS.md` 添加使用文档
+    - 创建 `scripts/pre-commit.sh` 脚本，运行前端ESLint和Python flake8/black检查
+    - 创建 `scripts/setup-hooks.sh` 脚本，安装pre-commit git hook
+    - 支持自动检测 `venv/` 和 `.venv/` 虚拟环境
+    - 排除 `dist/` 构建产物目录
+    - 更新 `AGENTS.md` 添加使用文档
 
 ### 技术决策 & 挑战
 
@@ -389,22 +443,22 @@
 ### 已完成事项
 
 * **CI测试配置**: 配置pytest和vitest用于CI测试
-  - 添加pytest配置，支持Django测试运行
-  - 配置vitest用于前端单元测试
-  - 创建可复用的CI工作流
+    - 添加pytest配置，支持Django测试运行
+    - 配置vitest用于前端单元测试
+    - 创建可复用的CI工作流
 
 * **代码规范化**: 解决所有linting错误
-  - **Black格式化**: 升级到Black 26并固定版本，解决Python格式化问题
-  - **flake8**: 配置.flake8文件，移除内联注释，解决所有Python linting错误
-  - **ESLint**: 解决前端代码linting错误，应用格式化
+    - **Black格式化**: 升级到Black 26并固定版本，解决Python格式化问题
+    - **flake8**: 配置.flake8文件，移除内联注释，解决所有Python linting错误
+    - **ESLint**: 解决前端代码linting错误，应用格式化
 
 * **依赖管理**: 清理未使用的包和修复安全漏洞
-  - 移除未使用的npm依赖
-  - 解决安全漏洞
+    - 移除未使用的npm依赖
+    - 解决安全漏洞
 
 * **文档更新**: 更新AGENTS.md反映当前技术栈
-  - 更新桌面应用架构说明
-  - 添加AGENTS.md到版本控制
+    - 更新桌面应用架构说明
+    - 添加AGENTS.md到版本控制
 
 ### 技术决策 & 挑战
 
@@ -422,20 +476,20 @@
 ### 已完成事项
 
 * **GitHub Actions工作流修复**: 多项CI/CD配置问题
-  - 更新Python版本到3.12以兼容项目依赖
-  - 更新Node.js版本到22以兼容electron-builder
-  - 配置Node.js 24选项支持
-  - 修正GitHub workflow配置问题
+    - 更新Python版本到3.12以兼容项目依赖
+    - 更新Node.js版本到22以兼容electron-builder
+    - 配置Node.js 24选项支持
+    - 修正GitHub workflow配置问题
 
 * **桌面应用构建修复**: 解决Electron桌面版构建问题
-  - 配置Electron使用预构建前端
-  - 使用相对路径确保桌面应用兼容性
-  - 添加生产环境配置文件用于桌面API URL
-  - 解决桌面应用启动问题
+    - 配置Electron使用预构建前端
+    - 使用相对路径确保桌面应用兼容性
+    - 添加生产环境配置文件用于桌面API URL
+    - 解决桌面应用启动问题
 
 * **TypeScript错误修复**: 解决前端类型错误
-  - 移除未使用的依赖
-  - 应用ESLint格式化
+    - 移除未使用的依赖
+    - 应用ESLint格式化
 
 ### 技术决策 & 挑战
 
@@ -454,32 +508,32 @@
 ### 已完成事项
 
 * **Electron桌面版构建与测试**: 完成Windows桌面版打包和测试
-  - 构建`PisteMaster-Setup-0.1.0.exe`安装程序
-  - 构建`win-unpacked/`便携版
-  - 验证应用启动、创建比赛、卸载数据持久化
-  - **重要发现**: Windows需要开启开发者模式才能运行electron-builder（symlink权限问题）
-  - 用户数据存储在`%APPDATA%/PisteMaster/data/`，卸载后保留
-  - 更新缓存存储在`%APPDATA%/pistemaster-desktop-updater/`
+    - 构建`PisteMaster-Setup-0.1.0.exe`安装程序
+    - 构建`win-unpacked/`便携版
+    - 验证应用启动、创建比赛、卸载数据持久化
+    - **重要发现**: Windows需要开启开发者模式才能运行electron-builder（symlink权限问题）
+    - 用户数据存储在`%APPDATA%/PisteMaster/data/`，卸载后保留
+    - 更新缓存存储在`%APPDATA%/pistemaster-desktop-updater/`
 
 * **Web版Docker部署**: 完成Docker容器化部署架构
-  - 创建`docker-compose.yml`编排PostgreSQL + Django + nginx
-  - 创建`backend/Dockerfile`构建Django镜像
-  - 创建`backend/requirements-docker.txt`定义Docker依赖（psycopg2-binary）
-  - 创建`nginx.conf`配置反向代理和静态文件服务
-  - 创建`.env.docker`环境变量模板
+    - 创建`docker-compose.yml`编排PostgreSQL + Django + nginx
+    - 创建`backend/Dockerfile`构建Django镜像
+    - 创建`backend/requirements-docker.txt`定义Docker依赖（psycopg2-binary）
+    - 创建`nginx.conf`配置反向代理和静态文件服务
+    - 创建`.env.docker`环境变量模板
 
 * **跨域API修复**: 解决前后端分离部署的CORS和CSRF问题
-  - 创建`CsrfExemptSessionAuthentication`认证类，免除API端点的CSRF检查
-  - 配置`CORS_ALLOW_ALL_ORIGINS`支持动态IP访问
-  - 配置`CSRF_TRUSTED_ORIGINS`包含WSL和localhost地址
-  - 修复`DataManager.ts`使用动态API_BASE_URL环境变量
+    - 创建`CsrfExemptSessionAuthentication`认证类，免除API端点的CSRF检查
+    - 配置`CORS_ALLOW_ALL_ORIGINS`支持动态IP访问
+    - 配置`CSRF_TRUSTED_ORIGINS`包含WSL和localhost地址
+    - 修复`DataManager.ts`使用动态API_BASE_URL环境变量
 
 * **构建文档**: 创建`docs/BUILD.md`
-  - 桌面版构建完整流程（开发者模式、依赖安装、打包命令）
-  - Web版Docker部署流程（容器启动、数据库初始化、WSL网络配置）
-  - 开发模式运行指南
-  - 常见问题排查（symlink权限、CORS、CSRF、端口冲突）
-  - 架构图示和快速命令参考
+    - 桌面版构建完整流程（开发者模式、依赖安装、打包命令）
+    - Web版Docker部署流程（容器启动、数据库初始化、WSL网络配置）
+    - 开发模式运行指南
+    - 常见问题排查（symlink权限、CORS、CSRF、端口冲突）
+    - 架构图示和快速命令参考
 
 ### 技术决策 & 挑战
 
@@ -500,57 +554,58 @@
 ### 已完成事项
 
 * **Electron桌面应用架构搭建**: 创建完整的Electron桌面项目结构
-  - 创建`desktop/`目录，删除旧的`desktop_app/`
-  - 配置electron-vite构建系统
-  - 配置electron-builder打包配置
-  - 添加Vue依赖到desktop/package.json
-  - 配置.npmrc支持中国镜像下载Electron
+    - 创建`desktop/`目录，删除旧的`desktop_app/`
+    - 配置electron-vite构建系统
+    - 配置electron-builder打包配置
+    - 添加Vue依赖到desktop/package.json
+    - 配置.npmrc支持中国镜像下载Electron
 
 * **Django设置分离**: 重构Django settings为模块化结构
-  - `settings/base.py` - 通用配置
-  - `settings/development.py` - 开发环境(SQLite)
-  - `settings/production.py` - 生产环境(PostgreSQL)
-  - `settings/desktop.py` - 桌面版(SQLite in%APPDATA%)
-  - 入口`settings.py`通过环境变量`DJANGO_SETTINGS_MODULE`选择配置
+    - `settings/base.py` - 通用配置
+    - `settings/development.py` - 开发环境(SQLite)
+    - `settings/production.py` - 生产环境(PostgreSQL)
+    - `settings/desktop.py` - 桌面版(SQLite in%APPDATA%)
+    - 入口`settings.py`通过环境变量`DJANGO_SETTINGS_MODULE`选择配置
 
 * **PyInstaller配置优化**: 修复Python后端打包问题
-  - 添加所有hidden imports到PisteMaster.spec
-  - 修复`runserver --noreload`参数(原`--nothreading`不够)
-  - 创建`run_desktop.py`作为打包入口
-  - 验证`pistemaster-backend.exe`可独立运行
+    - 添加所有hidden imports到PisteMaster.spec
+    - 修复`runserver --noreload`参数(原`--nothreading`不够)
+    - 创建`run_desktop.py`作为打包入口
+    - 验证`pistemaster-backend.exe`可独立运行
 
 * **GitHub Actions CI/CD**: 添加自动化构建流水线
-  - `.github/workflows/build-desktop.yml` - 桌面版构建
-  - `.github/workflows/build-web.yml` - Web版构建
-  - `.github/workflows/release.yml` - 发布流程
-  - `scripts/build-python.ps1/sh` - Python打包脚本
+    - `.github/workflows/build-desktop.yml` - 桌面版构建
+    - `.github/workflows/build-web.yml` - Web版构建
+    - `.github/workflows/release.yml` - 发布流程
+    - `scripts/build-python.ps1/sh` - Python打包脚本
 
 * **Electron桌面应用修复**: 修复模块加载和路由问题
-  - **问题1: electron-updater模块加载失败** - 打包后的应用启动时报"Cannot find module"错误
-  - **修复**: 将`electron-updater`从静态import改为动态`await import()`，延迟加载避免模块初始化时序问题
-  
-  - **问题2: Vue前端空白页** - Electron加载file://协议时Vue Router的createWebHistory不工作
-  - **修复**: 改用createWebHashHistory()，兼容file://协议和http://协议
-  
-  - **问题3: 图标文件损坏** - 原icon.png文件损坏导致electron-builder报错
-  - **修复**: 创建256x256有效PNG图标，移动到resources/目录
+    - **问题1: electron-updater模块加载失败** - 打包后的应用启动时报"Cannot find module"错误
+    - **修复**: 将`electron-updater`从静态import改为动态`await import()`，延迟加载避免模块初始化时序问题
+
+    - **问题2: Vue前端空白页** - Electron加载file://协议时Vue Router的createWebHistory不工作
+    - **修复**: 改用createWebHashHistory()，兼容file://协议和http://协议
+
+    - **问题3: 图标文件损坏** - 原icon.png文件损坏导致electron-builder报错
+    - **修复**: 创建256x256有效PNG图标，移动到resources/目录
 
 * **Python后端打包验证**: 确认PyInstaller打包正常工作
-  - `pistemaster-backend.exe` 启动成功
-  - Django migrations正常执行
-  - 服务器在http://127.0.0.1:8000运行
+    - `pistemaster-backend.exe` 启动成功
+    - Django migrations正常执行
+    - 服务器在http://127.0.0.1:8000运行
 
 * **文档更新**: 完善构建文档
-  - 更新`docs/MVP_BUILD_PLAN.md`添加monorepo迁移计划
-  - 更新`desktop/README.md`添加Electron镜像配置说明
-  - 更新`.gitignore`忽略构建产物
+    - 更新`docs/MVP_BUILD_PLAN.md`添加monorepo迁移计划
+    - 更新`desktop/README.md`添加Electron镜像配置说明
+    - 更新`.gitignore`忽略构建产物
 
 ### 技术决策 & 挑战
 
 * **Python 3.14兼容性**: 系统Python 3.14移除了`pkgutil.find_loader`，改用现有venv(Python 3.12)
 * **PyInstaller --noreload**: Django开发服务器在frozen executable中需要`--noreload`参数
 * **Electron镜像**: 中国网络环境需要配置`ELECTRON_MIRROR="https://npmmirror.com/mirrors/electron/"`
-* **动态模块加载**: electron-updater依赖链复杂，在ASAR包中静态import会失败。使用动态import()在app.whenReady()后加载，确保Electron环境初始化完成
+* **动态模块加载**: electron-updater依赖链复杂，在ASAR包中静态import会失败。使用动态import()在app.whenReady()
+  后加载，确保Electron环境初始化完成
 * **Vue Router模式**: createWebHistory需要服务器端路由支持，file://协议无法使用。createWebHashHistory使用#锚点路由，兼容所有协议
 * **electron-vite配置**: externalizeDepsPlugin()正确打包主进程依赖，但需要处理运行时动态加载的模块
 
@@ -565,28 +620,30 @@
 ### 已完成事项
 
 * **最终排名显示修复**: 修复FinalRanking组件排名显示错误
-  - **问题1: 过期props数据** - FinalRanking依赖父组件传递的eventInfo，但导航到FinalRanking时父组件未刷新，导致live_ranking为空
-  - **修复**: 添加onMounted钩子，组件挂载时主动从后端获取最新事件数据
-  
-  - **问题2: maxStageIndex计算错误** - 使用stages.length计算maxStageIndex，但stages数组不包含seeding阶段(索引0)，导致所有选手finalStageIndex被错误限制为0或1
-  - **修复**: 从实际排名数据计算maxStageIndex，遍历所有选手找出最大阶段索引
-  
-  - **问题3: ID类型不匹配** - updateStageRanking中Map查找时，stageResults的ID与live_ranking的ID类型不一致导致查找失败
-  - **修复**: 使用String()确保ID类型一致性
+    - **问题1: 过期props数据** - FinalRanking依赖父组件传递的eventInfo，但导航到FinalRanking时父组件未刷新，导致live_ranking为空
+    - **修复**: 添加onMounted钩子，组件挂载时主动从后端获取最新事件数据
+
+    - **问题2: maxStageIndex计算错误** - 使用stages.length计算maxStageIndex，但stages数组不包含seeding阶段(索引0)
+      ，导致所有选手finalStageIndex被错误限制为0或1
+    - **修复**: 从实际排名数据计算maxStageIndex，遍历所有选手找出最大阶段索引
+
+    - **问题3: ID类型不匹配** - updateStageRanking中Map查找时，stageResults的ID与live_ranking的ID类型不一致导致查找失败
+    - **修复**: 使用String()确保ID类型一致性
 
 * **PoolRanking修复**: 传递eventId到getEventPoolRanking
-  - 修复PoolRanking组件无法获取排名数据的问题
+    - 修复PoolRanking组件无法获取排名数据的问题
 
 * **Pool域模型同步**: 同步Pool域模型与Django ORM模型
-  - Django模型新增 `fencer_b` 和 `score_b` 字段用于存储对手信息
-  - 域模型 `Pool` 和 `PoolAssignment` 新增对应字段并更新mapper
-  - 支持 `fencer_b` 为null的情况（轮空选手）
+    - Django模型新增 `fencer_b` 和 `score_b` 字段用于存储对手信息
+    - 域模型 `Pool` 和 `PoolAssignment` 新增对应字段并更新mapper
+    - 支持 `fencer_b` 为null的情况（轮空选手）
 
 ### 技术决策 & 挑战
 
 * 组件数据源策略：FinalRanking组件在onMounted时主动获取数据，而非完全依赖props，避免父组件状态未同步的问题
 * 阶段索引计算：排名数据使用0=seeding, 1=pool, 2=DE的索引体系，而stages数组仅包含pool和DE，需从实际数据计算最大索引
-* 域模型与ORM模型分离：Pool域模型设计为独立于Django ORM，通过Mapper层转换，便于未来更换持久层或支持离线模式。Django ORM新增字段时需同步更新域模型和Mapper
+* 域模型与ORM模型分离：Pool域模型设计为独立于Django ORM，通过Mapper层转换，便于未来更换持久层或支持离线模式。Django
+  ORM新增字段时需同步更新域模型和Mapper
 
 ### 发现的问题
 
@@ -599,27 +656,27 @@
 ### 已完成事项 (Completed)
 
 * **数据同步架构**: 实现IndexedDB与后端数据库的完整同步
-  - 新增 `syncEventToLocal()` 方法，在事件更新后同步到本地缓存
-  - `saveFencers()` → 同步到 IndexedDB
-  - `syncEventFencers()` → 同步选手-项目关联到 IndexedDB
-  - `initializeLiveRanking()` → 同步事件到 IndexedDB
-  - `updateLiveRanking()` → 同步事件到 IndexedDB
-  - `updateEvent()` → 同步事件到 IndexedDB
-  - `savePools()` → 同步分组到 IndexedDB
-  - `updatePoolResults()` → 同新分组结果到 IndexedDB
-  - IndexedDB版本从5升级到6
-  - 新增批量保存方法：`saveFencers()`, `savePools()`, `saveEventFencerLinks()`
-  - 错误处理策略：记录错误但继续执行（后端为事实来源）
+    - 新增 `syncEventToLocal()` 方法，在事件更新后同步到本地缓存
+    - `saveFencers()` → 同步到 IndexedDB
+    - `syncEventFencers()` → 同步选手-项目关联到 IndexedDB
+    - `initializeLiveRanking()` → 同步事件到 IndexedDB
+    - `updateLiveRanking()` → 同步事件到 IndexedDB
+    - `updateEvent()` → 同步事件到 IndexedDB
+    - `savePools()` → 同步分组到 IndexedDB
+    - `updatePoolResults()` → 同新分组结果到 IndexedDB
+    - IndexedDB版本从5升级到6
+    - 新增批量保存方法：`saveFencers()`, `savePools()`, `saveEventFencerLinks()`
+    - 错误处理策略：记录错误但继续执行（后端为事实来源）
 
 * **自定义规则持久化修复**: 修复自定义规则未保存到数据库的问题
-  - `Event` 域模型新增 `custom_rule_config` 字段
-  - `EventMapper` 新增 `custom_rule_config` 映射
-  - `EventService.create_event()` 传递 `custom_rule_config`
-  - Django Admin 显示 `custom_rule_config` 和 `stages_config`
+    - `Event` 域模型新增 `custom_rule_config` 字段
+    - `EventMapper` 新增 `custom_rule_config` 映射
+    - `EventService.create_event()` 传递 `custom_rule_config`
+    - Django Admin 显示 `custom_rule_config` 和 `stages_config`
 
 * **PoolScoring渲染修复**: 修复计分表渲染错误
-  - 验证 `results` 和 `stats` 数组维度匹配当前选手数量
-  - 解决 `Cannot read properties of undefined (reading '1')` 错误
+    - 验证 `results` 和 `stats` 数组维度匹配当前选手数量
+    - 解决 `Cannot read properties of undefined (reading '1')` 错误
 
 ### 技术决策 & 挑战
 
@@ -637,10 +694,10 @@
 ### 已完成事项 (Completed)
 
 * **Bug修复**: 多个前后端数据流问题
-  - 修复 `EventOrchestrator` 使用 `tournament_info.id` 代替 `tournament_id`
-  - 修复 `getFencersByEvent` 使用 `fencer_info` 代替 `fencer` 字段
-  - 修复 `bulk-save` API URL 路径（下划线改连字符）
-  - 修复 `start_time` 字段在 `DataManager.ts` 和 `EventCreateSerializer` 中缺失
+    - 修复 `EventOrchestrator` 使用 `tournament_info.id` 代替 `tournament_id`
+    - 修复 `getFencersByEvent` 使用 `fencer_info` 代替 `fencer` 字段
+    - 修复 `bulk-save` API URL 路径（下划线改连字符）
+    - 修复 `start_time` 字段在 `DataManager.ts` 和 `EventCreateSerializer` 中缺失
 
 ### 技术决策 & 挑战
 
@@ -657,11 +714,11 @@
 ### 已完成事项 (Completed)
 
 * **CSRF Token处理**: 前端API请求添加CSRF token支持
-  - `DataManager.ts` 新增 `getCsrfToken()` 函数
-  - 所有POST/PUT/DELETE请求自动携带 `X-CSRFToken` header
+    - `DataManager.ts` 新增 `getCsrfToken()` 函数
+    - 所有POST/PUT/DELETE请求自动携带 `X-CSRFToken` header
 
 * **SerializerMethodField修复**: 修复dataclass域模型的序列化问题
-  - `DomainModelSerializer.to_representation()` 正确处理 `SerializerMethodField`
+    - `DomainModelSerializer.to_representation()` 正确处理 `SerializerMethodField`
 
 ### 技术决策 & 挑战
 
@@ -678,28 +735,28 @@
 ### 已完成事项 (Completed)
 
 * **后端架构重构**: 实现Clean Architecture模式
-  - 创建 `DomainModelSerializer` 基类，支持ORM和dataclass域模型
-  - 创建域模型分页工具 `paginate_domain_models`
-  - 所有ViewSet统一使用 `GenericViewSet`，数据流经过Service层
-  - 所有Serializer继承 `DomainModelSerializer`
-  - 移除Service层重复验证逻辑，验证统一在Serializer
+    - 创建 `DomainModelSerializer` 基类，支持ORM和dataclass域模型
+    - 创建域模型分页工具 `paginate_domain_models`
+    - 所有ViewSet统一使用 `GenericViewSet`，数据流经过Service层
+    - 所有Serializer继承 `DomainModelSerializer`
+    - 移除Service层重复验证逻辑，验证统一在Serializer
 
 * **规则系统重构**: 实现预设规则与自定义规则
-  - `DjangoRule` 新增 `stages_config`, `is_preset`, `preset_code` 字段
-  - `DjangoEvent` 新增 `custom_rule_config` 字段
-  - 数据迁移：预置 World Cup 和 Olympics 规则
-  - API `/rules/` 仅返回预设规则 (`is_preset=True`)
-  - 自定义规则存储在Event中，不可复用
+    - `DjangoRule` 新增 `stages_config`, `is_preset`, `preset_code` 字段
+    - `DjangoEvent` 新增 `custom_rule_config` 字段
+    - 数据迁移：预置 World Cup 和 Olympics 规则
+    - API `/rules/` 仅返回预设规则 (`is_preset=True`)
+    - 自定义规则存储在Event中，不可复用
 
 * **前端规则选择**: 支持预设规则和自定义规则
-  - `EventForm.vue` 新增规则模式选择（预设/自定义）
-  - 从API加载预设规则列表
-  - 预设规则显示阶段预览（只读）
-  - 自定义规则使用 `RuleSettings.vue` 配置
+    - `EventForm.vue` 新增规则模式选择（预设/自定义）
+    - 从API加载预设规则列表
+    - 预设规则显示阶段预览（只读）
+    - 自定义规则使用 `RuleSettings.vue` 配置
 
 * **Bug修复**: EventOrchestrator阶段显示问题
-  - 修复 `rule_info.stages` 为空的fallback逻辑
-  - API返回完整的 `rule_info` 包含 `stages`
+    - 修复 `rule_info.stages` 为空的fallback逻辑
+    - API返回完整的 `rule_info` 包含 `stages`
 
 ### 技术决策 & 挑战
 
