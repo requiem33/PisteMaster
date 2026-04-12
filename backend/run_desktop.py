@@ -61,7 +61,22 @@ def main():
 
     from django.core.management import execute_from_command_line
 
+    print("Applying database migrations...")
     execute_from_command_line(["manage.py", "migrate", "--noinput"])
+    print("Migrations completed.")
+
+    # Check if Guest user exists
+    try:
+        from django.contrib.auth import get_user_model
+
+        User = get_user_model()
+        guest_user = User.objects.filter(username="Guest").first()
+        if guest_user:
+            print(f"Guest user found: {guest_user.username} (role: {guest_user.role})")
+        else:
+            print("WARNING: Guest user not found after migrations")
+    except Exception as e:
+        print(f"Error checking Guest user: {e}")
 
     execute_from_command_line(["manage.py", "runserver", f"127.0.0.1:{port}", "--noreload", "--nothreading"])
 
