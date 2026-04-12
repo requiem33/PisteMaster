@@ -116,10 +116,9 @@ class EventParticipantViewSet(SyncWriteModelViewSet):
 
         try:
             participant_service = EventParticipantService()
-            successful, failed = participant_service.bulk_register_fencers(event_id, fencer_ids)
-
-            # Record sync logs for each successful participant
+            # Record sync logs for each successful participant inside the same transaction
             with SyncTransaction() as sync_tx:
+                successful, failed = participant_service.bulk_register_fencers(event_id, fencer_ids)
                 for participant in successful:
                     django_participant = DjangoEventParticipant.objects.get(id=participant.id)
                     sync_data = model_to_dict(django_participant)
@@ -131,8 +130,6 @@ class EventParticipantViewSet(SyncWriteModelViewSet):
                         data=sync_data,
                     )
                 # SyncTransaction will commit when exiting the block
-
-            request._sync_log_id = sync_tx.last_sync_id
 
             return Response(
                 {

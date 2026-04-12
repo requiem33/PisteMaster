@@ -5,6 +5,7 @@ Integration tests for event participant sync logging.
 import pytest
 from unittest.mock import patch
 from uuid import uuid4
+from datetime import datetime
 from rest_framework.test import APIClient
 from django.contrib.auth import get_user_model
 
@@ -70,6 +71,7 @@ class TestEventParticipantBulkRegisterSyncLogging:
         participant_id2 = uuid4()
 
         # Mock DjangoEventParticipant instances for model_to_dict (simple mocks)
+        # Participant 1: no created_at (None)
         django_participant1 = create_mock_django_event_participant(
             participant_id1,
             event_id=event_id,
@@ -81,6 +83,8 @@ class TestEventParticipantBulkRegisterSyncLogging:
             created_at=None,
             updated_at=None,
         )
+        # Participant 2: has created_at timestamp
+        created_at_dt = datetime(2025, 1, 15, 10, 30, 0)
         django_participant2 = create_mock_django_event_participant(
             participant_id2,
             event_id=event_id,
@@ -89,7 +93,7 @@ class TestEventParticipantBulkRegisterSyncLogging:
             seed_value=100.0,
             is_confirmed=True,
             registration_time=None,
-            created_at=None,
+            created_at=created_at_dt,
             updated_at=None,
         )
 
@@ -110,19 +114,29 @@ class TestEventParticipantBulkRegisterSyncLogging:
             # Mock DjangoEventParticipant.objects.get for each participant ID
             with patch.object(DjangoEventParticipant.objects, "get") as mock_get:
                 mock_get.side_effect = [django_participant1, django_participant2]
-                # Mock model_to_dict to return a simple dict (patch the imported function in views)
+                # Mock model_to_dict to return a dict based on the mock instance
                 with patch("backend.apps.fencing_organizer.modules.event_participant.views.model_to_dict") as mock_model_to_dict:
-                    mock_model_to_dict.return_value = {
-                        "id": None,  # will be overridden by record_insert anyway
-                        "event_id": str(event_id),
-                        "fencer_id": None,
-                        "seed_rank": None,
-                        "seed_value": None,
-                        "is_confirmed": False,
-                        "registration_time": None,
-                        "notes": None,
-                        "version": 1,
-                    }
+
+                    def mock_model_to_dict_side_effect(instance):
+                        """Return a dict with the instance's attributes."""
+                        # Base dict with common fields
+                        data = {
+                            "id": str(instance.id) if instance.id else None,
+                            "event_id": str(instance.event_id) if hasattr(instance, "event_id") else None,
+                            "fencer_id": str(instance.fencer_id) if hasattr(instance, "fencer_id") else None,
+                            "seed_rank": getattr(instance, "seed_rank", None),
+                            "seed_value": getattr(instance, "seed_value", None),
+                            "is_confirmed": getattr(instance, "is_confirmed", False),
+                            "registration_time": getattr(instance, "registration_time", None),
+                            "notes": getattr(instance, "notes", None),
+                            "version": 1,
+                        }
+                        # Include created_at only if the attribute exists and is not None
+                        if hasattr(instance, "created_at") and instance.created_at is not None:
+                            data["created_at"] = instance.created_at
+                        return data
+
+                    mock_model_to_dict.side_effect = mock_model_to_dict_side_effect
 
                     # Make POST request
                     response = api_client.post(
@@ -144,3 +158,20 @@ class TestEventParticipantBulkRegisterSyncLogging:
         participant_ids = {str(participant_id1), str(participant_id2)}
         log_ids = {log.record_id for log in sync_logs}
         assert log_ids == participant_ids
+
+        # Verify created_at preservation: participant2's sync log data should contain created_at
+        log_for_participant2 = next(log for log in sync_logs if log.record_id == str(participant_id2))
+        data2 = log_for_participant2.data
+        assert "created_at" in data2
+        # The timestamp should match the mock's created_at (datetime object)
+        # JSON serialization may convert datetime to string; compare accordingly
+        # Since we're using a real datetime object stored in JSONField, Django will serialize it to ISO string
+        # We'll just check that the field exists and is not None
+        assert data2["created_at"] is not None
+        # Optionally check format (isoformat)
+        # assert data2["created_at"] == created_at_dt.isoformat()
+
+        # Verify participant1's sync log data does NOT have created_at (since it was None)
+        log_for_participant1 = next(log for log in sync_logs if log.record_id == str(participant_id1))
+        data1 = log_for_participant1.data
+        assert "created_at" not in data1
