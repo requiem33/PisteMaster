@@ -1,11 +1,13 @@
 from uuid import UUID
 
+from django.forms.models import model_to_dict
 from django_filters.rest_framework import DjangoFilterBackend
 from rest_framework import filters, status
 from rest_framework.decorators import action
 from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework.response import Response
 
+from backend.apps.cluster.decorators.transaction import SyncTransaction
 from backend.apps.fencing_organizer.viewsets.base import SyncWriteModelViewSet
 from backend.apps.fencing_organizer.modules.fencer.models import DjangoFencer
 from backend.apps.fencing_organizer.services.fencer_service import FencerService
@@ -148,25 +150,31 @@ class FencerViewSet(SyncWriteModelViewSet):
         saved_fencers = []
         errors = []
 
-        for fencer_data in fencers_data:
-            try:
-                fencer_id = fencer_data.get("id")
-                if fencer_id:
-                    try:
-                        fencer_uuid = UUID(fencer_id)
-                        existing = self.service.get_fencer_by_id(fencer_uuid)
-                        if existing:
-                            fencer = self.service.update_fencer(existing.id, fencer_data)
-                        else:
+        with SyncTransaction() as sync_tx:
+            for fencer_data in fencers_data:
+                try:
+                    fencer_id = fencer_data.get("id")
+                    if fencer_id:
+                        try:
+                            fencer_uuid = UUID(fencer_id)
+                            existing = self.service.get_fencer_by_id(fencer_uuid)
+                            if existing:
+                                fencer = self.service.update_fencer(existing.id, fencer_data)
+                                # UPDATE case: updates are already logged by the wrapped update method
+                            else:
+                                fencer = self.service.create_fencer(fencer_data)
+                                # INSERT case: record sync log
+                                self._record_fencer_insert(sync_tx, fencer)
+                        except (ValueError, TypeError):
                             fencer = self.service.create_fencer(fencer_data)
-                    except (ValueError, TypeError):
+                            self._record_fencer_insert(sync_tx, fencer)
+                    else:
                         fencer = self.service.create_fencer(fencer_data)
-                else:
-                    fencer = self.service.create_fencer(fencer_data)
+                        self._record_fencer_insert(sync_tx, fencer)
 
-                saved_fencers.append(fencer)
-            except Exception as e:
-                errors.append({"data": fencer_data, "error": str(e)})
+                    saved_fencers.append(fencer)
+                except Exception as e:
+                    errors.append({"data": fencer_data, "error": str(e)})
 
         return Response(
             {
@@ -176,6 +184,23 @@ class FencerViewSet(SyncWriteModelViewSet):
                 "results": [FencerSerializer(f).data for f in saved_fencers],
             }
         )
+
+    def _record_fencer_insert(self, sync_tx, fencer):
+        """
+        Record an INSERT sync log for a newly created fencer.
+        """
+        try:
+            django_fencer = self.queryset.get(id=fencer.id)
+            sync_data = model_to_dict(django_fencer)
+            if hasattr(django_fencer, "created_at") and django_fencer.created_at:
+                sync_data["created_at"] = django_fencer.created_at
+            sync_tx.record_insert(table_name=self.sync_table_name, instance=django_fencer, data=sync_data)
+        except Exception as e:
+            # Log warning but don't fail the request
+            import logging
+
+            logger = logging.getLogger(__name__)
+            logger.warning(f"Failed to record sync log for fencer {fencer.id}: {e}")
 
     @action(detail=False, methods=["post"], url_path="search")
     def search(self, request):
