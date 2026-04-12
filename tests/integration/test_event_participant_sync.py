@@ -154,6 +154,8 @@ class TestEventParticipantBulkRegisterSyncLogging:
         sync_logs = DjangoSyncLog.objects.filter(table_name="event_participant", operation="INSERT")
         # Expect 2 after implementation
         assert sync_logs.count() == 2
+        # Verify sync log IDs are assigned (request._sync_log_id will be set)
+        assert all(log.id is not None for log in sync_logs)
         # Check each participant ID
         participant_ids = {str(participant_id1), str(participant_id2)}
         log_ids = {log.record_id for log in sync_logs}

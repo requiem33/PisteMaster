@@ -131,6 +131,7 @@ class EventParticipantViewSet(SyncWriteModelViewSet):
                     )
                 # SyncTransaction will commit when exiting the block
 
+            request._sync_log_id = sync_tx.last_sync_id
             return Response(
                 {
                     "event_id": event_id,
