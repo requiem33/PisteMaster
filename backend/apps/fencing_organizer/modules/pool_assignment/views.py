@@ -9,6 +9,8 @@ from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework.response import Response
 
 from backend.apps.fencing_organizer.viewsets.base import SyncWriteModelViewSet
+from backend.apps.cluster.decorators.transaction import SyncTransaction
+from django.forms.models import model_to_dict
 from .models import DjangoPoolAssignment
 from .serializers import (
     PoolAssignmentSerializer,
@@ -141,6 +143,22 @@ class PoolAssignmentViewSet(SyncWriteModelViewSet):
         try:
             assignment_service = PoolAssignmentService()
             assignments = assignment_service.assign_fencers_to_pool(pool_id, fencer_ids)
+
+            # Record sync logs for each successful assignment inside the same transaction
+            with SyncTransaction() as sync_tx:
+                for assignment in assignments:
+                    django_assignment = DjangoPoolAssignment.objects.get(id=assignment.id)
+                    sync_data = model_to_dict(django_assignment)
+                    if hasattr(django_assignment, "created_at") and django_assignment.created_at:
+                        sync_data["created_at"] = django_assignment.created_at
+                    sync_tx.record_insert(
+                        table_name=self.sync_table_name,
+                        instance=django_assignment,
+                        data=sync_data,
+                    )
+                # SyncTransaction will commit when exiting the block
+
+            request._sync_log_id = sync_tx.last_sync_id
 
             assignment_ids = [a.id for a in assignments]
             django_assignments = DjangoPoolAssignment.objects.filter(id__in=assignment_ids)

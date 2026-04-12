@@ -131,6 +131,8 @@ class TestFencerBulkSaveSyncLogging:
         # Check data contains expected fields
         assert sync_log.data["first_name"] == "John"
         assert sync_log.data["last_name"] == "Doe"
+        # Verify sync log IDs are assigned (request._sync_log_id will be set)
+        assert sync_log.id is not None
 
     def test_bulk_save_updates_do_not_record_insert(self, api_client):
         """
@@ -231,3 +233,5 @@ class TestFencerBulkSaveSyncLogging:
 
         insert_logs = DjangoSyncLog.objects.filter(table_name="fencer", record_id=str(new_fencer_id), operation="INSERT")
         assert insert_logs.count() == 1
+        # Verify sync log IDs are assigned (request._sync_log_id will be set)
+        assert insert_logs.first().id is not None

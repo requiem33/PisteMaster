@@ -175,6 +175,7 @@ class FencerViewSet(SyncWriteModelViewSet):
                     saved_fencers.append(fencer)
                 except Exception as e:
                     errors.append({"data": fencer_data, "error": str(e)})
+        request._sync_log_id = sync_tx.last_sync_id
 
         return Response(
             {
