@@ -9,6 +9,8 @@ from rest_framework.response import Response
 
 from backend.apps.fencing_organizer.viewsets.base import SyncWriteModelViewSet
 from .models import DjangoEventParticipant
+from backend.apps.cluster.decorators.transaction import SyncTransaction
+from django.forms.models import model_to_dict
 from .serializers import (
     EventParticipantSerializer,
     EventParticipantCreateSerializer,
@@ -115,6 +117,22 @@ class EventParticipantViewSet(SyncWriteModelViewSet):
         try:
             participant_service = EventParticipantService()
             successful, failed = participant_service.bulk_register_fencers(event_id, fencer_ids)
+
+            # Record sync logs for each successful participant
+            with SyncTransaction() as sync_tx:
+                for participant in successful:
+                    django_participant = DjangoEventParticipant.objects.get(id=participant.id)
+                    sync_data = model_to_dict(django_participant)
+                    if hasattr(django_participant, "created_at") and django_participant.created_at:
+                        sync_data["created_at"] = django_participant.created_at
+                    sync_tx.record_insert(
+                        table_name="event_participant",
+                        instance=django_participant,
+                        data=sync_data,
+                    )
+                # SyncTransaction will commit when exiting the block
+
+            request._sync_log_id = sync_tx.last_sync_id
 
             return Response(
                 {
