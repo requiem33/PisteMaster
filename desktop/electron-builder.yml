@@ -46,6 +46,6 @@ publish:
 files:
   - "!**/.vscode/*"
   - "!**/node_modules/.cache/*"
-  - "!**/src/*"
+  - "!src/*"
   - "out/**/*"
   - "package.json"

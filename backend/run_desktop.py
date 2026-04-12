@@ -43,6 +43,39 @@ def get_base_dir():
         return Path(__file__).resolve().parent.parent
 
 
+def ensure_guest_user():
+    """Ensure Guest user exists with correct password 'Guest'."""
+    from django.contrib.auth import get_user_model
+    from django.contrib.auth.hashers import make_password, check_password
+
+    User = get_user_model()
+
+    # Get or create Guest user
+    guest_user, created = User.objects.get_or_create(
+        username="Guest",
+        defaults={
+            "role": "GUEST",
+            "is_active": True,
+            "first_name": "Guest",
+            "last_name": "User",
+            "password": make_password("Guest"),
+        },
+    )
+
+    if created:
+        print("Created Guest user with password 'Guest'")
+    else:
+        # Check if password needs update
+        if not check_password("Guest", guest_user.password):
+            guest_user.password = make_password("Guest")
+            guest_user.save()
+            print("Updated Guest user password to 'Guest'")
+        else:
+            print("Guest user password verified")
+
+    return guest_user
+
+
 def main():
     ensure_data_dir()
 
@@ -65,18 +98,20 @@ def main():
     execute_from_command_line(["manage.py", "migrate", "--noinput"])
     print("Migrations completed.")
 
-    # Check if Guest user exists
+    # Ensure Guest user exists with correct password
     try:
-        from django.contrib.auth import get_user_model
+        _guest_user = ensure_guest_user()  # noqa: F841
 
-        User = get_user_model()
-        guest_user = User.objects.filter(username="Guest").first()
-        if guest_user:
-            print(f"Guest user found: {guest_user.username} (role: {guest_user.role})")
+        # Test authentication
+        from django.contrib.auth import authenticate
+
+        user = authenticate(username="Guest", password="Guest")
+        if user:
+            print("Guest authentication test: SUCCESS")
         else:
-            print("WARNING: Guest user not found after migrations")
+            print("Guest authentication test: FAILED - check password hash")
     except Exception as e:
-        print(f"Error checking Guest user: {e}")
+        print(f"Error ensuring Guest user: {e}")
 
     execute_from_command_line(["manage.py", "runserver", f"127.0.0.1:{port}", "--noreload", "--nothreading"])
 
