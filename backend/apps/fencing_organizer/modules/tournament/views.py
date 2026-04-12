@@ -8,8 +8,10 @@ from rest_framework.permissions import AllowAny
 from rest_framework.response import Response
 from uuid import UUID
 
+from backend.apps.cluster.decorators.transaction import SyncTransaction
 from backend.apps.fencing_organizer.viewsets.base import SyncWriteModelViewSet
 from backend.apps.fencing_organizer.modules.tournament.models import DjangoTournament
+from django.forms.models import model_to_dict
 from backend.apps.fencing_organizer.permissions import (
     IsSchedulerOrAdminOrGuest,
     IsTournamentEditor,
@@ -250,8 +252,23 @@ class TournamentViewSet(SyncWriteModelViewSet):
         if user.role not in ("ADMIN", "SCHEDULER"):
             return Response({"detail": "Only admins and schedulers can be assigned"}, status=status.HTTP_400_BAD_REQUEST)
 
-        tournament.schedulers.add(user)
-        return Response({"success": True, "message": f"User {user.username} added to schedulers"})
+        try:
+            with SyncTransaction() as sync_tx:
+                tournament.schedulers.add(user)
+                # Get the through model instance
+                through_model = tournament.schedulers.through
+                relation = through_model.objects.get(tournament=tournament, user=user)
+                sync_data = model_to_dict(relation)
+                sync_tx.record_insert(
+                    table_name=through_model._meta.db_table,
+                    instance=relation,
+                    data=sync_data,
+                )
+
+            request._sync_log_id = sync_tx.last_sync_id
+            return Response({"success": True, "message": f"User {user.username} added to schedulers"})
+        except Exception as e:
+            return Response({"detail": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
     @action(detail=True, methods=["post"])
     def remove_scheduler(self, request, pk=None):
@@ -275,7 +292,20 @@ class TournamentViewSet(SyncWriteModelViewSet):
         try:
             user = User.objects.get(pk=user_id)
         except User.DoesNotExist:
-            return Response({"detail": "User not found"}, status=status.HTTP_404_NOT_REQUEST)
+            return Response({"detail": "User not found"}, status=status.HTTP_404_NOT_FOUND)
 
-        tournament.schedulers.remove(user)
-        return Response({"success": True, "message": f"User {user.username} removed from schedulers"})
+        try:
+            with SyncTransaction() as sync_tx:
+                # Get the through model instance before removal
+                through_model = tournament.schedulers.through
+                relation = through_model.objects.get(tournament=tournament, user=user)
+                sync_tx.record_delete(
+                    table_name=through_model._meta.db_table,
+                    record_id=str(relation.id),
+                )
+                tournament.schedulers.remove(user)
+
+            request._sync_log_id = sync_tx.last_sync_id
+            return Response({"success": True, "message": f"User {user.username} removed from schedulers"})
+        except Exception as e:
+            return Response({"detail": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)

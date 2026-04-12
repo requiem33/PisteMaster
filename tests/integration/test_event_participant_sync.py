@@ -3,7 +3,7 @@ Integration tests for event participant sync logging.
 """
 
 import pytest
-from unittest.mock import patch
+from unittest.mock import patch, MagicMock
 from uuid import uuid4
 from datetime import datetime
 from rest_framework.test import APIClient
@@ -177,3 +177,116 @@ class TestEventParticipantBulkRegisterSyncLogging:
         log_for_participant1 = next(log for log in sync_logs if log.record_id == str(participant_id1))
         data1 = log_for_participant1.data
         assert "created_at" not in data1
+
+
+@pytest.mark.django_db
+class TestEventSyncParticipantsSyncLogging:
+    """Test sync logging for event sync_participants endpoint."""
+
+    def test_sync_participants_records_sync_log(self, api_client):
+        """
+        PUT to /api/events/{eventId}/participants/sync/ creates sync log entries for DELETE and INSERT.
+        """
+        from backend.apps.fencing_organizer.modules.event_participant.models import DjangoEventParticipant
+        from backend.apps.fencing_organizer.modules.fencer.models import DjangoFencer
+
+        event_id = uuid4()
+        fencer_id1 = uuid4()
+        fencer_id2 = uuid4()
+        existing_participant_id1 = uuid4()
+        existing_participant_id2 = uuid4()
+
+        # Mock existing participants (will be deleted)
+        existing_participant1 = create_mock_django_event_participant(
+            existing_participant_id1,
+            event_id=event_id,
+            fencer_id=uuid4(),
+        )
+        existing_participant2 = create_mock_django_event_participant(
+            existing_participant_id2,
+            event_id=event_id,
+            fencer_id=uuid4(),
+        )
+
+        # Mock fencers that exist
+        fencer1 = MagicMock()
+        fencer1.id = fencer_id1
+        fencer2 = MagicMock()
+        fencer2.id = fencer_id2
+
+        # Create mock queryset for DjangoEventParticipant.objects.filter
+        mock_queryset = MagicMock()
+        # First call: iteration over existing participants
+        mock_queryset.__iter__ = MagicMock(return_value=iter([existing_participant1, existing_participant2]))
+        # Second call: delete() does nothing
+        mock_queryset.delete = MagicMock()
+
+        # Mock DjangoEventParticipant.objects.filter to return our mock queryset
+        with patch.object(DjangoEventParticipant.objects, "filter", return_value=mock_queryset):
+            # Mock DjangoFencer.objects.filter to return a queryset with our fencers
+            mock_fencer_queryset = MagicMock()
+            mock_fencer_queryset.__iter__ = MagicMock(return_value=iter([fencer1, fencer2]))
+            with patch.object(DjangoFencer.objects, "filter", return_value=mock_fencer_queryset):
+                # Track new participants created via bulk_create
+                created_participants = []
+
+                def bulk_create_side_effect(objs, batch_size=None):
+                    # Assign IDs to new participants (simulate database)
+                    for obj in objs:
+                        if not hasattr(obj, "id") or obj.id is None:
+                            obj.id = uuid4()
+                    created_participants.extend(objs)
+                    return objs
+
+                with patch.object(DjangoEventParticipant.objects, "bulk_create", side_effect=bulk_create_side_effect):
+                    # Mock model_to_dict to return a dict representation
+                    with patch("backend.apps.fencing_organizer.modules.event.views.model_to_dict") as mock_model_to_dict:
+
+                        def model_to_dict_side_effect(instance):
+                            data = {
+                                "id": str(instance.id),
+                                "event_id": str(instance.event_id),
+                                "fencer_id": str(instance.fencer_id),
+                                "seed_rank": getattr(instance, "seed_rank", None),
+                                "seed_value": getattr(instance, "seed_value", None),
+                                "is_confirmed": getattr(instance, "is_confirmed", False),
+                                "registration_time": getattr(instance, "registration_time", None),
+                                "notes": getattr(instance, "notes", None),
+                                "version": 1,
+                            }
+                            if hasattr(instance, "created_at") and instance.created_at is not None:
+                                data["created_at"] = instance.created_at
+                            return data
+
+                        mock_model_to_dict.side_effect = model_to_dict_side_effect
+
+                        # Make PUT request
+                        response = api_client.put(
+                            f"/api/events/{event_id}/participants/sync/",
+                            {"fencer_ids": [str(fencer_id1), str(fencer_id2)]},
+                            format="json",
+                        )
+
+        # Assert response success
+        assert response.status_code == 200
+        assert response.data["synced_count"] == 2
+
+        # Assert sync log entries created for DELETE and INSERT
+        delete_logs = DjangoSyncLog.objects.filter(table_name="event_participant", operation="DELETE")
+        insert_logs = DjangoSyncLog.objects.filter(table_name="event_participant", operation="INSERT")
+
+        # Expect 2 DELETE logs for existing participants
+        assert delete_logs.count() == 2
+        delete_record_ids = {log.record_id for log in delete_logs}
+        assert delete_record_ids == {str(existing_participant_id1), str(existing_participant_id2)}
+
+        # Expect 2 INSERT logs for new participants
+        assert insert_logs.count() == 2
+        # Verify each INSERT log has a valid UUID record_id
+        for log in insert_logs:
+            assert log.record_id is not None
+            assert len(log.record_id) == 36
+
+        # Verify sync log IDs assigned
+        assert all(log.id is not None for log in delete_logs)
+        assert all(log.id is not None for log in insert_logs)

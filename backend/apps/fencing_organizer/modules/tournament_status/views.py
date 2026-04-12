@@ -5,9 +5,11 @@ from rest_framework.permissions import IsAuthenticated, IsAdminUser
 from django_filters.rest_framework import DjangoFilterBackend
 from rest_framework import filters
 
+from backend.apps.cluster.decorators.transaction import SyncTransaction
 from .models import DjangoTournamentStatus
 from .serializers import TournamentStatusSerializer
 from ...services.tournament_status_service import TournamentStatusService
+from django.forms.models import model_to_dict
 
 
 class TournamentStatusViewSet(viewsets.ViewSet):
@@ -122,8 +124,22 @@ class TournamentStatusViewSet(viewsets.ViewSet):
     def initialize(self, request):
         """初始化预定义状态"""
         try:
-            created_statuses = self.service.initialize_predefined_statuses()
+            with SyncTransaction() as sync_tx:
+                created_statuses = self.service.initialize_predefined_statuses()
 
+                # Record INSERT for each created status
+                for status_obj in created_statuses:
+                    django_status = DjangoTournamentStatus.objects.get(id=status_obj.id)
+                    sync_data = model_to_dict(django_status)
+                    if hasattr(django_status, "created_at") and django_status.created_at:
+                        sync_data["created_at"] = django_status.created_at
+                    sync_tx.record_insert(
+                        table_name="tournament_status",
+                        instance=django_status,
+                        data=sync_data,
+                    )
+
+            request._sync_log_id = sync_tx.last_sync_id
             return Response(
                 {"success": True, "message": f"成功初始化 {len(created_statuses)} 个状态", "created_count": len(created_statuses)}
             )

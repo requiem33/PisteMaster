@@ -151,14 +151,26 @@ class EventParticipantViewSet(SyncWriteModelViewSet):
         participant = self.get_object()
 
         try:
-            participant_service = EventParticipantService()
-            updated_participant = participant_service.confirm_participation(participant.event.id, participant.fencer.id)
+            with SyncTransaction() as sync_tx:
+                participant_service = EventParticipantService()
+                updated_participant = participant_service.confirm_participation(participant.event.id, participant.fencer.id)
 
-            if updated_participant:
-                output_serializer = EventParticipantSerializer(DjangoEventParticipant.objects.get(id=updated_participant.id))
-                return Response(output_serializer.data)
-            else:
-                return Response({"detail": "确认失败"}, status=status.HTTP_400_BAD_REQUEST)
+                if not updated_participant:
+                    return Response({"detail": "确认失败"}, status=status.HTTP_400_BAD_REQUEST)
+
+                django_participant = DjangoEventParticipant.objects.get(id=updated_participant.id)
+                sync_data = model_to_dict(django_participant)
+                if hasattr(django_participant, "created_at") and django_participant.created_at:
+                    sync_data["created_at"] = django_participant.created_at
+                sync_tx.record_update(
+                    table_name=self.sync_table_name,
+                    instance=django_participant,
+                    data=sync_data,
+                )
+
+            request._sync_log_id = sync_tx.last_sync_id
+            output_serializer = EventParticipantSerializer(django_participant)
+            return Response(output_serializer.data)
         except EventParticipantService.EventParticipantServiceError as e:
             return Response({"detail": e.message}, status=status.HTTP_400_BAD_REQUEST)
 
@@ -168,14 +180,26 @@ class EventParticipantViewSet(SyncWriteModelViewSet):
         participant = self.get_object()
 
         try:
-            participant_service = EventParticipantService()
-            updated_participant = participant_service.unconfirm_participation(participant.event.id, participant.fencer.id)
+            with SyncTransaction() as sync_tx:
+                participant_service = EventParticipantService()
+                updated_participant = participant_service.unconfirm_participation(participant.event.id, participant.fencer.id)
 
-            if updated_participant:
-                output_serializer = EventParticipantSerializer(DjangoEventParticipant.objects.get(id=updated_participant.id))
-                return Response(output_serializer.data)
-            else:
-                return Response({"detail": "取消确认失败"}, status=status.HTTP_400_BAD_REQUEST)
+                if not updated_participant:
+                    return Response({"detail": "取消确认失败"}, status=status.HTTP_400_BAD_REQUEST)
+
+                django_participant = DjangoEventParticipant.objects.get(id=updated_participant.id)
+                sync_data = model_to_dict(django_participant)
+                if hasattr(django_participant, "created_at") and django_participant.created_at:
+                    sync_data["created_at"] = django_participant.created_at
+                sync_tx.record_update(
+                    table_name=self.sync_table_name,
+                    instance=django_participant,
+                    data=sync_data,
+                )
+
+            request._sync_log_id = sync_tx.last_sync_id
+            output_serializer = EventParticipantSerializer(django_participant)
+            return Response(output_serializer.data)
         except EventParticipantService.EventParticipantServiceError as e:
             return Response({"detail": e.message}, status=status.HTTP_400_BAD_REQUEST)
 
@@ -196,8 +220,23 @@ class EventParticipantViewSet(SyncWriteModelViewSet):
             )
 
         try:
-            participant_service = EventParticipantService()
-            updated_participants = participant_service.update_seed_ranking(event_id, seed_updates)
+            with SyncTransaction() as sync_tx:
+                participant_service = EventParticipantService()
+                updated_participants = participant_service.update_seed_ranking(event_id, seed_updates)
+
+                # Record UPDATE for each updated participant
+                for participant in updated_participants:
+                    django_participant = DjangoEventParticipant.objects.get(id=participant.id)
+                    sync_data = model_to_dict(django_participant)
+                    if hasattr(django_participant, "created_at") and django_participant.created_at:
+                        sync_data["created_at"] = django_participant.created_at
+                    sync_tx.record_update(
+                        table_name=self.sync_table_name,
+                        instance=django_participant,
+                        data=sync_data,
+                    )
+
+            request._sync_log_id = sync_tx.last_sync_id
 
             updated_participant_ids = [p.id for p in updated_participants]
             django_participants = DjangoEventParticipant.objects.filter(id__in=updated_participant_ids)
@@ -268,8 +307,23 @@ class EventParticipantViewSet(SyncWriteModelViewSet):
             return Response({"detail": "event_id is required"}, status=status.HTTP_400_BAD_REQUEST)
 
         try:
-            participant_service = EventParticipantService()
-            participants = participant_service.generate_seed_ranking(event_id, based_on)
+            with SyncTransaction() as sync_tx:
+                participant_service = EventParticipantService()
+                participants = participant_service.generate_seed_ranking(event_id, based_on)
+
+                # Record UPDATE for each participant (seed rankings updated)
+                for participant in participants:
+                    django_participant = DjangoEventParticipant.objects.get(id=participant.id)
+                    sync_data = model_to_dict(django_participant)
+                    if hasattr(django_participant, "created_at") and django_participant.created_at:
+                        sync_data["created_at"] = django_participant.created_at
+                    sync_tx.record_update(
+                        table_name=self.sync_table_name,
+                        instance=django_participant,
+                        data=sync_data,
+                    )
+
+            request._sync_log_id = sync_tx.last_sync_id
 
             participant_ids = [p.id for p in participants]
             django_participants = DjangoEventParticipant.objects.filter(id__in=participant_ids)

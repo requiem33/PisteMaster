@@ -115,16 +115,31 @@ class PoolAssignmentViewSet(SyncWriteModelViewSet):
         is_winner = serializer.validated_data["is_winner"]
 
         try:
-            assignment_service = PoolAssignmentService()
-            updated_assignment = assignment_service.update_match_result(
-                assignment.pool.id, assignment.fencer.id, touches_scored, touches_received, is_winner
-            )
+            with SyncTransaction() as sync_tx:
+                assignment_service = PoolAssignmentService()
+                updated_assignment = assignment_service.update_match_result(
+                    assignment.pool.id, assignment.fencer.id, touches_scored, touches_received, is_winner
+                )
 
-            if updated_assignment:
-                output_serializer = PoolAssignmentSerializer(DjangoPoolAssignment.objects.get(id=updated_assignment.id))
-                return Response(output_serializer.data)
-            else:
-                return Response({"detail": "更新比赛结果失败"}, status=status.HTTP_400_BAD_REQUEST)
+                if not updated_assignment:
+                    return Response({"detail": "更新比赛结果失败"}, status=status.HTTP_400_BAD_REQUEST)
+
+                # Record UPDATE for all assignments in the pool (since ranking may have changed)
+                pool_id = assignment.pool.id
+                pool_assignments = DjangoPoolAssignment.objects.filter(pool_id=pool_id)
+                for django_assignment in pool_assignments:
+                    sync_data = model_to_dict(django_assignment)
+                    if hasattr(django_assignment, "created_at") and django_assignment.created_at:
+                        sync_data["created_at"] = django_assignment.created_at
+                    sync_tx.record_update(
+                        table_name=self.sync_table_name,
+                        instance=django_assignment,
+                        data=sync_data,
+                    )
+
+            request._sync_log_id = sync_tx.last_sync_id
+            output_serializer = PoolAssignmentSerializer(DjangoPoolAssignment.objects.get(id=updated_assignment.id))
+            return Response(output_serializer.data)
         except PoolAssignmentService.PoolAssignmentServiceError as e:
             return Response({"detail": e.message, "errors": e.errors}, status=status.HTTP_400_BAD_REQUEST)
 
@@ -193,10 +208,25 @@ class PoolAssignmentViewSet(SyncWriteModelViewSet):
             )
 
         try:
-            from ....repositories.pool_assignment_repo import DjangoPoolAssignmentRepository
+            with SyncTransaction() as sync_tx:
+                from ....repositories.pool_assignment_repo import DjangoPoolAssignmentRepository
 
-            assignment_repo = DjangoPoolAssignmentRepository()
-            updated_assignments = assignment_repo.update_ranking(pool_id, ranking_updates)
+                assignment_repo = DjangoPoolAssignmentRepository()
+                updated_assignments = assignment_repo.update_ranking(pool_id, ranking_updates)
+
+                # Record UPDATE for each updated assignment
+                for assignment in updated_assignments:
+                    django_assignment = DjangoPoolAssignment.objects.get(id=assignment.id)
+                    sync_data = model_to_dict(django_assignment)
+                    if hasattr(django_assignment, "created_at") and django_assignment.created_at:
+                        sync_data["created_at"] = django_assignment.created_at
+                    sync_tx.record_update(
+                        table_name=self.sync_table_name,
+                        instance=django_assignment,
+                        data=sync_data,
+                    )
+
+            request._sync_log_id = sync_tx.last_sync_id
 
             updated_assignment_ids = [a.id for a in updated_assignments]
             django_assignments = DjangoPoolAssignment.objects.filter(id__in=updated_assignment_ids)
@@ -249,8 +279,23 @@ class PoolAssignmentViewSet(SyncWriteModelViewSet):
             return Response({"detail": "Invalid pool ID format"}, status=status.HTTP_400_BAD_REQUEST)
 
         try:
-            assignment_service = PoolAssignmentService()
-            assignments = assignment_service.get_pool_ranking(pool_uuid)
+            with SyncTransaction() as sync_tx:
+                assignment_service = PoolAssignmentService()
+                assignments = assignment_service.get_pool_ranking(pool_uuid)
+
+                # Record UPDATE for all assignments in the pool (since rankings may have been updated)
+                pool_assignments = DjangoPoolAssignment.objects.filter(pool_id=pool_uuid)
+                for django_assignment in pool_assignments:
+                    sync_data = model_to_dict(django_assignment)
+                    if hasattr(django_assignment, "created_at") and django_assignment.created_at:
+                        sync_data["created_at"] = django_assignment.created_at
+                    sync_tx.record_update(
+                        table_name=self.sync_table_name,
+                        instance=django_assignment,
+                        data=sync_data,
+                    )
+
+            request._sync_log_id = sync_tx.last_sync_id
 
             assignment_ids = [a.id for a in assignments]
             django_assignments = DjangoPoolAssignment.objects.filter(id__in=assignment_ids)
@@ -266,8 +311,26 @@ class PoolAssignmentViewSet(SyncWriteModelViewSet):
         qualification_count = request.data.get("qualification_count", 16)
 
         try:
-            assignment_service = PoolAssignmentService()
-            assignments = assignment_service.calculate_qualification_for_event(event_id, qualification_count)
+            with SyncTransaction() as sync_tx:
+                assignment_service = PoolAssignmentService()
+                assignments = assignment_service.calculate_qualification_for_event(event_id, qualification_count)
+
+                # Record UPDATE for all assignments in the event (since qualification status may have changed)
+                from backend.apps.fencing_organizer.modules.pool.models import DjangoPool
+
+                pool_ids = DjangoPool.objects.filter(event_id=event_id).values_list("id", flat=True)
+                event_assignments = DjangoPoolAssignment.objects.filter(pool_id__in=pool_ids)
+                for django_assignment in event_assignments:
+                    sync_data = model_to_dict(django_assignment)
+                    if hasattr(django_assignment, "created_at") and django_assignment.created_at:
+                        sync_data["created_at"] = django_assignment.created_at
+                    sync_tx.record_update(
+                        table_name=self.sync_table_name,
+                        instance=django_assignment,
+                        data=sync_data,
+                    )
+
+            request._sync_log_id = sync_tx.last_sync_id
 
             assignment_ids = [a.id for a in assignments]
             django_assignments = DjangoPoolAssignment.objects.filter(id__in=assignment_ids)
@@ -317,12 +380,26 @@ class PoolAssignmentViewSet(SyncWriteModelViewSet):
             return Response({"detail": "Invalid pool ID format"}, status=status.HTTP_400_BAD_REQUEST)
 
         try:
-            assignment_service = PoolAssignmentService()
-            success = assignment_service.reset_pool_assignments(pool_uuid)
+            with SyncTransaction() as sync_tx:
+                assignment_service = PoolAssignmentService()
+                success = assignment_service.reset_pool_assignments(pool_uuid)
 
-            if success:
-                return Response({"message": f"成功重置小组 {pool_id} 的分配记录"})
-            else:
-                return Response({"detail": "重置失败"}, status=status.HTTP_400_BAD_REQUEST)
+                if not success:
+                    return Response({"detail": "重置失败"}, status=status.HTTP_400_BAD_REQUEST)
+
+                # Record UPDATE for all assignments in the pool (since fields have been reset)
+                pool_assignments = DjangoPoolAssignment.objects.filter(pool_id=pool_uuid)
+                for django_assignment in pool_assignments:
+                    sync_data = model_to_dict(django_assignment)
+                    if hasattr(django_assignment, "created_at") and django_assignment.created_at:
+                        sync_data["created_at"] = django_assignment.created_at
+                    sync_tx.record_update(
+                        table_name=self.sync_table_name,
+                        instance=django_assignment,
+                        data=sync_data,
+                    )
+
+            request._sync_log_id = sync_tx.last_sync_id
+            return Response({"message": f"成功重置小组 {pool_id} 的分配记录"})
         except PoolAssignmentService.PoolAssignmentServiceError as e:
             return Response({"detail": e.message}, status=status.HTTP_400_BAD_REQUEST)

@@ -6,10 +6,12 @@ from rest_framework.decorators import action
 from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework.response import Response
 
+from backend.apps.cluster.decorators.transaction import SyncTransaction
 from backend.apps.fencing_organizer.viewsets.base import SyncWriteModelViewSet
 from backend.apps.fencing_organizer.modules.pool.models import DjangoPool
 from backend.apps.fencing_organizer.services.pool_service import PoolService
 from backend.apps.fencing_organizer.utils.pagination import get_paginated_response
+from django.forms.models import model_to_dict
 from .serializers import PoolSerializer, PoolCreateSerializer, PoolUpdateSerializer
 
 
@@ -148,7 +150,19 @@ class PoolViewSet(SyncWriteModelViewSet):
             update_data["is_locked"] = is_locked
 
         try:
-            self.service.update_pool(pool_id, update_data)
+            with SyncTransaction() as sync_tx:
+                pool = self.service.update_pool(pool_id, update_data)
+                django_pool = DjangoPool.objects.get(id=pool.id)
+                sync_data = model_to_dict(django_pool)
+                if hasattr(django_pool, "created_at") and django_pool.created_at:
+                    sync_data["created_at"] = django_pool.created_at
+                sync_tx.record_update(
+                    table_name=self.sync_table_name,
+                    instance=django_pool,
+                    data=sync_data,
+                )
+
+            request._sync_log_id = sync_tx.last_sync_id
             response_data = {"message": "Updated successfully"}
             if is_locked is not None:
                 response_data["is_locked"] = is_locked

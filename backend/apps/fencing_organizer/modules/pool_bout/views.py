@@ -6,10 +6,12 @@ from rest_framework.decorators import action
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 
+from backend.apps.cluster.decorators.transaction import SyncTransaction
 from backend.apps.fencing_organizer.viewsets.base import SyncWriteModelViewSet
 from .models import DjangoPoolBout
 from .serializers import PoolBoutSerializer, PoolBoutResultSerializer, PoolBoutStartSerializer, PoolBoutGenerateSerializer
 from ...services.pool_bout_service import PoolBoutService
+from django.forms.models import model_to_dict
 
 
 class PoolBoutViewSet(SyncWriteModelViewSet):
@@ -84,15 +86,27 @@ class PoolBoutViewSet(SyncWriteModelViewSet):
         notes = serializer.validated_data.get("notes")
 
         try:
-            bout_service = PoolBoutService()
-            updated_bout = bout_service.update_bout_result(bout.id, fencer_a_score, fencer_b_score, winner_id)
+            with SyncTransaction() as sync_tx:
+                bout_service = PoolBoutService()
+                updated_bout = bout_service.update_bout_result(bout.id, fencer_a_score, fencer_b_score, winner_id)
 
-            # 更新备注
-            if notes:
-                updated_bout.notes = notes
-                updated_bout.save()
+                # 更新备注
+                if notes:
+                    updated_bout.notes = notes
+                    updated_bout.save()
 
-            output_serializer = PoolBoutSerializer(DjangoPoolBout.objects.get(id=updated_bout.id))
+                django_bout = DjangoPoolBout.objects.get(id=updated_bout.id)
+                sync_data = model_to_dict(django_bout)
+                if hasattr(django_bout, "created_at") and django_bout.created_at:
+                    sync_data["created_at"] = django_bout.created_at
+                sync_tx.record_update(
+                    table_name=self.sync_table_name,
+                    instance=django_bout,
+                    data=sync_data,
+                )
+
+            request._sync_log_id = sync_tx.last_sync_id
+            output_serializer = PoolBoutSerializer(django_bout)
             return Response(output_serializer.data, status=status.HTTP_200_OK)
         except PoolBoutService.PoolBoutServiceError as e:
             return Response({"detail": str(e), "errors": e.errors}, status=status.HTTP_400_BAD_REQUEST)
@@ -110,20 +124,32 @@ class PoolBoutViewSet(SyncWriteModelViewSet):
         notes = serializer.validated_data.get("notes")
 
         try:
-            bout_service = PoolBoutService()
-            updated_bout = bout_service.start_bout(bout.id)
+            with SyncTransaction() as sync_tx:
+                bout_service = PoolBoutService()
+                updated_bout = bout_service.start_bout(bout.id)
 
-            # 更新实际开始时间（如果提供）
-            if actual_start_time:
-                updated_bout.actual_start_time = actual_start_time
-                updated_bout.save()
+                # 更新实际开始时间（如果提供）
+                if actual_start_time:
+                    updated_bout.actual_start_time = actual_start_time
+                    updated_bout.save()
 
-            # 更新备注
-            if notes:
-                updated_bout.notes = notes
-                updated_bout.save()
+                # 更新备注
+                if notes:
+                    updated_bout.notes = notes
+                    updated_bout.save()
 
-            output_serializer = PoolBoutSerializer(DjangoPoolBout.objects.get(id=updated_bout.id))
+                django_bout = DjangoPoolBout.objects.get(id=updated_bout.id)
+                sync_data = model_to_dict(django_bout)
+                if hasattr(django_bout, "created_at") and django_bout.created_at:
+                    sync_data["created_at"] = django_bout.created_at
+                sync_tx.record_update(
+                    table_name=self.sync_table_name,
+                    instance=django_bout,
+                    data=sync_data,
+                )
+
+            request._sync_log_id = sync_tx.last_sync_id
+            output_serializer = PoolBoutSerializer(django_bout)
             return Response(output_serializer.data, status=status.HTTP_200_OK)
         except PoolBoutService.PoolBoutServiceError as e:
             return Response({"detail": str(e), "errors": e.errors}, status=status.HTTP_400_BAD_REQUEST)
@@ -143,20 +169,32 @@ class PoolBoutViewSet(SyncWriteModelViewSet):
         notes = serializer.validated_data.get("notes")
 
         try:
-            bout_service = PoolBoutService()
-            updated_bout = bout_service.complete_bout(bout.id, fencer_a_score, fencer_b_score)
+            with SyncTransaction() as sync_tx:
+                bout_service = PoolBoutService()
+                updated_bout = bout_service.complete_bout(bout.id, fencer_a_score, fencer_b_score)
 
-            # 如果指定了胜者，更新胜者
-            if winner_id:
-                updated_bout.winner_id = winner_id
-                updated_bout.save()
+                # 如果指定了胜者，更新胜者
+                if winner_id:
+                    updated_bout.winner_id = winner_id
+                    updated_bout.save()
 
-            # 更新备注
-            if notes:
-                updated_bout.notes = notes
-                updated_bout.save()
+                # 更新备注
+                if notes:
+                    updated_bout.notes = notes
+                    updated_bout.save()
 
-            output_serializer = PoolBoutSerializer(DjangoPoolBout.objects.get(id=updated_bout.id))
+                django_bout = DjangoPoolBout.objects.get(id=updated_bout.id)
+                sync_data = model_to_dict(django_bout)
+                if hasattr(django_bout, "created_at") and django_bout.created_at:
+                    sync_data["created_at"] = django_bout.created_at
+                sync_tx.record_update(
+                    table_name=self.sync_table_name,
+                    instance=django_bout,
+                    data=sync_data,
+                )
+
+            request._sync_log_id = sync_tx.last_sync_id
+            output_serializer = PoolBoutSerializer(django_bout)
             return Response(output_serializer.data, status=status.HTTP_200_OK)
         except PoolBoutService.PoolBoutServiceError as e:
             return Response({"detail": str(e), "errors": e.errors}, status=status.HTTP_400_BAD_REQUEST)
@@ -170,9 +208,22 @@ class PoolBoutViewSet(SyncWriteModelViewSet):
         notes = request.data.get("notes")
 
         try:
-            bout_service = PoolBoutService()
-            updated_bout = bout_service.cancel_bout(bout.id, notes)
-            output_serializer = PoolBoutSerializer(DjangoPoolBout.objects.get(id=updated_bout.id))
+            with SyncTransaction() as sync_tx:
+                bout_service = PoolBoutService()
+                updated_bout = bout_service.cancel_bout(bout.id, notes)
+
+                django_bout = DjangoPoolBout.objects.get(id=updated_bout.id)
+                sync_data = model_to_dict(django_bout)
+                if hasattr(django_bout, "created_at") and django_bout.created_at:
+                    sync_data["created_at"] = django_bout.created_at
+                sync_tx.record_update(
+                    table_name=self.sync_table_name,
+                    instance=django_bout,
+                    data=sync_data,
+                )
+
+            request._sync_log_id = sync_tx.last_sync_id
+            output_serializer = PoolBoutSerializer(django_bout)
             return Response(output_serializer.data, status=status.HTTP_200_OK)
         except PoolBoutService.PoolBoutServiceError as e:
             return Response({"detail": str(e), "errors": e.errors}, status=status.HTTP_400_BAD_REQUEST)
@@ -207,8 +258,23 @@ class PoolBoutViewSet(SyncWriteModelViewSet):
         pool_id = serializer.validated_data["pool_id"]
 
         try:
-            bout_service = PoolBoutService()
-            bouts = bout_service.generate_round_robin_bouts(pool_id)
+            with SyncTransaction() as sync_tx:
+                bout_service = PoolBoutService()
+                bouts = bout_service.generate_round_robin_bouts(pool_id)
+
+                # Record INSERT for each created bout
+                for bout in bouts:
+                    django_bout = DjangoPoolBout.objects.get(id=bout.id)
+                    sync_data = model_to_dict(django_bout)
+                    if hasattr(django_bout, "created_at") and django_bout.created_at:
+                        sync_data["created_at"] = django_bout.created_at
+                    sync_tx.record_insert(
+                        table_name=self.sync_table_name,
+                        instance=django_bout,
+                        data=sync_data,
+                    )
+
+            request._sync_log_id = sync_tx.last_sync_id
 
             bout_ids = [bout.id for bout in bouts]
             django_bouts = DjangoPoolBout.objects.filter(id__in=bout_ids).order_by("scheduled_time")

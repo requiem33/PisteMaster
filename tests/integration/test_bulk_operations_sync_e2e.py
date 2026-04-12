@@ -292,3 +292,117 @@ class TestBulkOperationsSync:
 
         # Step 5: Verify record exists
         assert DjangoPoolAssignment.objects.filter(id=assignment_id).exists()
+
+    def test_event_sync_participants_appears_on_follower(self, authenticated_api_client):
+        """
+        Test event sync_participants creates sync logs for DELETE and INSERT,
+        and follower applying those logs results in correct participants.
+        """
+        # Ensure sync_manager has event_participant model registered
+        if "event_participant" not in sync_manager.get_registered_tables():
+            from backend.apps.fencing_organizer.modules.event_participant.serializers import EventParticipantSerializer
+
+            sync_manager.register_model(
+                table_name="event_participant",
+                model_class=DjangoEventParticipant,
+                serializer_class=EventParticipantSerializer,
+                version_field="version",
+                last_modified_field="updated_at",
+            )
+
+        # Step 1: Create tournament, event, and fencers
+        tournament = DjangoTournament.objects.create(
+            id=uuid4(),
+            tournament_name="Test Tournament",
+            start_date=date(2025, 1, 1),
+            end_date=date(2025, 1, 1),
+            status=DjangoTournament.Status.PLANNING,
+            organizer=None,
+            location=None,
+        )
+        event = DjangoEvent.objects.create(
+            id=uuid4(),
+            event_name="Test Event",
+            tournament_id=tournament.id,
+            event_type="MEN_INDIVIDUAL_FOIL",
+            status="REGISTRATION",
+            rule=None,
+        )
+        fencer1 = DjangoFencer.objects.create(
+            id=uuid4(),
+            first_name="John",
+            last_name="Doe",
+            gender="MEN",
+            country_code="USA",
+        )
+        fencer2 = DjangoFencer.objects.create(
+            id=uuid4(),
+            first_name="Jane",
+            last_name="Smith",
+            gender="WOMEN",
+            country_code="CAN",
+        )
+        fencer3 = DjangoFencer.objects.create(
+            id=uuid4(),
+            first_name="Bob",
+            last_name="Brown",
+            gender="MEN",
+            country_code="GBR",
+        )
+
+        # Create an existing participant (will be deleted)
+        existing_participant = DjangoEventParticipant.objects.create(
+            id=uuid4(),
+            event_id=event.id,
+            fencer_id=fencer3.id,
+        )
+
+        # Step 2: Call sync_participants endpoint with fencer1 and fencer2
+        response = authenticated_api_client.put(
+            f"/api/events/{event.id}/participants/sync/",
+            {"fencer_ids": [str(fencer1.id), str(fencer2.id)]},
+            format="json",
+        )
+        assert response.status_code == 200
+        assert response.data["synced_count"] == 2
+
+        # Step 3: Verify sync logs for DELETE and INSERT
+        delete_logs = DjangoSyncLog.objects.filter(
+            table_name="event_participant",
+            record_id=str(existing_participant.id),
+            operation="DELETE",
+        )
+        assert delete_logs.count() == 1
+
+        insert_logs = DjangoSyncLog.objects.filter(
+            table_name="event_participant",
+            operation="INSERT",
+        )
+        # Should be 2 INSERT logs for the two fencers
+        assert insert_logs.count() == 2
+        insert_record_ids = {log.record_id for log in insert_logs}
+
+        # Find the new participant IDs (they will be newly created records)
+        new_participants = DjangoEventParticipant.objects.filter(event_id=event.id)
+        assert new_participants.count() == 2
+        new_participant_ids = {str(p.id) for p in new_participants}
+        assert insert_record_ids == new_participant_ids
+
+        # Step 4: Simulate follower applying sync logs
+        # Delete all event participants from local database (simulate follower state)
+        DjangoEventParticipant.objects.filter(event_id=event.id).delete()
+        assert DjangoEventParticipant.objects.filter(event_id=event.id).count() == 0
+
+        # Get all sync logs for event_participant table
+        changes = sync_manager.get_changes_since(since_id=0, limit=10)
+        for change in changes.changes:
+            if change.table_name == "event_participant":
+                success = sync_manager.apply_change(change)
+                assert success is True
+
+        # Step 5: Verify follower now has the correct participants
+        follower_participants = DjangoEventParticipant.objects.filter(event_id=event.id)
+        assert follower_participants.count() == 2
+        follower_fencer_ids = {str(p.fencer_id) for p in follower_participants}
+        expected_fencer_ids = {str(fencer1.id), str(fencer2.id)}
+        assert follower_fencer_ids == expected_fencer_ids
