@@ -1,5 +1,16 @@
 import type {NetworkStatus} from '@/types/cluster'
 
+function getApiBaseUrl(): string {
+  // 在 Electron 桌面环境中，使用绝对 URL 到本地 Django 服务器
+  if (typeof window !== 'undefined' && window.location.protocol === 'file:') {
+    return 'http://127.0.0.1:8000/api'
+  }
+  
+  // 在生产环境中使用环境变量，否则使用相对路径
+  const baseUrl = import.meta.env.VITE_API_BASE_URL
+  return baseUrl || '/api'
+}
+
 class NetworkServiceClass {
   private status: NetworkStatus = {
     isOnline: navigator.onLine,
@@ -74,7 +85,8 @@ class NetworkServiceClass {
     }
     this.latencyCheckInterval = setInterval(() => {
       if (this.status.isOnline) {
-        this.checkLatency(window.location.origin + '/api/cluster/health').catch(() => {
+        const apiBaseUrl = getApiBaseUrl().replace('/api', '') || 'http://127.0.0.1:8000'
+        this.checkLatency(apiBaseUrl + '/api/cluster/health').catch(() => {
           this.status.latency = null
         })
       }
