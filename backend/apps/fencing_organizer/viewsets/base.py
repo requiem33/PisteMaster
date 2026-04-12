@@ -67,9 +67,10 @@ class SyncWriteViewSetMeta(type):
                         table_name=table_name,
                         record_id=record_id,
                     )
-                    request._sync_log_id = sync_tx.last_sync_id
 
                     result = original_method(self, request, *args, **kwargs)
+
+                request._sync_log_id = sync_tx.last_sync_id
 
                 return result
 
@@ -98,7 +99,7 @@ class SyncWriteViewSetMeta(type):
                     except Exception as e:
                         logger.warning(f"Failed to record sync log: {e}")
 
-                request._sync_log_id = sync_tx.last_sync_id
+            request._sync_log_id = sync_tx.last_sync_id
 
             return result
 

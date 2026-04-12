@@ -10,6 +10,7 @@ from unittest.mock import MagicMock
 from backend.apps.cluster.services.sync_manager import SyncManager, SyncOperation, SyncChange, SyncResult
 from backend.apps.cluster.services.ack_queue import AckQueue
 from backend.apps.cluster.models import DjangoSyncLog, DjangoSyncState
+from backend.apps.fencing_organizer.viewsets.base import SyncWriteViewSetMeta
 
 
 @pytest.fixture
@@ -445,3 +446,112 @@ class TestSyncLogModel:
 
         assert logs[0].id == log2.id
         assert logs[1].id == log1.id
+
+
+class TestSyncWriteViewSetMeta:
+    """Test the SyncWriteViewSetMeta metaclass bug fix."""
+
+    def test_sync_log_id_assigned_after_transaction_commit_for_create_update(self):
+        """Test that request._sync_log_id is assigned after SyncTransaction commits for create/update."""
+        from unittest.mock import patch, MagicMock
+
+        # Mock SyncTransaction
+        mock_sync_tx = MagicMock()
+        mock_sync_tx.last_sync_id = None
+        mock_sync_tx.record_insert = MagicMock()
+        mock_sync_tx.record_update = MagicMock()
+
+        # Track order of calls
+        call_order = []
+
+        def mock_enter():
+            call_order.append("enter")
+            return mock_sync_tx
+
+        def mock_exit(*args):
+            call_order.append("exit")
+            mock_sync_tx.last_sync_id = 123  # simulate sync log ID
+
+        mock_sync_tx.__enter__ = MagicMock(side_effect=mock_enter)
+        mock_sync_tx.__exit__ = MagicMock(side_effect=mock_exit)
+        mock_sync_transaction_class = MagicMock(return_value=mock_sync_tx)
+
+        # Mock original method (create)
+        original_method = MagicMock()
+        original_method.__name__ = "create"
+        original_method.__doc__ = None
+        mock_result = MagicMock()
+        mock_result.data = {"id": "test-uuid"}
+        original_method.return_value = mock_result
+
+        # Get wrapper
+        wrapper = SyncWriteViewSetMeta._wrap_with_sync("create", original_method, "test_table")
+
+        # Mock self
+        mock_self = MagicMock()
+        mock_self.get_object = MagicMock()  # not used for create
+        mock_self.queryset = MagicMock()
+        mock_instance = MagicMock()
+        mock_instance.id = "test-uuid"
+        mock_instance.created_at = None
+        mock_self.queryset.get.return_value = mock_instance
+
+        # Mock request
+        mock_request = MagicMock()
+
+        # Mock model_to_dict to return a dict
+        with patch("django.forms.models.model_to_dict") as mock_model_to_dict:
+            mock_model_to_dict.return_value = {"id": "test-uuid"}
+            with patch("backend.apps.fencing_organizer.viewsets.base.SyncTransaction", mock_sync_transaction_class):
+                _ = wrapper(mock_self, mock_request)
+
+        # Verify transaction exited
+        assert "exit" in call_order
+        # Verify assignment happened after exit: last_sync_id should be 123
+        assert mock_request._sync_log_id == 123
+
+    def test_sync_log_id_assigned_after_transaction_commit_for_destroy(self):
+        """Test that request._sync_log_id is assigned after SyncTransaction commits for destroy."""
+        from unittest.mock import patch, MagicMock
+
+        # Mock SyncTransaction
+        mock_sync_tx = MagicMock()
+        mock_sync_tx.last_sync_id = None
+        mock_sync_tx.record_delete = MagicMock()
+
+        call_order = []
+
+        def mock_enter():
+            call_order.append("enter")
+            return mock_sync_tx
+
+        def mock_exit(*args):
+            call_order.append("exit")
+            mock_sync_tx.last_sync_id = 456
+
+        mock_sync_tx.__enter__ = MagicMock(side_effect=mock_enter)
+        mock_sync_tx.__exit__ = MagicMock(side_effect=mock_exit)
+        mock_sync_transaction_class = MagicMock(return_value=mock_sync_tx)
+
+        # Mock original method (destroy)
+        original_method = MagicMock()
+        original_method.__name__ = "destroy"
+        original_method.__doc__ = None
+        original_method.return_value = MagicMock()
+
+        wrapper = SyncWriteViewSetMeta._wrap_with_sync("destroy", original_method, "test_table")
+
+        # Mock self with get_object
+        mock_self = MagicMock()
+        mock_instance = MagicMock()
+        mock_instance.id = "destroy-uuid"
+        mock_self.get_object.return_value = mock_instance
+
+        # Mock request
+        mock_request = MagicMock()
+
+        with patch("backend.apps.fencing_organizer.viewsets.base.SyncTransaction", mock_sync_transaction_class):
+            _ = wrapper(mock_self, mock_request)
+
+        assert "exit" in call_order
+        assert mock_request._sync_log_id == 456
