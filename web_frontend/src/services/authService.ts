@@ -1,10 +1,10 @@
 import type { User } from '@/types/user'
 import { getApiHeaders, getCsrfHeaders } from '@/utils/csrf'
-import { API_BASE_URL } from './api'
+import { getApiBaseUrl } from './api'
 
 export const AuthService = {
   async login(username: string, password: string): Promise<User> {
-    const response = await fetch(`${API_BASE_URL}/auth/login/`, {
+    const response = await fetch(`${await getApiBaseUrl()}/auth/login/`, {
       method: 'POST',
       headers: getApiHeaders(),
       credentials: 'include',
@@ -25,7 +25,7 @@ export const AuthService = {
   },
 
   async logout(): Promise<void> {
-    await fetch(`${API_BASE_URL}/auth/logout/`, {
+    await fetch(`${await getApiBaseUrl()}/auth/logout/`, {
       method: 'POST',
       headers: getCsrfHeaders(),
       credentials: 'include',
@@ -34,7 +34,7 @@ export const AuthService = {
 
   async getCurrentUser(): Promise<User | null> {
     try {
-      const response = await fetch(`${API_BASE_URL}/auth/me/`, {
+      const response = await fetch(`${await getApiBaseUrl()}/auth/me/`, {
         credentials: 'include',
       })
 

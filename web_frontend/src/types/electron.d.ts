@@ -90,6 +90,7 @@ interface ElectronAPI {
     isClusterMode: () => Promise<boolean>
     getNodeInfo: () => Promise<{ nodeId: string; apiPort: number }>
     getMasterInfo: () => Promise<{ masterIp: string | null; masterUrl: string | null }>
+    getApiUrl: () => Promise<string>
     getStatus: () => Promise<ClusterStatus | null>
     getPeers: () => Promise<PeerInfo[]>
     startUdp: (config: ClusterConfig) => Promise<boolean>

@@ -112,6 +112,7 @@ const api = {
       ipcRenderer.invoke('cluster:get-node-info'),
     getMasterInfo: (): Promise<{ masterIp: string | null; masterUrl: string | null }> =>
       ipcRenderer.invoke('cluster:get-master-info'),
+    getApiUrl: (): Promise<string> => ipcRenderer.invoke('cluster:get-api-url'),
     getStatus: (): Promise<ClusterStatus | null> => ipcRenderer.invoke('cluster:get-status'),
     getPeers: (): Promise<PeerInfo[]> => ipcRenderer.invoke('cluster:get-peers'),
     startUdp: (config: ClusterConfig): Promise<boolean> =>

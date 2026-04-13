@@ -56,6 +56,9 @@ CSRF_TRUSTED_ORIGINS = [
     "http://127.0.0.1",
 ]
 
+SESSION_COOKIE_SAMESITE = None
+CSRF_COOKIE_SAMESITE = None
+
 REST_FRAMEWORK["DEFAULT_PERMISSION_CLASSES"] = [  # noqa: F405
     "rest_framework.permissions.AllowAny",
 ]
