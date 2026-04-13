@@ -1,4 +1,5 @@
 import { isElectron } from '@/utils/platform'
+import { getToken } from './authStorage'
 
 let apiUrlCache: string | null = null
 
@@ -20,7 +21,18 @@ export async function getApiBaseUrl(): Promise<string> {
 
   const envUrl = (import.meta.env.VITE_API_BASE_URL as string) || '/api'
   apiUrlCache = envUrl
-  return apiUrlCache
+  return envUrl
+}
+
+export async function getAuthHeaders(): Promise<Record<string, string>> {
+  const headers: Record<string, string> = {
+    'Content-Type': 'application/json',
+  }
+  const token = getToken()
+  if (token) {
+    headers['Authorization'] = `Bearer ${token}`
+  }
+  return headers
 }
 
 export const API_BASE_URL = '/api'
