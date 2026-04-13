@@ -1,7 +1,7 @@
 from rest_framework import viewsets, permissions, status
 from rest_framework.decorators import action
 from rest_framework.response import Response
-from django.contrib.auth import authenticate, login, logout
+from django.contrib.auth import authenticate
 
 from backend.apps.fencing_organizer.permissions import IsAdmin
 from .models import User
@@ -23,14 +23,12 @@ class AuthViewSet(viewsets.GenericViewSet):
 
         user = authenticate(request, username=username, password=password)
         if user:
-            login(request, user)
-            return Response({"user": UserSerializer(user).data})
+            token = user.get_token()
+            return Response({"user": UserSerializer(user).data, "token": token})
         return Response({"error": "Invalid credentials"}, status=status.HTTP_401_UNAUTHORIZED)
 
     @action(detail=False, methods=["post"])
     def logout(self, request):
-        logout(request)
-        request.session.flush()
         return Response({"success": True})
 
     @action(detail=False, methods=["get"])

@@ -29,3 +29,9 @@ class User(AbstractUser):
     @property
     def is_guest(self):
         return self.role == self.Role.GUEST
+
+    def get_token(self) -> str:
+        """Generate JWT token for this user."""
+        from .jwt_auth import create_token
+
+        return create_token(self)
