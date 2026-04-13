@@ -92,7 +92,7 @@ REST_FRAMEWORK = {
     ],
     "DEFAULT_AUTHENTICATION_CLASSES": [
         "backend.apps.cluster.authentication.ClusterProxyAuthentication",
-        "backend.apps.fencing_organizer.authentication.CsrfExemptSessionAuthentication",
+        "backend.apps.fencing_organizer.authentication.JWTAuthentication",
         "rest_framework.authentication.BasicAuthentication",
     ],
     "DEFAULT_FILTER_BACKENDS": [
@@ -117,6 +117,8 @@ REST_FRAMEWORK = {
         "rest_framework.renderers.JSONRenderer",
     ],
 }
+
+JWT_EXPIRATION_DAYS = 7
 
 CORS_ALLOW_CREDENTIALS = True
 
