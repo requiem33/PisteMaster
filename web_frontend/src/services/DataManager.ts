@@ -1,17 +1,9 @@
 import {IndexedDBService} from './storage/IndexedDBService';
 import {ElMessage} from 'element-plus';
-import {getCsrfToken} from '@/utils/csrf.ts';
-import {getApiBaseUrl} from './api';
+import {getApiBaseUrl, getAuthHeaders} from './api';
 
-function getHeaders(): Record<string, string> {
-    const headers: Record<string, string> = {
-        'Content-Type': 'application/json',
-    };
-    const csrfToken = getCsrfToken();
-    if (csrfToken) {
-        headers['X-CSRFToken'] = csrfToken;
-    }
-    return headers;
+async function getHeaders(): Promise<Record<string, string>> {
+    return getAuthHeaders()
 }
 
 export const DataManager = {
@@ -43,7 +35,7 @@ export const DataManager = {
 
             const response = await fetch(`${await getApiBaseUrl()}/tournaments/`, {
                 method: 'POST',
-                headers: getHeaders(),
+                headers: await getHeaders(),
                 credentials: 'include',
                 body: JSON.stringify(payload),
             });
@@ -103,7 +95,7 @@ export const DataManager = {
 
             const response = await fetch(`${await getApiBaseUrl()}/tournaments/${formData.id}/`, {
                 method: 'PUT',
-                headers: getHeaders(),
+                headers: await getHeaders(),
                 credentials: 'include',
                 body: JSON.stringify(payload),
             });
@@ -119,7 +111,7 @@ export const DataManager = {
         try {
             const response = await fetch(`${await getApiBaseUrl()}/tournaments/${tournamentId}/`, {
                 method: 'DELETE',
-                headers: getHeaders(),
+                headers: await getHeaders(),
                 credentials: 'include',
             });
             if (!response.ok) {throw new Error('Failed to delete tournament');}
@@ -163,7 +155,7 @@ export const DataManager = {
 
             const response = await fetch(`${await getApiBaseUrl()}/events/`, {
                 method: 'POST',
-                headers: getHeaders(),
+                headers: await getHeaders(),
                 credentials: 'include',
                 body: JSON.stringify(payload),
             });
@@ -222,7 +214,7 @@ export const DataManager = {
         try {
             const response = await fetch(`${await getApiBaseUrl()}/events/${eventId}/`, {
                 method: 'PATCH',
-                headers: getHeaders(),
+                headers: await getHeaders(),
                 credentials: 'include',
                 body: JSON.stringify(eventData),
             });
@@ -242,7 +234,7 @@ export const DataManager = {
         try {
             const response = await fetch(`${await getApiBaseUrl()}/events/${eventId}/`, {
                 method: 'DELETE',
-                headers: getHeaders(),
+                headers: await getHeaders(),
                 credentials: 'include',
             });
             if (!response.ok) {throw new Error('Failed to delete event');}
@@ -265,7 +257,7 @@ export const DataManager = {
         try {
             const response = await fetch(`${await getApiBaseUrl()}/fencers/bulk-save/`, {
                 method: 'POST',
-                headers: getHeaders(),
+                headers: await getHeaders(),
                 credentials: 'include',
                 body: JSON.stringify(fencerList),
             });
@@ -295,7 +287,7 @@ export const DataManager = {
         try {
             const response = await fetch(`${await getApiBaseUrl()}/events/${eventId}/participants/sync/`, {
                 method: 'PUT',
-                headers: getHeaders(),
+                headers: await getHeaders(),
                 credentials: 'include',
                 body: JSON.stringify({ fencer_ids: currentFencerIds }),
             });
@@ -368,7 +360,7 @@ export const DataManager = {
 
             const response = await fetch(`${await getApiBaseUrl()}/events/${eventId}/live-ranking/`, {
                 method: 'PUT',
-                headers: getHeaders(),
+                headers: await getHeaders(),
                 credentials: 'include',
                 body: JSON.stringify({ live_ranking: liveRanking }),
             });
@@ -507,7 +499,7 @@ export const DataManager = {
 
             const response = await fetch(`${await getApiBaseUrl()}/events/${eventId}/stages/${stageId}/pools/`, {
                 method: 'POST',
-                headers: getHeaders(),
+                headers: await getHeaders(),
                 credentials: 'include',
                 body: JSON.stringify(formattedPools),
             });
@@ -587,7 +579,7 @@ export const DataManager = {
 
             const response = await fetch(`${await getApiBaseUrl()}/pools/${poolId}/results/`, {
                 method: 'PATCH',
-                headers: getHeaders(),
+                headers: await getHeaders(),
                 credentials: 'include',
                 body: JSON.stringify(payload),
             });
@@ -683,7 +675,7 @@ export const DataManager = {
         try {
             const response = await fetch(`${await getApiBaseUrl()}/events/${eventId}/stages/${stageId}/detree/`, {
                 method: 'PUT',
-                headers: getHeaders(),
+                headers: await getHeaders(),
                 credentials: 'include',
                 body: JSON.stringify({ tree_data: bracketData }),
             });
