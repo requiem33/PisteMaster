@@ -62,7 +62,9 @@ export const DataManager = {
 
     async getTournamentList(): Promise<any[]> {
         try {
-            const response = await fetch(`${await getApiBaseUrl()}/tournaments/`);
+            const response = await fetch(`${await getApiBaseUrl()}/tournaments/`, {
+                headers: await getHeaders(),
+            });
             if (!response.ok) {throw new Error('Failed to fetch tournaments');}
             const data = await response.json();
             return data.results || data;
@@ -74,7 +76,9 @@ export const DataManager = {
 
     async getTournamentById(id: string): Promise<any | null> {
         try {
-            const response = await fetch(`${await getApiBaseUrl()}/tournaments/${id}/`);
+            const response = await fetch(`${await getApiBaseUrl()}/tournaments/${id}/`, {
+                headers: await getHeaders(),
+            });
             if (!response.ok) {throw new Error('Failed to fetch tournament');}
             return await response.json();
         } catch (error) {
@@ -177,7 +181,9 @@ export const DataManager = {
 
     async fetchRules(): Promise<any[]> {
         try {
-            const response = await fetch(`${await getApiBaseUrl()}/rules/`);
+            const response = await fetch(`${await getApiBaseUrl()}/rules/`, {
+                headers: await getHeaders(),
+            });
             if (!response.ok) {throw new Error('Failed to fetch rules');}
             const data = await response.json();
             return data.results || data;
@@ -189,7 +195,9 @@ export const DataManager = {
 
     async getEventsByTournamentId(tournamentId: string): Promise<any[]> {
         try {
-            const response = await fetch(`${await getApiBaseUrl()}/events/?tournament=${tournamentId}`);
+            const response = await fetch(`${await getApiBaseUrl()}/events/?tournament=${tournamentId}`, {
+                headers: await getHeaders(),
+            });
             if (!response.ok) {throw new Error('Failed to fetch events');}
             const data = await response.json();
             return data.results || data;
@@ -201,7 +209,9 @@ export const DataManager = {
 
     async getEventById(eventId: string) {
         try {
-            const response = await fetch(`${await getApiBaseUrl()}/events/${eventId}/`);
+            const response = await fetch(`${await getApiBaseUrl()}/events/${eventId}/`, {
+                headers: await getHeaders(),
+            });
             if (!response.ok) {throw new Error('Failed to fetch event');}
             return await response.json();
         } catch (error) {
@@ -316,7 +326,9 @@ export const DataManager = {
 
     async getFencersByEvent(eventId: string) {
         try {
-            const response = await fetch(`${await getApiBaseUrl()}/events/${eventId}/participants/`);
+            const response = await fetch(`${await getApiBaseUrl()}/events/${eventId}/participants/`, {
+                headers: await getHeaders(),
+            });
             if (!response.ok) {throw new Error('Failed to fetch event participants');}
             const data = await response.json();
             
@@ -335,7 +347,9 @@ export const DataManager = {
 
     async getFencerById(fencerId: string) {
         try {
-            const response = await fetch(`${await getApiBaseUrl()}/fencers/${fencerId}/`);
+            const response = await fetch(`${await getApiBaseUrl()}/fencers/${fencerId}/`, {
+                headers: await getHeaders(),
+            });
             if (!response.ok) {throw new Error('Failed to fetch fencer');}
             return await response.json();
         } catch (error) {
@@ -525,7 +539,9 @@ export const DataManager = {
 
     async getPoolsByStageId(eventId: string, stageId: string) {
         try {
-            const response = await fetch(`${await getApiBaseUrl()}/events/${eventId}/stages/${stageId}/pools/`);
+            const response = await fetch(`${await getApiBaseUrl()}/events/${eventId}/stages/${stageId}/pools/`, {
+                headers: await getHeaders(),
+            });
             if (!response.ok) {throw new Error('Failed to fetch pools');}
             return await response.json();
         } catch (error) {
@@ -537,7 +553,9 @@ export const DataManager = {
     // Legacy method for compatibility if still needed
     async getPoolsByEvent(eventId: string) {
         try {
-            const response = await fetch(`${await getApiBaseUrl()}/pools/by-event/${eventId}/`);
+            const response = await fetch(`${await getApiBaseUrl()}/pools/by-event/${eventId}/`, {
+                headers: await getHeaders(),
+            });
             if (!response.ok) {throw new Error('Failed to fetch pools by event');}
             return await response.json();
         } catch (error) {
@@ -690,7 +708,9 @@ export const DataManager = {
 
     async getDETree(eventId: string, stageId: string) {
         try {
-            const response = await fetch(`${await getApiBaseUrl()}/events/${eventId}/stages/${stageId}/detree/`);
+            const response = await fetch(`${await getApiBaseUrl()}/events/${eventId}/stages/${stageId}/detree/`, {
+                headers: await getHeaders(),
+            });
             if (!response.ok) {throw new Error('Failed to fetch DE tree');}
             return await response.json();
         } catch (error) {
