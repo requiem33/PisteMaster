@@ -1,4 +1,5 @@
 import type {NetworkStatus} from '@/types/cluster'
+import { getAuthHeaders } from './api'
 
 class NetworkServiceClass {
   private status: NetworkStatus = {
@@ -95,12 +96,18 @@ class NetworkServiceClass {
     retryDelay = 1000
   ): Promise<T> {
     let lastError: Error | null = null
+    let authHeaders: Record<string, string> = { 'Content-Type': 'application/json' }
+    try {
+      authHeaders = await getAuthHeaders()
+    } catch {
+      // Fallback to basic headers if getAuthHeaders fails
+    }
     for (let attempt = 0; attempt < retries; attempt++) {
       try {
         const response = await fetch(url, {
           ...options,
           headers: {
-            'Content-Type': 'application/json',
+            ...authHeaders,
             ...options.headers,
           },
         })

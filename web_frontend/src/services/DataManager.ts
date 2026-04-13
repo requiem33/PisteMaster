@@ -396,7 +396,7 @@ export const DataManager = {
         try {
             const response = await fetch(`${await getApiBaseUrl()}/events/${eventId}/live-ranking/`, {
                 method: 'PUT',
-                headers: { 'Content-Type': 'application/json' },
+                headers: await getHeaders(),
                 body: JSON.stringify({ live_ranking: rankingList }),
             });
 

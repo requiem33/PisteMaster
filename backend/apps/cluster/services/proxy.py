@@ -159,6 +159,18 @@ class MasterProxy:
         user = getattr(request, "user", None)
         if user and user.is_authenticated:
             headers["X-Cluster-User"] = user.username
+        else:
+            auth_header = request.META.get("HTTP_AUTHORIZATION", "")
+            if auth_header.startswith("Bearer "):
+                token = auth_header[7:]
+                try:
+                    from backend.apps.users.jwt_auth import decode_token
+
+                    payload = decode_token(token)
+                    if payload and payload.get("username"):
+                        headers["X-Cluster-User"] = payload["username"]
+                except Exception:
+                    pass
 
         return headers
 

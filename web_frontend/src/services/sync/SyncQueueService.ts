@@ -1,5 +1,6 @@
 import type {PendingOperation} from '@/types/cluster'
 import {IndexedDBService} from '../storage/IndexedDBService'
+import { getAuthHeaders } from '../api'
 
 const MAX_RETRIES = 5
 const RETRY_DELAYS = [1000, 2000, 5000, 10000, 30000]
@@ -82,10 +83,11 @@ class SyncQueueServiceClass {
     }
     const url = `${this.masterUrl}/api/${op.table}`
     const baseUrl = op.operation === 'INSERT' ? url : `${url}/${op.data.id}`
+    const authHeaders = await getAuthHeaders()
     const options: RequestInit = {
       method: op.operation === 'INSERT' ? 'POST' : op.operation === 'UPDATE' ? 'PUT' : 'DELETE',
       headers: {
-        'Content-Type': 'application/json',
+        ...authHeaders,
       },
     }
     if (op.operation !== 'DELETE') {

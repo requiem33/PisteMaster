@@ -156,6 +156,10 @@ class SyncWriteMiddleware(MiddlewareMixin):
                 if key.startswith("HTTP_") and key != "HTTP_HOST":
                     headers[key[5:].replace("_", "-")] = value
 
+            user = getattr(request, "user", None)
+            if user and user.is_authenticated:
+                headers["X-Cluster-User"] = user.username
+
             body = request.body
 
             response = requests.request(

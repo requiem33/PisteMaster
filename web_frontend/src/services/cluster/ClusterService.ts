@@ -1,7 +1,7 @@
 import type {ClusterStatus, ClusterNode} from '@/types/cluster'
 import {NetworkService} from '../NetworkService'
 import { isElectron } from '@/utils/platform'
-import { getApiBaseUrl } from '../api'
+import { getApiBaseUrl, getAuthHeaders } from '../api'
 
 export interface ClusterConfig {
   mode: 'single' | 'cluster'
@@ -153,7 +153,8 @@ class ClusterServiceClass {
 
   async healthCheck(): Promise<boolean> {
     try {
-      const response = await fetch(`${await getApiBaseUrl()}/cluster/status/health/`)
+      const headers = await getAuthHeaders()
+      const response = await fetch(`${await getApiBaseUrl()}/cluster/status/health/`, { headers })
       return response.ok
     } catch {
       return false
