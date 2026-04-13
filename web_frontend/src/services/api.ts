@@ -1,9 +1,5 @@
 import { isElectron } from '@/utils/platform'
 
-interface ElectronWithApiUrl {
-  getApiUrl: () => Promise<string>
-}
-
 let apiUrlCache: string | null = null
 
 export async function getApiBaseUrl(): Promise<string> {
@@ -13,8 +9,8 @@ export async function getApiBaseUrl(): Promise<string> {
 
   if (isElectron()) {
     try {
-      const electron = window.electron as unknown as ElectronWithApiUrl
-      const url = await electron.getApiUrl()
+      const electron = window.electron as unknown as { cluster: { getApiUrl: () => Promise<string> } }
+      const url = await electron.cluster.getApiUrl()
       apiUrlCache = url
       return url
     } catch (_error) {
