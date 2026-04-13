@@ -54,15 +54,8 @@ CORS_ALLOWED_ORIGINS = [
 CSRF_TRUSTED_ORIGINS = [
     "http://localhost",
     "http://127.0.0.1",
-    "file://",
 ]
 
 REST_FRAMEWORK["DEFAULT_PERMISSION_CLASSES"] = [  # noqa: F405
     "rest_framework.permissions.AllowAny",
 ]
-
-# Cookie settings for Electron desktop app
-CSRF_COOKIE_SAMESITE = "None"
-CSRF_COOKIE_SECURE = False
-SESSION_COOKIE_SAMESITE = "None"
-SESSION_COOKIE_SECURE = False

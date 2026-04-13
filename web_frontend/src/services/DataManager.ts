@@ -2,18 +2,7 @@ import {IndexedDBService} from './storage/IndexedDBService';
 import {ElMessage} from 'element-plus';
 import {getCsrfToken} from '@/utils/csrf.ts';
 
-function getApiBaseUrl(): string {
-  // 在 Electron 桌面环境中，使用绝对 URL 到本地 Django 服务器
-  if (typeof window !== 'undefined' && window.location.protocol === 'file:') {
-    return 'http://127.0.0.1:8000/api'
-  }
-  
-  // 在生产环境中使用环境变量，否则使用相对路径
-  const baseUrl = import.meta.env.VITE_API_BASE_URL
-  return baseUrl || '/api'
-}
-
-const API_BASE_URL = getApiBaseUrl();
+const API_BASE_URL = (import.meta.env.VITE_API_BASE_URL as string) || '/api';
 
 function getHeaders(): Record<string, string> {
     const headers: Record<string, string> = {

@@ -41,12 +41,12 @@ if [ -z "$VENV_PATH" ]; then
 fi
 
 # 使用虚拟环境执行
-"$VENV_PATH/bin/flake8" backend/ core/ tests/ --exclude=venv,migrations,__pycache__,dist,dist.old,venv_build || {
+"$VENV_PATH/bin/flake8" backend/ core/ tests/ --exclude=venv,migrations,__pycache__,dist || {
     echo "❌ Flake8 failed!"
     exit 1
 }
 
-"$VENV_PATH/bin/black" backend/ core/ tests/ --exclude="venv|migrations|dist|dist.old|venv_build" --check || {
+"$VENV_PATH/bin/black" backend/ core/ tests/ --exclude="venv|migrations|dist" --check || {
     echo "❌ Black check failed!"
     exit 1
 }
