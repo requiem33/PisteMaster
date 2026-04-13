@@ -1,13 +1,14 @@
 import type { User } from '@/types/user'
-import { getApiHeaders, getCsrfHeaders } from '@/utils/csrf'
 import { getApiBaseUrl } from './api'
+import { getToken, setToken, removeToken } from './authStorage'
 
 export const AuthService = {
   async login(username: string, password: string): Promise<User> {
     const response = await fetch(`${await getApiBaseUrl()}/auth/login/`, {
       method: 'POST',
-      headers: getApiHeaders(),
-      credentials: 'include',
+      headers: {
+        'Content-Type': 'application/json',
+      },
       body: JSON.stringify({ username, password }),
     })
 
@@ -17,6 +18,9 @@ export const AuthService = {
     }
 
     const data = await response.json()
+    if (data.token) {
+      setToken(data.token)
+    }
     return data.user
   },
 
@@ -25,27 +29,36 @@ export const AuthService = {
   },
 
   async logout(): Promise<void> {
-    await fetch(`${await getApiBaseUrl()}/auth/logout/`, {
-      method: 'POST',
-      headers: getCsrfHeaders(),
-      credentials: 'include',
-    })
+    removeToken()
   },
 
   async getCurrentUser(): Promise<User | null> {
+    const token = getToken()
+    if (!token) {
+      return null
+    }
+
     try {
       const response = await fetch(`${await getApiBaseUrl()}/auth/me/`, {
-        credentials: 'include',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+        },
       })
 
       if (!response.ok) {
+        removeToken()
         return null
       }
 
       const data = await response.json()
       return data.user
     } catch {
+      removeToken()
       return null
     }
+  },
+
+  getToken(): string | null {
+    return getToken()
   },
 }
