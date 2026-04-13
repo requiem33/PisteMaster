@@ -1,6 +1,7 @@
 import type {ClusterStatus, ClusterNode} from '@/types/cluster'
 import {NetworkService} from '../NetworkService'
 import { isElectron } from '@/utils/platform'
+import { API_BASE_URL } from '../api'
 
 export interface ClusterConfig {
   mode: 'single' | 'cluster'
@@ -92,7 +93,7 @@ class ClusterServiceClass {
   private async fetchClusterStatus(): Promise<ClusterStatus | null> {
     try {
       const response = await NetworkService.fetchWithRetry<ClusterStatus>(
-        '/api/cluster/status/',
+        `${API_BASE_URL}/cluster/status/`,
         {},
         2,
         500
@@ -139,7 +140,7 @@ class ClusterServiceClass {
   async getPeers(): Promise<ClusterNode[]> {
     try {
       const response = await NetworkService.fetchWithRetry<{peers: ClusterNode[]; count: number}>(
-        '/api/cluster/status/peers/',
+        `${API_BASE_URL}/cluster/status/peers/`,
         {},
         2,
         500
@@ -152,7 +153,7 @@ class ClusterServiceClass {
 
   async healthCheck(): Promise<boolean> {
     try {
-      const response = await fetch('/api/cluster/status/health/')
+      const response = await fetch(`${API_BASE_URL}/cluster/status/health/`)
       return response.ok
     } catch {
       return false
@@ -185,7 +186,7 @@ class ClusterServiceClass {
 
       try {
         await NetworkService.fetchWithRetry<{ mode: string }>(
-          '/api/cluster/status/update_config/',
+          `${API_BASE_URL}/cluster/status/update_config/`,
           {
             method: 'PUT',
             headers: {
@@ -228,7 +229,7 @@ class ClusterServiceClass {
 
       try {
         await NetworkService.fetchWithRetry<{ mode: string }>(
-          '/api/cluster/status/update_config/',
+          `${API_BASE_URL}/cluster/status/update_config/`,
           {
             method: 'PUT',
             headers: {
@@ -304,8 +305,8 @@ class ClusterServiceClass {
   }
 
   async applyChanges(changes: unknown[]): Promise<{success: number; failed: number; skipped: number}> {
-    const response = await NetworkService.fetchWithRetry<{success: number; failed: number; skipped: number}>(
-      '/api/cluster/sync/apply/',
+      const response = await NetworkService.fetchWithRetry<{success: number; failed: number; skipped: number}>(
+        `${API_BASE_URL}/cluster/sync/apply/`,
       {
         method: 'POST',
         body: JSON.stringify({changes}),
