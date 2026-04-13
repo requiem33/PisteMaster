@@ -137,7 +137,7 @@ export function setupClusterIpcHandlers(_ipcMain: IpcMain): void {
 
   ipcMain.handle('cluster:get-api-url', (): string => {
     const config = loadClusterConfig()
-    return `http://localhost:${config.apiPort}`
+    return `http://localhost:${config.apiPort}/api`
   })
 
   ipcMain.handle('cluster:get-status', async (): Promise<ClusterStatus | null> => {
