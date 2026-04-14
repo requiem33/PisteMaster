@@ -9,6 +9,55 @@
 
 ---
 
+## 🗓️ 2026-04-14
+
+### 已完成事项
+
+* **修复Electron桌面版Settings页面挂起问题**: 修复首次点击Settings页面时页面挂起仅显示标题的问题
+    - **根本原因**: Electron IPC调用（`cluster:get-config`、`cluster:get-status`）和后端fetch（`/api/cluster/status/`）没有超时机制，导致`loadConfig()`永远不resolve；`NetworkService`延迟检查使用`window.location.origin`在生产环境Electron中解析为`file://`导致`ERR_FILE_NOT_FOUND`错误；`syncStore.initialize()`未在启动时调用，集群状态未预热
+    - **修复1**: `desktop/src/main/ipc/cluster-handlers.ts` - `fetchClusterStatusFromBackend()`添加5秒AbortController超时，防止Node.js fetch无限挂起
+    - **修复2**: `web_frontend/src/services/cluster/ClusterService.ts` - 添加`ipcWithTimeout()`包装器（默认10秒），所有Electron IPC调用通过Promise.race实现超时返回null
+    - **修复3**: `web_frontend/src/views/Settings.vue` - 添加15秒安全超时和`loadError`状态，页面卡住时显示错误+重试按钮而非永久骨架屏；添加`onUnmounted`清理定时器
+    - **修复4**: `web_frontend/src/services/NetworkService.ts` - 延迟检查URL从`window.location.origin + '/api/cluster/health'`改为`getApiBaseUrl()`，修复生产环境Electron的`ERR_FILE_NOT_FOUND`错误
+    - **修复5**: `web_frontend/src/App.vue` - 在Electron模式下App mount时调用`syncStore.initialize()`，在用户访问Settings前预热集群服务并缓存API URL
+    - 添加详细调试日志（`[ClusterService]`、`[SyncStore]`、`[Settings]`、`[NetworkService]`、`[Cluster IPC]`）便于未来问题排查
+
+### 技术决策 & 挑战
+
+* 超时设计：主进程fetch使用AbortController（5秒），渲染进程IPC使用Promise.race（10秒），页面加载安全超时（15秒），三重保护确保无操作永久挂起
+* API URL缓存问题：`getApiBaseUrl()`首次调用时若Electron IPC未就绪会缓存错误值。启动时预热syncStore可确保API URL在Settings加载前已正确缓存
+* 生产环境Electron路径解析：`window.location.origin`在Electron file://协议下返回`file://`，必须使用`getApiBaseUrl()`获取正确的HTTP URL
+
+### 发现的问题
+
+* 无。
+
+---
+
+## 🗓️ 2026-04-13
+
+### 已完成事项
+
+* **JWT认证体系完善**: 实现完整的JWT Token认证支持
+    - 后端添加`JWTAuthentication`类和`CustomTokenAuthentication`支持JWT Token认证
+    - 前端`authStorage.ts`实现Token存储（localStorage）、获取、移除
+    - `getAuthHeaders()`工具函数统一管理Authorization header
+    - `authService.ts`更新为使用JWT token，login返回token并存储
+    - `DataManager.ts`所有请求（POST/PUT/PATCH/DELETE）添加Authorization header
+    - GET方法也添加auth headers（修复丢失的Authorization头）
+    - `ClusterService`更新为使用`getAuthHeaders()`进行API调用
+
+### 技术决策 & 挑战
+
+* Token存储策略：使用localStorage存储JWT，每次请求通过`getAuthHeaders()`自动附加到header
+* 认证流程：后端登录返回token，前端存储后用于后续所有API请求
+
+### 发现的问题
+
+* 无。
+
+---
+
 ## 🗓️ 2026-04-12
 
 ### 已完成事项
