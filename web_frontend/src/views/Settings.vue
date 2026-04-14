@@ -15,6 +15,14 @@
 
         <el-skeleton v-if="isLoading" :rows="5" animated />
 
+        <div v-else-if="loadError" class="load-error">
+          <el-result icon="error" :title="$t('cluster.loadConfigFailed')">
+            <template #extra>
+              <el-button type="primary" @click="loadConfig">{{ $t('cluster.retry') }}</el-button>
+            </template>
+          </el-result>
+        </div>
+
         <template v-else>
           <div class="section">
             <h3>{{ $t('cluster.clusterSettings') }}</h3>
@@ -212,7 +220,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted } from 'vue'
+import { ref, computed, onMounted, onUnmounted } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { ElMessage } from 'element-plus'
 import AppHeader from '@/components/layout/AppHeader.vue'
@@ -226,6 +234,7 @@ const authStore = useAuthStore()
 const syncStore = useSyncStore()
 
 const isLoading = ref(true)
+const loadError = ref(false)
 const isSaving = ref(false)
 const showConfirmDialog = ref(false)
 const showResetDialog = ref(false)
@@ -296,20 +305,54 @@ const hasChanges = computed(() => {
 
 async function loadConfig(): Promise<void> {
   isLoading.value = true
+  loadError.value = false
+  console.log('[Settings] loadConfig: starting')
   try {
     const config = await ClusterService.getConfig()
     if (config) {
+      console.log('[Settings] loadConfig: got config, mode:', config.mode)
       localConfig.value = { ...config }
       originalConfig.value = { ...config }
+    } else {
+      console.warn('[Settings] loadConfig: getConfig returned null')
     }
+    console.log('[Settings] loadConfig: refreshing cluster status')
     await syncStore.refreshStatus()
+    console.log('[Settings] loadConfig: complete')
   } catch (error) {
-    console.error('Failed to load config:', error)
+    console.error('[Settings] Failed to load config:', error)
+    loadError.value = true
     ElMessage.error(t('cluster.loadConfigFailed'))
   } finally {
     isLoading.value = false
   }
 }
+
+let loadingTimeoutId: ReturnType<typeof setTimeout> | null = null
+
+onMounted(() => {
+  console.log('[Settings] onMounted: isElectron =', isElectron(), 'isAdmin =', authStore.isAdmin, 'isScheduler =', authStore.isScheduler)
+  if (!canEdit.value) {
+    ElMessage.warning(t('cluster.permissionDenied'))
+  }
+  loadConfig()
+
+  // Safety timeout: if loading takes more than 15 seconds, show error state
+  loadingTimeoutId = setTimeout(() => {
+    if (isLoading.value) {
+      console.error('[Settings] Loading timed out after 15s, forcing loadError state')
+      isLoading.value = false
+      loadError.value = true
+    }
+  }, 15000)
+})
+
+onUnmounted(() => {
+  if (loadingTimeoutId) {
+    clearTimeout(loadingTimeoutId)
+    loadingTimeoutId = null
+  }
+})
 
 function handleModeChange(newMode: 'single' | 'cluster'): void {
   if (newMode === originalConfig.value?.mode) {
@@ -400,13 +443,6 @@ async function handleSave(): Promise<void> {
     isSaving.value = false
   }
 }
-
-onMounted(() => {
-  if (!canEdit.value) {
-    ElMessage.warning(t('cluster.permissionDenied'))
-  }
-  loadConfig()
-})
 </script>
 
 <style scoped lang="scss">
@@ -434,6 +470,11 @@ onMounted(() => {
       font-size: 1.5rem;
     }
   }
+}
+
+.load-error {
+  padding: 40px 0;
+  text-align: center;
 }
 
 .section {

@@ -48,10 +48,12 @@ export const useSyncStore = defineStore('sync', () => {
 
   async function refreshStatus(): Promise<void> {
     try {
+      console.log('[SyncStore] refreshStatus: calling ClusterService.getClusterStatus()')
       const status = await ClusterService.getClusterStatus()
+      console.log('[SyncStore] refreshStatus: got status:', status ? `mode=${status.mode}` : 'null')
       clusterStatus.value = status
     } catch (error) {
-      console.error('Failed to refresh cluster status:', error)
+      console.error('[SyncStore] Failed to refresh cluster status:', error)
     }
   }
 

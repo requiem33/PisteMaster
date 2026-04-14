@@ -105,4 +105,5 @@ export default {
     settingsReset: 'Settings reset to defaults',
     resetFailed: 'Failed to reset settings',
     loadConfigFailed: 'Failed to load cluster configuration',
+    retry: 'Retry',
 }

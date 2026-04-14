@@ -105,4 +105,5 @@ export default {
     settingsReset: '设置已恢复为默认值',
     resetFailed: '重置设置失败',
     loadConfigFailed: '加载集群配置失败',
+    retry: '重试',
 }

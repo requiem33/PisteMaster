@@ -1,5 +1,5 @@
 import type {NetworkStatus} from '@/types/cluster'
-import { getAuthHeaders } from './api'
+import { getApiBaseUrl, getAuthHeaders } from './api'
 
 class NetworkServiceClass {
   private status: NetworkStatus = {
@@ -53,6 +53,7 @@ class NetworkServiceClass {
   async checkLatency(url: string): Promise<number> {
     const start = performance.now()
     try {
+      console.log(`[NetworkService] checkLatency: ${url}`)
       const response = await fetch(url, {
         method: 'HEAD',
         cache: 'no-cache',
@@ -61,9 +62,12 @@ class NetworkServiceClass {
         const latency = performance.now() - start
         this.status.latency = latency
         this.notifyListeners()
+        console.log(`[NetworkService] checkLatency: ${latency.toFixed(0)}ms`)
         return latency
       }
-    } catch {
+      console.warn(`[NetworkService] checkLatency: HTTP ${response.status}`)
+    } catch (error) {
+      console.error('[NetworkService] checkLatency failed:', error)
       this.status.latency = null
     }
     return -1
@@ -73,11 +77,16 @@ class NetworkServiceClass {
     if (this.latencyCheckInterval) {
       clearInterval(this.latencyCheckInterval)
     }
-    this.latencyCheckInterval = setInterval(() => {
+    this.latencyCheckInterval = setInterval(async () => {
       if (this.status.isOnline) {
-        this.checkLatency(window.location.origin + '/api/cluster/health').catch(() => {
+        try {
+          const baseUrl = await getApiBaseUrl()
+          this.checkLatency(`${baseUrl}/cluster/health`).catch(() => {
+            this.status.latency = null
+          })
+        } catch {
           this.status.latency = null
-        })
+        }
       }
     }, 30000)
   }

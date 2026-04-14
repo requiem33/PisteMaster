@@ -56,28 +56,47 @@ interface BackendClusterStatus {
 async function fetchClusterStatusFromBackend(): Promise<ClusterStatus | null> {
   try {
     const config = loadClusterConfig()
-    const response = await fetch(`http://127.0.0.1:${config.apiPort}/api/cluster/status/`)
-    if (!response.ok) return null
-    const data = await response.json() as BackendClusterStatus
-    clusterState.isMaster = data.isMaster
-    clusterState.masterUrl = data.masterUrl
-    return {
-      mode: data.mode,
-      nodeId: data.nodeId,
-      isMaster: data.isMaster,
-      masterUrl: data.masterUrl,
-      peers: data.peers || [],
-      syncLag: data.syncLag || 0,
-      lastHeartbeat: clusterState.lastHeartbeat,
-      isRunning: udpBroadcastService.isActive(),
+    const controller = new AbortController()
+    const timeoutId = setTimeout(() => controller.abort(), 5000)
+    try {
+      console.log(`[Cluster] Fetching status from http://127.0.0.1:${config.apiPort}/api/cluster/status/`)
+      const response = await fetch(`http://127.0.0.1:${config.apiPort}/api/cluster/status/`, {
+        signal: controller.signal,
+      })
+      if (!response.ok) {
+        console.warn(`[Cluster] Backend status returned ${response.status}`)
+        return null
+      }
+      const data = await response.json() as BackendClusterStatus
+      console.log(`[Cluster] Backend status received: mode=${data.mode}, isMaster=${data.isMaster}`)
+      clusterState.isMaster = data.isMaster
+      clusterState.masterUrl = data.masterUrl
+      return {
+        mode: data.mode,
+        nodeId: data.nodeId,
+        isMaster: data.isMaster,
+        masterUrl: data.masterUrl,
+        peers: data.peers || [],
+        syncLag: data.syncLag || 0,
+        lastHeartbeat: clusterState.lastHeartbeat,
+        isRunning: udpBroadcastService.isActive(),
+      }
+    } finally {
+      clearTimeout(timeoutId)
     }
-  } catch {
+  } catch (error) {
+    if (error instanceof DOMException && error.name === 'AbortError') {
+      console.error('[Cluster] Backend status fetch timed out after 5s')
+    } else {
+      console.error('[Cluster] Backend status fetch failed:', error)
+    }
     return null
   }
 }
 
 export function setupClusterIpcHandlers(_ipcMain: IpcMain): void {
   ipcMain.handle('cluster:get-config', (): ClusterConfig => {
+    console.log('[Cluster IPC] cluster:get-config called')
     return loadClusterConfig()
   })
 
@@ -141,6 +160,7 @@ export function setupClusterIpcHandlers(_ipcMain: IpcMain): void {
   })
 
   ipcMain.handle('cluster:get-status', async (): Promise<ClusterStatus | null> => {
+    console.log('[Cluster IPC] cluster:get-status called')
     const config = loadClusterConfig()
     const backendStatus = await fetchClusterStatusFromBackend()
     
@@ -157,9 +177,11 @@ export function setupClusterIpcHandlers(_ipcMain: IpcMain): void {
       }
       
       backendStatus.peers = allPeers
+      console.log(`[Cluster IPC] Returning backend status with ${allPeers.length} peers`)
       return backendStatus
     }
 
+    console.log('[Cluster IPC] Backend status unavailable, returning fallback status')
     return {
       mode: config.mode,
       nodeId: config.nodeId,

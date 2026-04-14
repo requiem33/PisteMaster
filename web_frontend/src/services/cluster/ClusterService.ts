@@ -24,19 +24,38 @@ class ClusterServiceClass {
   private onMasterChangeCallbacks: Set<(newMasterUrl: string | null) => void> = new Set()
   private syncInterval: ReturnType<typeof setInterval> | null = null
 
+  private ipcTimeoutMs = 10000
+
+  private async ipcWithTimeout<T>(call: () => Promise<T>, timeoutMs?: number): Promise<T | null> {
+    const ms = timeoutMs ?? this.ipcTimeoutMs
+    return Promise.race([
+      call(),
+      new Promise<null>((resolve) =>
+        setTimeout(() => {
+          console.warn(`[ClusterService] IPC call timed out after ${ms}ms`)
+          resolve(null)
+        }, ms),
+      ),
+    ])
+  }
+
   async initialize(): Promise<void> {
+    console.log('[ClusterService] initialize() called')
     this.nodeId = this.getNodeId()
     try {
       const status = await this.fetchClusterStatus()
       if (status) {
+        console.log('[ClusterService] initialize: got status, mode:', status.mode, 'isMaster:', status.isMaster)
         if (status.masterUrl) {
           this.masterUrl = status.masterUrl
         } else if (status.isMaster) {
           this.masterUrl = window.location.origin
         }
+      } else {
+        console.warn('[ClusterService] initialize: failed to fetch cluster status, running in single-node mode')
       }
     } catch {
-      console.warn('Failed to initialize cluster service,running in single-node mode')
+      console.warn('[ClusterService] Failed to initialize cluster service, running in single-node mode')
     }
   }
 
@@ -92,14 +111,19 @@ class ClusterServiceClass {
 
   private async fetchClusterStatus(): Promise<ClusterStatus | null> {
     try {
+      const baseUrl = await getApiBaseUrl()
+      const url = `${baseUrl}/cluster/status/`
+      console.log(`[ClusterService] fetchClusterStatus: ${url}`)
       const response = await NetworkService.fetchWithRetry<ClusterStatus>(
-        `${await getApiBaseUrl()}/cluster/status/`,
+        url,
         {},
         2,
         500
       )
+      console.log('[ClusterService] fetchClusterStatus succeeded:', response?.mode)
       return response
-    } catch {
+    } catch (error) {
+      console.error('[ClusterService] fetchClusterStatus failed:', error)
       return null
     }
   }
@@ -107,8 +131,10 @@ class ClusterServiceClass {
   async getClusterStatus(): Promise<ClusterStatus | null> {
     if (isElectron()) {
       try {
-        const status = await window.electron.cluster.getStatus()
+        console.log('[ClusterService] getClusterStatus: using Electron IPC')
+        const status = await this.ipcWithTimeout(() => window.electron.cluster.getStatus())
         if (status) {
+          console.log('[ClusterService] Electron status received:', status.mode)
           return {
             mode: status.mode,
             isMaster: status.isMaster,
@@ -128,12 +154,14 @@ class ClusterServiceClass {
             })),
           }
         }
+        console.warn('[ClusterService] Electron IPC returned null (timed out or failed)')
         return null
       } catch (error) {
-        console.error('Failed to get cluster status from Electron:', error)
+        console.error('[ClusterService] Failed to get cluster status from Electron:', error)
         return null
       }
     }
+    console.log('[ClusterService] getClusterStatus: using HTTP fetch')
     return this.fetchClusterStatus()
   }
 
@@ -163,27 +191,38 @@ class ClusterServiceClass {
 
   async getConfig(): Promise<ClusterConfig | null> {
     if (!isElectron()) {
-      console.warn('Cluster config is only available in desktop app')
+      console.warn('[ClusterService] getConfig: not in Electron, returning null')
       return null
     }
 
     try {
-      const config = await window.electron.cluster.getConfig()
+      console.log('[ClusterService] getConfig: calling Electron IPC')
+      const config = await this.ipcWithTimeout(() => window.electron.cluster.getConfig())
+      if (config) {
+        console.log('[ClusterService] getConfig succeeded, mode:', config.mode)
+      } else {
+        console.warn('[ClusterService] getConfig returned null (timed out or failed)')
+      }
       return config
     } catch (error) {
-      console.error('Failed to get cluster config:', error)
+      console.error('[ClusterService] Failed to get cluster config:', error)
       return null
     }
   }
 
   async updateConfig(updates: Partial<ClusterConfig>): Promise<ClusterConfig | null> {
     if (!isElectron()) {
-      console.warn('Cluster config can only be updated in desktop app')
+      console.warn('[ClusterService] updateConfig: not in Electron')
       return null
     }
 
     try {
-      const config = await window.electron.cluster.updateConfig(updates)
+      console.log('[ClusterService] updateConfig: calling Electron IPC')
+      const config = await this.ipcWithTimeout(() => window.electron.cluster.updateConfig(updates))
+      if (!config) {
+        console.warn('[ClusterService] updateConfig IPC returned null')
+        return null
+      }
 
       try {
         await NetworkService.fetchWithRetry<{ mode: string }>(
@@ -221,12 +260,17 @@ class ClusterServiceClass {
 
   async resetConfig(): Promise<ClusterConfig | null> {
     if (!isElectron()) {
-      console.warn('Cluster config can only be reset in desktop app')
+      console.warn('[ClusterService] resetConfig: not in Electron')
       return null
     }
 
     try {
-      const config = await window.electron.cluster.resetConfig()
+      console.log('[ClusterService] resetConfig: calling Electron IPC')
+      const config = await this.ipcWithTimeout(() => window.electron.cluster.resetConfig())
+      if (!config) {
+        console.warn('[ClusterService] resetConfig IPC returned null')
+        return null
+      }
 
       try {
         await NetworkService.fetchWithRetry<{ mode: string }>(
@@ -264,12 +308,16 @@ class ClusterServiceClass {
 
   async regenerateNodeId(): Promise<string | null> {
     if (!isElectron()) {
-      console.warn('Node ID can only be regenerated in desktop app')
+      console.warn('[ClusterService] regenerateNodeId: not in Electron')
       return null
     }
 
     try {
-      const nodeId = await window.electron.cluster.regenerateNodeId()
+      console.log('[ClusterService] regenerateNodeId: calling Electron IPC')
+      const nodeId = await this.ipcWithTimeout(() => window.electron.cluster.regenerateNodeId())
+      if (!nodeId) {
+        console.warn('[ClusterService] regenerateNodeId IPC returned null')
+      }
       return nodeId
     } catch (error) {
       console.error('Failed to regenerate node ID:', error)
@@ -279,13 +327,17 @@ class ClusterServiceClass {
 
   async restartUdpService(): Promise<boolean> {
     if (!isElectron()) {
-      console.warn('UDP service can only be restarted in desktop app')
+      console.warn('[ClusterService] restartUdpService: not in Electron')
       return false
     }
 
     try {
-      const success = await window.electron.cluster.restartUdp()
-      return success
+      console.log('[ClusterService] restartUdpService: calling Electron IPC')
+      const success = await this.ipcWithTimeout(() => window.electron.cluster.restartUdp(), 15000)
+      if (!success) {
+        console.warn('[ClusterService] restartUdpService IPC returned null/false')
+      }
+      return success ?? false
     } catch (error) {
       console.error('Failed to restart UDP service:', error)
       return false
