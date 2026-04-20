@@ -38,7 +38,7 @@ services:
     ports:
       - "8000:8000"
     volumes:
-      - static_files:/app/staticfiles
+      - static_files:/app/backend/staticfiles
 
   frontend:
     build:
@@ -46,7 +46,7 @@ services:
       dockerfile: web_frontend/Dockerfile
     container_name: pistemaster-frontend
     volumes:
-      - static_files:/app/staticfiles:ro
+      - static_files:/app/backend/staticfiles:ro
     depends_on:
       - backend
     ports:
