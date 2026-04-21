@@ -1,0 +1,11 @@
+apiVersion: v2
+name: postgres
+description: PostgreSQL database for PisteMaster
+type: application
+version: 0.1.0
+appVersion: "16"
+keywords:
+  - pistemaster
+  - postgresql
+maintainers:
+  - name: PisteMaster Team

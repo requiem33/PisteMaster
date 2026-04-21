@@ -1,0 +1,12 @@
+apiVersion: v2
+name: frontend
+description: PisteMaster Vue.js Frontend
+type: application
+version: 0.1.0
+appVersion: "latest"
+keywords:
+  - pistemaster
+  - vue
+  - frontend
+maintainers:
+  - name: PisteMaster Team

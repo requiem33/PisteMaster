@@ -1,0 +1,23 @@
+image:
+  repository: pistemaster-backend
+  tag: latest
+  pullPolicy: IfNotPresent
+
+replicaCount: 1
+
+service:
+  port: 8000
+
+env:
+  debug: "True"
+  allowedHosts: "localhost,127.0.0.1,172.23.164.197"
+  corsAllowedOrigins: "*"
+  csrfTrustedOrigins: "http://localhost:3000,http://localhost:8080,http://localhost:3001,http://172.23.164.197:8080,http://172.23.164.197:30080"
+
+postgres:
+  host: postgres-postgres
+  port: "5432"
+  database: pistemaster
+  username: pistemaster
+
+resources: {}

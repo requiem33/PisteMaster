@@ -1,0 +1,12 @@
+apiVersion: v2
+name: backend
+description: PisteMaster Django Backend API
+type: application
+version: 0.1.0
+appVersion: "latest"
+keywords:
+  - pistemaster
+  - django
+  - backend
+maintainers:
+  - name: PisteMaster Team
